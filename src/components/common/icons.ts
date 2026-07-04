@@ -18,6 +18,7 @@ export {
   FileCheck,
   FileText,
   Gauge,
+  Info,
   KeyRound,
   LayoutDashboard,
   Link2,

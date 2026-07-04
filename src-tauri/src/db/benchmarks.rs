@@ -5,9 +5,12 @@ use crate::domain::benchmark::validate_benchmark_start;
 use crate::domain::benchmark_sample::StageSample;
 use crate::error::AppError;
 use crate::models::{
-    BenchmarkErrorRecord, BenchmarkStartInput, BenchmarkTaskSummary, MetricsTick,
+    BenchmarkErrorRecord, BenchmarkRequestLogDetail, BenchmarkRequestLogPage,
+    BenchmarkRequestLogPageInput, BenchmarkRequestLogRecord, BenchmarkRequestLogSummary,
+    BenchmarkStartInput, BenchmarkTaskSummary, DeleteResult, MetricsTick,
     ProviderDiagnosticsResult,
 };
+use sqlx::{sqlite::SqliteRow, QueryBuilder, Row, Sqlite};
 use uuid::Uuid;
 
 impl Database {
@@ -225,6 +228,115 @@ impl Database {
         Ok(())
     }
 
+    pub async fn insert_request_log(&self, log: &BenchmarkRequestLogRecord) -> anyhow::Result<()> {
+        sqlx::query(
+            "INSERT INTO benchmark_request_logs
+             (id, task_id, stage_index, request_index, sample_index, status, latency_ms, ttft_ms,
+              input_tokens, output_tokens, total_tokens, error_kind, error_message,
+              prompt_preview, response_preview, body_ref, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+        )
+        .bind(&log.summary.id)
+        .bind(&log.summary.task_id)
+        .bind(log.summary.stage_index)
+        .bind(log.summary.request_index)
+        .bind(log.summary.sample_index)
+        .bind(&log.summary.status)
+        .bind(log.summary.latency_ms)
+        .bind(log.summary.ttft_ms)
+        .bind(log.summary.input_tokens)
+        .bind(log.summary.output_tokens)
+        .bind(log.summary.total_tokens)
+        .bind(&log.summary.error_kind)
+        .bind(&log.raw_error)
+        .bind(&log.summary.prompt_preview)
+        .bind(&log.summary.response_preview)
+        .bind(&log.body_ref)
+        .bind(&log.summary.created_at)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn list_request_logs_page(
+        &self,
+        input: BenchmarkRequestLogPageInput,
+    ) -> anyhow::Result<BenchmarkRequestLogPage> {
+        let input = input.normalized();
+        let offset = (input.page - 1) * input.page_size;
+        let keyword_pattern = input.keyword.as_ref().map(|value| format!("%{value}%"));
+
+        let mut count_builder =
+            QueryBuilder::<Sqlite>::new("SELECT COUNT(*) FROM benchmark_request_logs");
+        push_request_log_filters(&mut count_builder, &input, keyword_pattern.as_deref());
+        let total: i64 = count_builder
+            .build_query_scalar()
+            .fetch_one(&self.pool)
+            .await?;
+
+        let mut rows_builder = QueryBuilder::<Sqlite>::new(
+            "SELECT id, task_id, stage_index, request_index, sample_index, status, latency_ms,
+                    ttft_ms, input_tokens, output_tokens, total_tokens, error_kind,
+                    prompt_preview, response_preview, created_at
+             FROM benchmark_request_logs",
+        );
+        push_request_log_filters(&mut rows_builder, &input, keyword_pattern.as_deref());
+        rows_builder
+            .push(" ORDER BY stage_index ASC, request_index ASC LIMIT ")
+            .push_bind(input.page_size)
+            .push(" OFFSET ")
+            .push_bind(offset);
+        let rows = rows_builder.build().fetch_all(&self.pool).await?;
+
+        Ok(BenchmarkRequestLogPage {
+            items: rows
+                .into_iter()
+                .map(|row| request_log_summary_from_row(&row))
+                .collect(),
+            total,
+            page: input.page,
+            page_size: input.page_size,
+        })
+    }
+
+    pub async fn get_request_log_detail(
+        &self,
+        request_id: &str,
+    ) -> anyhow::Result<BenchmarkRequestLogDetail> {
+        let row = sqlx::query(
+            "SELECT id, task_id, stage_index, request_index, sample_index, status, latency_ms,
+                    ttft_ms, input_tokens, output_tokens, total_tokens, error_kind,
+                    error_message, prompt_preview, response_preview, body_ref, created_at
+             FROM benchmark_request_logs
+             WHERE id = ?;",
+        )
+        .bind(request_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        let row = row.ok_or_else(|| AppError::not_found("request_log"))?;
+        let summary = request_log_summary_from_row(&row);
+        let body_ref: Option<String> = row.get("body_ref");
+        Ok(BenchmarkRequestLogDetail {
+            summary,
+            prompt: None,
+            response_text: None,
+            raw_error: row.get("error_message"),
+            raw_usage: None,
+            body_available: body_ref.is_some(),
+        })
+    }
+
+    pub async fn delete_request_logs(&self, task_id: &str) -> anyhow::Result<DeleteResult> {
+        let result = sqlx::query("DELETE FROM benchmark_request_logs WHERE task_id = ?;")
+            .bind(task_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(DeleteResult {
+            id: task_id.to_string(),
+            deleted: result.rows_affected() > 0,
+        })
+    }
+
     pub async fn update_task_engine_mode(
         &self,
         task_id: &str,
@@ -332,5 +444,56 @@ impl Database {
         .await?;
 
         Ok(rows.into_iter().map(tick_from_row).collect())
+    }
+}
+
+fn push_request_log_filters<'a>(
+    builder: &mut QueryBuilder<'a, Sqlite>,
+    input: &'a BenchmarkRequestLogPageInput,
+    keyword_pattern: Option<&'a str>,
+) {
+    builder.push(" WHERE task_id = ");
+    builder.push_bind(&input.task_id);
+
+    if let Some(stage_index) = input.stage_index {
+        builder.push(" AND stage_index = ");
+        builder.push_bind(stage_index);
+    }
+
+    if let Some(status) = input.status.as_deref() {
+        builder.push(" AND status = ");
+        builder.push_bind(status);
+    }
+
+    if let Some(pattern) = keyword_pattern {
+        builder.push(" AND (prompt_preview LIKE ");
+        builder.push_bind(pattern);
+        builder.push(" OR response_preview LIKE ");
+        builder.push_bind(pattern);
+        builder.push(" OR error_kind LIKE ");
+        builder.push_bind(pattern);
+        builder.push(" OR error_message LIKE ");
+        builder.push_bind(pattern);
+        builder.push(")");
+    }
+}
+
+fn request_log_summary_from_row(row: &SqliteRow) -> BenchmarkRequestLogSummary {
+    BenchmarkRequestLogSummary {
+        id: row.get("id"),
+        task_id: row.get("task_id"),
+        stage_index: row.get("stage_index"),
+        request_index: row.get("request_index"),
+        sample_index: row.get("sample_index"),
+        status: row.get("status"),
+        latency_ms: row.get("latency_ms"),
+        ttft_ms: row.get("ttft_ms"),
+        input_tokens: row.get("input_tokens"),
+        output_tokens: row.get("output_tokens"),
+        total_tokens: row.get("total_tokens"),
+        error_kind: row.get("error_kind"),
+        prompt_preview: row.get("prompt_preview"),
+        response_preview: row.get("response_preview"),
+        created_at: row.get("created_at"),
     }
 }

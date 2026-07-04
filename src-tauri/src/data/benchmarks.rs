@@ -3,8 +3,9 @@ use crate::db::Database;
 use crate::domain::benchmark_sample::StageSample;
 use crate::mock::MockDataStore;
 use crate::models::{
-    BenchmarkErrorRecord, BenchmarkStartInput, BenchmarkTaskSummary, MetricsTick,
-    ProviderDiagnosticsResult,
+    BenchmarkErrorRecord, BenchmarkRequestLogDetail, BenchmarkRequestLogPage,
+    BenchmarkRequestLogPageInput, BenchmarkRequestLogRecord, BenchmarkStartInput,
+    BenchmarkTaskSummary, DeleteResult, MetricsTick, ProviderDiagnosticsResult,
 };
 
 impl BenchmarkRepository for MockDataStore {
@@ -44,6 +45,28 @@ impl BenchmarkRepository for MockDataStore {
 
     async fn insert_benchmark_error(&self, error: &BenchmarkErrorRecord) -> anyhow::Result<()> {
         MockDataStore::insert_benchmark_error(self, error).await
+    }
+
+    async fn insert_request_log(&self, log: &BenchmarkRequestLogRecord) -> anyhow::Result<()> {
+        MockDataStore::insert_request_log(self, log).await
+    }
+
+    async fn list_request_logs_page(
+        &self,
+        input: BenchmarkRequestLogPageInput,
+    ) -> anyhow::Result<BenchmarkRequestLogPage> {
+        MockDataStore::list_request_logs_page(self, input).await
+    }
+
+    async fn get_request_log_detail(
+        &self,
+        request_id: &str,
+    ) -> anyhow::Result<BenchmarkRequestLogDetail> {
+        MockDataStore::get_request_log_detail(self, request_id).await
+    }
+
+    async fn delete_request_logs(&self, task_id: &str) -> anyhow::Result<DeleteResult> {
+        MockDataStore::delete_request_logs(self, task_id).await
     }
 
     async fn get_task_summary(&self, task_id: &str) -> anyhow::Result<BenchmarkTaskSummary> {
@@ -110,6 +133,28 @@ impl BenchmarkRepository for Database {
 
     async fn insert_benchmark_error(&self, error: &BenchmarkErrorRecord) -> anyhow::Result<()> {
         Database::insert_benchmark_error(self, error).await
+    }
+
+    async fn insert_request_log(&self, log: &BenchmarkRequestLogRecord) -> anyhow::Result<()> {
+        Database::insert_request_log(self, log).await
+    }
+
+    async fn list_request_logs_page(
+        &self,
+        input: BenchmarkRequestLogPageInput,
+    ) -> anyhow::Result<BenchmarkRequestLogPage> {
+        Database::list_request_logs_page(self, input).await
+    }
+
+    async fn get_request_log_detail(
+        &self,
+        request_id: &str,
+    ) -> anyhow::Result<BenchmarkRequestLogDetail> {
+        Database::get_request_log_detail(self, request_id).await
+    }
+
+    async fn delete_request_logs(&self, task_id: &str) -> anyhow::Result<DeleteResult> {
+        Database::delete_request_logs(self, task_id).await
     }
 
     async fn get_task_summary(&self, task_id: &str) -> anyhow::Result<BenchmarkTaskSummary> {
@@ -203,6 +248,46 @@ impl AppDataSource {
             Self::Sqlite(source) => {
                 BenchmarkRepository::insert_benchmark_error(source, error).await
             }
+        }
+    }
+
+    pub async fn insert_request_log(&self, log: &BenchmarkRequestLogRecord) -> anyhow::Result<()> {
+        match self {
+            Self::Mock(source) => BenchmarkRepository::insert_request_log(source, log).await,
+            Self::Sqlite(source) => BenchmarkRepository::insert_request_log(source, log).await,
+        }
+    }
+
+    pub async fn list_request_logs_page(
+        &self,
+        input: BenchmarkRequestLogPageInput,
+    ) -> anyhow::Result<BenchmarkRequestLogPage> {
+        match self {
+            Self::Mock(source) => BenchmarkRepository::list_request_logs_page(source, input).await,
+            Self::Sqlite(source) => {
+                BenchmarkRepository::list_request_logs_page(source, input).await
+            }
+        }
+    }
+
+    pub async fn get_request_log_detail(
+        &self,
+        request_id: &str,
+    ) -> anyhow::Result<BenchmarkRequestLogDetail> {
+        match self {
+            Self::Mock(source) => {
+                BenchmarkRepository::get_request_log_detail(source, request_id).await
+            }
+            Self::Sqlite(source) => {
+                BenchmarkRepository::get_request_log_detail(source, request_id).await
+            }
+        }
+    }
+
+    pub async fn delete_request_logs(&self, task_id: &str) -> anyhow::Result<DeleteResult> {
+        match self {
+            Self::Mock(source) => BenchmarkRepository::delete_request_logs(source, task_id).await,
+            Self::Sqlite(source) => BenchmarkRepository::delete_request_logs(source, task_id).await,
         }
     }
 

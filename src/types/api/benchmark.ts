@@ -20,6 +20,13 @@ export type BenchmarkStartInput = {
   min_success_rate?: number;
   sla_stop_policy?: "continue_full_staircase" | "stop_on_failure";
   workload_config?: BenchmarkWorkloadConfig;
+  request_log_config?: RequestLogConfig;
+};
+
+export type RequestLogConfig = {
+  enabled: boolean;
+  capture_body: boolean;
+  max_records_per_stage: number;
 };
 
 export type BenchmarkWorkloadConfig = {
@@ -84,4 +91,46 @@ export type StageChangedEvent = {
   stage_index?: number | null;
   stage_total?: number | null;
   concurrency?: number | null;
+};
+
+export type BenchmarkRequestLogPageInput = {
+  task_id: string;
+  page: number;
+  page_size: number;
+  stage_index?: number;
+  status?: string;
+  keyword?: string;
+};
+
+export type BenchmarkRequestLogSummary = {
+  id: string;
+  task_id: string;
+  stage_index: number;
+  request_index: number;
+  sample_index: number;
+  status: string;
+  latency_ms: number;
+  ttft_ms: number;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  error_kind?: string | null;
+  prompt_preview?: string | null;
+  response_preview?: string | null;
+  created_at: string;
+};
+
+export type BenchmarkRequestLogDetail = BenchmarkRequestLogSummary & {
+  prompt?: string | null;
+  response_text?: string | null;
+  raw_error?: string | null;
+  raw_usage?: unknown;
+  body_available: boolean;
+};
+
+export type BenchmarkRequestLogPage = {
+  items: BenchmarkRequestLogSummary[];
+  total: number;
+  page: number;
+  page_size: number;
 };

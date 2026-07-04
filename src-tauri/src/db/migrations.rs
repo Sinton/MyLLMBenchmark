@@ -4,6 +4,7 @@ use sqlx::Row;
 const INITIAL_SCHEMA_VERSION: i64 = 1;
 const EVIDENCE_SCHEMA_VERSION: i64 = 2;
 const RELEASE_PREP_SCHEMA_VERSION: i64 = 3;
+const REQUEST_LOG_SCHEMA_VERSION: i64 = 4;
 
 impl Database {
     pub(super) async fn configure(&self) -> anyhow::Result<()> {
@@ -29,6 +30,9 @@ impl Database {
             .await?;
         self.migrate_release_prep_schema().await?;
         self.record_migration(RELEASE_PREP_SCHEMA_VERSION, "release_prep_schema")
+            .await?;
+        self.migrate_request_log_schema().await?;
+        self.record_migration(REQUEST_LOG_SCHEMA_VERSION, "request_log_schema")
             .await?;
         Ok(())
     }
@@ -199,6 +203,7 @@ impl Database {
         )
         .execute(&self.pool)
         .await?;
+        self.ensure_request_log_table().await?;
 
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS provider_diagnostics (
@@ -351,6 +356,10 @@ impl Database {
         Ok(())
     }
 
+    async fn migrate_request_log_schema(&self) -> anyhow::Result<()> {
+        self.ensure_request_log_table().await
+    }
+
     async fn ensure_task_evidence_columns(&self) -> anyhow::Result<()> {
         for (column, definition) in [
             ("stage_sample_rounds", "INTEGER NOT NULL DEFAULT 0"),
@@ -417,6 +426,40 @@ impl Database {
                 created_at TEXT NOT NULL,
                 FOREIGN KEY(dataset_id) REFERENCES datasets(id) ON DELETE CASCADE
             );",
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn ensure_request_log_table(&self) -> anyhow::Result<()> {
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS benchmark_request_logs (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL,
+                stage_index INTEGER NOT NULL,
+                request_index INTEGER NOT NULL,
+                sample_index INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                latency_ms INTEGER NOT NULL,
+                ttft_ms INTEGER NOT NULL,
+                input_tokens INTEGER NOT NULL,
+                output_tokens INTEGER NOT NULL,
+                total_tokens INTEGER NOT NULL,
+                error_kind TEXT,
+                error_message TEXT,
+                prompt_preview TEXT,
+                response_preview TEXT,
+                body_ref TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(task_id) REFERENCES benchmark_tasks(id) ON DELETE CASCADE
+            );",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_benchmark_request_logs_task
+             ON benchmark_request_logs(task_id, stage_index, request_index);",
         )
         .execute(&self.pool)
         .await?;

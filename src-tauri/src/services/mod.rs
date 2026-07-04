@@ -5,7 +5,10 @@ mod dataset;
 mod provider;
 mod report;
 
-pub use benchmark::{get_benchmark_task, list_benchmark_ticks, start_benchmark, stop_benchmark};
+pub use benchmark::{
+    delete_benchmark_request_logs, get_benchmark_request_log_detail, get_benchmark_task,
+    list_benchmark_request_logs_page, list_benchmark_ticks, start_benchmark, stop_benchmark,
+};
 pub use config::{get_app_config, update_app_config};
 pub use dashboard::get_dashboard_summary;
 pub use dataset::{

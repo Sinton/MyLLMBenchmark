@@ -1,5 +1,7 @@
-﻿type MetricCardProps = {
-  label: string;
+import type { ReactNode } from "react";
+
+type MetricCardProps = {
+  label: ReactNode;
   value: string | number;
   unit?: string;
   hint?: string;
@@ -17,4 +19,3 @@ export function MetricCard({ label, value, unit, hint }: MetricCardProps) {
     </div>
   );
 }
-

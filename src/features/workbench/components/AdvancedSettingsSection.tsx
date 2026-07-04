@@ -1,7 +1,9 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Disclosure } from "../../../components/common/Disclosure";
 import { Input } from "../../../components/common/Input";
+import { InlineAlert } from "../../../components/common/InlineAlert";
 import { SelectField } from "../../../components/common/SelectField";
+import { Toggle } from "../../../components/common/Toggle";
 import { getModelTypeLabel } from "../../../lib/modelTaxonomy";
 import { slaStopPolicyOptions } from "../constants";
 import type { WorkbenchForm } from "../types";
@@ -102,6 +104,53 @@ export function AdvancedSettingsSection({
             })
           }
         />
+        <div className="request-log-config">
+          <Toggle
+            checked={form.request_log_enabled}
+            label="保存请求明细索引"
+            onChange={(request_log_enabled) =>
+              setForm({
+                ...form,
+                request_log_enabled,
+                request_log_capture_body: request_log_enabled
+                  ? form.request_log_capture_body
+                  : false,
+              })
+            }
+          />
+          {form.request_log_enabled && (
+            <>
+              <Toggle
+                checked={form.request_log_capture_body}
+                label="同时保存 Prompt / 响应正文"
+                onChange={(request_log_capture_body) =>
+                  setForm({ ...form, request_log_capture_body })
+                }
+              />
+              <Input
+                label="每阶段最多保存"
+                hint="超过上限后仍继续压测，只是不再保存更多请求明细。"
+                max={1000}
+                min={1}
+                step={50}
+                suffix="条"
+                type="number"
+                value={form.request_log_max_records_per_stage}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    request_log_max_records_per_stage: Number(event.target.value),
+                  })
+                }
+              />
+              {form.request_log_capture_body && (
+                <InlineAlert tone="warning" title="敏感数据提示">
+                  开启后会在本地保存 Prompt 和模型响应正文，请确认样本中不包含敏感信息。
+                </InlineAlert>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </Disclosure>
   );
@@ -111,20 +160,21 @@ function buildAdvancedSummary(form: WorkbenchForm, modelType: string) {
   const workload = getModelTypeLabel(modelType);
   const sla = `P95 ${form.sla_p95_ms}ms / 成功率 ${form.min_success_rate}%`;
   const timeout = `超时 ${form.request_timeout_seconds}s`;
+  const requestLogs = form.request_log_enabled ? "保存请求明细" : "不保存请求明细";
   const policy =
     form.sla_stop_policy === "stop_on_failure" ? "保护性停止" : "继续完整阶梯";
 
   if (modelType === "embedding") {
-    return `${workload}，Batch ${form.embedding_batch_size}，${sla}，${timeout}，${policy}`;
+    return `${workload}，Batch ${form.embedding_batch_size}，${sla}，${timeout}，${policy}，${requestLogs}`;
   }
   if (modelType === "rerank") {
-    return `${workload}，Docs/Query ${form.rerank_documents_per_query}，${sla}，${timeout}，${policy}`;
+    return `${workload}，Docs/Query ${form.rerank_documents_per_query}，${sla}，${timeout}，${policy}，${requestLogs}`;
   }
   if (modelType === "multimodal") {
-    return `${workload}，图片 ${form.vision_image_profile} x ${form.vision_image_count}，${sla}，${timeout}，${policy}`;
+    return `${workload}，图片 ${form.vision_image_profile} x ${form.vision_image_count}，${sla}，${timeout}，${policy}，${requestLogs}`;
   }
 
   return `${workload}，Max Output ${form.max_output_tokens}，${
     form.streaming ? "Streaming 开启" : "Streaming 关闭"
-  }，${sla}，${timeout}，${policy}`;
+  }，${sla}，${timeout}，${policy}，${requestLogs}`;
 }

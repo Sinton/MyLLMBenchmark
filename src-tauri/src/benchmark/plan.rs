@@ -141,6 +141,7 @@ mod tests {
             min_success_rate: Some(99.0),
             sla_stop_policy: Some(SLA_STOP_CONTINUE.to_string()),
             workload_config: None,
+            request_log_config: None,
         }
     }
 

@@ -1,6 +1,6 @@
 use crate::models::{
     DatasetValidationResult, MetricsTick, ProviderDiagnosticsResult, ReportDetail,
-    ReportErrorBucket, ReportStageSummary, ReportSummary,
+    ReportErrorBucket, ReportRequestLogMeta, ReportStageSummary, ReportSummary,
 };
 use crate::report::estimators::{
     estimate_stages_from_summary, estimate_ticks_from_summary, hydrate_stage_metrics,
@@ -33,6 +33,7 @@ pub struct ReportContext {
     pub preflight_result: Option<serde_json::Value>,
     pub diagnostics_snapshot: Option<ProviderDiagnosticsResult>,
     pub dataset_quality: Option<DatasetValidationResult>,
+    pub request_log_meta: ReportRequestLogMeta,
 }
 
 pub fn build_report_detail(
@@ -166,6 +167,7 @@ pub fn build_report_detail(
         preflight_result: context.preflight_result,
         diagnostics_snapshot: context.diagnostics_snapshot,
         dataset_quality: context.dataset_quality,
+        request_log_meta: context.request_log_meta,
     }
 }
 

@@ -3,7 +3,9 @@ use super::{now, Database};
 use crate::domain::model_type::normalize_model_type;
 use crate::domain::workload::parse_workload_config;
 use crate::error::AppError;
-use crate::models::{ReportDetail, ReportErrorBucket, ReportStageSummary, ReportSummary};
+use crate::models::{
+    ReportDetail, ReportErrorBucket, ReportRequestLogMeta, ReportStageSummary, ReportSummary,
+};
 use crate::report::analyzer::{self, ReportContext};
 use sqlx::Row;
 use uuid::Uuid;
@@ -122,6 +124,7 @@ impl Database {
             .as_ref()
             .and_then(|value| value.get("dataset_quality").cloned())
             .and_then(|value| serde_json::from_value(value).ok());
+        let request_log_meta = self.request_log_meta(&summary.task_id).await?;
         let context = ReportContext {
             model_type: task_meta.model_type,
             task_name: task_meta.task_name,
@@ -139,6 +142,7 @@ impl Database {
             preflight_result: task_meta.preflight_result,
             diagnostics_snapshot: task_meta.diagnostics_snapshot,
             dataset_quality,
+            request_log_meta,
         };
 
         let mut detail =
@@ -259,5 +263,25 @@ impl Database {
             .into_iter()
             .map(|row| stage_from_row(row, sla_p95_ms, min_success_rate))
             .collect())
+    }
+
+    async fn request_log_meta(&self, task_id: &str) -> anyhow::Result<ReportRequestLogMeta> {
+        let row = sqlx::query(
+            "SELECT COUNT(*) AS total_records,
+                    COALESCE(SUM(CASE WHEN body_ref IS NOT NULL THEN 1 ELSE 0 END), 0) AS body_records
+             FROM benchmark_request_logs
+             WHERE task_id = ?;",
+        )
+        .bind(task_id)
+        .fetch_one(&self.pool)
+        .await?;
+        let total_records: i64 = row.get("total_records");
+        let body_records: i64 = row.get("body_records");
+        Ok(ReportRequestLogMeta {
+            enabled: total_records > 0,
+            total_records,
+            body_records,
+            body_available: body_records > 0,
+        })
     }
 }

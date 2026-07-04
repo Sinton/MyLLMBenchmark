@@ -10,6 +10,7 @@ import { ReportEvidenceSection } from "./ReportEvidenceSection";
 import { ReportHeroSection } from "./ReportHeroSection";
 import { ReportKpiGrid } from "./ReportKpiGrid";
 import { ReportRecommendationSection } from "./ReportRecommendationSection";
+import { ReportRequestLogsSection } from "./ReportRequestLogsSection";
 import { ReportSpecialtySection } from "./ReportSpecialtySection";
 import { ReportStageTableSection } from "./ReportStageTableSection";
 import { ReportTrendSection } from "./ReportTrendSection";
@@ -46,6 +47,7 @@ export function ReportDetailView({
       />
       <ReportStageTableSection detail={detail} stageColumns={stageColumns} />
       <ReportErrorSection detail={detail} />
+      <ReportRequestLogsSection detail={detail} />
       <ReportRecommendationSection detail={detail} />
     </div>
   );

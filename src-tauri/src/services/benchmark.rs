@@ -4,8 +4,10 @@ use crate::domain::model_type::ModelType;
 use crate::domain::workload::WorkloadConfig;
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    BenchmarkStartInput, BenchmarkTaskSummary, DatasetSample, DatasetValidationResult, MetricsTick,
-    ModelSummary, ProviderConnectionConfig, ProviderDiagnosticsResult, StopResult,
+    BenchmarkRequestLogDetail, BenchmarkRequestLogPage, BenchmarkRequestLogPageInput,
+    BenchmarkStartInput, BenchmarkTaskSummary, DatasetSample, DatasetValidationResult,
+    DeleteResult, MetricsTick, ModelSummary, ProviderConnectionConfig, ProviderDiagnosticsResult,
+    StopResult,
 };
 use crate::state::AppState;
 use tauri::AppHandle;
@@ -77,6 +79,27 @@ pub async fn get_benchmark_task(
 
 pub async fn list_benchmark_ticks(state: &AppState, task_id: &str) -> AppResult<Vec<MetricsTick>> {
     Ok(state.list_ticks(task_id).await?)
+}
+
+pub async fn list_benchmark_request_logs_page(
+    state: &AppState,
+    input: BenchmarkRequestLogPageInput,
+) -> AppResult<BenchmarkRequestLogPage> {
+    Ok(state.list_request_logs_page(input).await?)
+}
+
+pub async fn get_benchmark_request_log_detail(
+    state: &AppState,
+    request_id: &str,
+) -> AppResult<BenchmarkRequestLogDetail> {
+    Ok(state.get_request_log_detail(request_id).await?)
+}
+
+pub async fn delete_benchmark_request_logs(
+    state: &AppState,
+    task_id: &str,
+) -> AppResult<DeleteResult> {
+    Ok(state.delete_request_logs(task_id).await?)
 }
 
 async fn prepare_openai_compatible_context(

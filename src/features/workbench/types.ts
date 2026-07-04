@@ -19,6 +19,9 @@ export type WorkbenchForm = {
   sla_p95_ms: number;
   min_success_rate: number;
   sla_stop_policy: "continue_full_staircase" | "stop_on_failure";
+  request_log_enabled: boolean;
+  request_log_capture_body: boolean;
+  request_log_max_records_per_stage: number;
   streaming: boolean;
   max_output_tokens: number;
   prompt_profile: string;
@@ -55,6 +58,9 @@ export const defaultWorkbenchForm: WorkbenchForm = {
   sla_p95_ms: 5000,
   min_success_rate: 99,
   sla_stop_policy: "continue_full_staircase",
+  request_log_enabled: false,
+  request_log_capture_body: false,
+  request_log_max_records_per_stage: 200,
   streaming: true,
   max_output_tokens: 512,
   prompt_profile: "mixed",

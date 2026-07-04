@@ -46,9 +46,11 @@ pub(in crate::db) fn now() -> String {
 #[cfg(test)]
 mod tests {
     use super::Database;
+    use crate::domain::benchmark_sample::StageSample;
     use crate::models::{
-        BenchmarkStartInput, CreateProviderInput, DatasetImportInput, DatasetSampleCreateInput,
-        DatasetSamplePageInput, DatasetSampleUpdateInput, DatasetUpdateInput, UpdateProviderInput,
+        BenchmarkRequestLogRecord, BenchmarkRequestLogSummary, BenchmarkStartInput,
+        CreateProviderInput, DatasetImportInput, DatasetSampleCreateInput, DatasetSamplePageInput,
+        DatasetSampleUpdateInput, DatasetUpdateInput, MetricsTick, UpdateProviderInput,
     };
     use base64::prelude::*;
     use std::path::PathBuf;
@@ -86,12 +88,12 @@ mod tests {
             .fetch_one(&db.pool)
             .await
             .unwrap();
-        assert_eq!(count, 3);
+        assert_eq!(count, 4);
         let latest: i64 = sqlx::query_scalar("SELECT MAX(version) FROM schema_migrations;")
             .fetch_one(&db.pool)
             .await
             .unwrap();
-        assert_eq!(latest, 3);
+        assert_eq!(latest, 4);
         drop(db);
 
         let db = Database::initialize(&data_dir).await.unwrap();
@@ -99,7 +101,7 @@ mod tests {
             .fetch_one(&db.pool)
             .await
             .unwrap();
-        assert_eq!(count, 3);
+        assert_eq!(count, 4);
         drop(db);
 
         let _ = std::fs::remove_dir_all(data_dir);
@@ -267,6 +269,7 @@ mod tests {
                 min_success_rate: None,
                 sla_stop_policy: None,
                 workload_config: None,
+                request_log_config: None,
             })
             .await
             .unwrap();
@@ -410,6 +413,7 @@ mod tests {
                 min_success_rate: None,
                 sla_stop_policy: None,
                 workload_config: None,
+                request_log_config: None,
             })
             .await
             .unwrap();
@@ -429,5 +433,155 @@ mod tests {
 
         drop(db);
         let _ = std::fs::remove_dir_all(data_dir);
+    }
+
+    #[tokio::test]
+    async fn request_logs_page_and_report_meta_are_available_in_sqlite() {
+        let data_dir = temp_data_dir("request-logs");
+        let db = Database::initialize(&data_dir).await.unwrap();
+        let provider = db.create_provider(provider_input()).await.unwrap();
+        let dataset = db.import_dataset(dataset_input()).await.unwrap();
+        let task = db
+            .create_task(&BenchmarkStartInput {
+                provider_id: provider.id.clone(),
+                model_id: None,
+                dataset_id: dataset.id.clone(),
+                mode: "fixed".to_string(),
+                concurrency: 2,
+                duration_seconds: 5,
+                start_concurrency: None,
+                end_concurrency: None,
+                step_strategy: None,
+                step_value: None,
+                stage_sample_rounds: Some(2),
+                stage_duration_seconds: None,
+                warmup_rounds: Some(0),
+                warmup_seconds: None,
+                request_timeout_seconds: Some(120),
+                sla_p95_ms: Some(5000),
+                min_success_rate: Some(99.0),
+                sla_stop_policy: None,
+                workload_config: None,
+                request_log_config: None,
+            })
+            .await
+            .unwrap();
+        let tick = MetricsTick {
+            task_id: task.id.clone(),
+            elapsed_seconds: 1,
+            qps: 2.0,
+            latency_ms: 820,
+            ttft_ms: 180,
+            tps: 24.0,
+            success_rate: 50.0,
+            errors: 1,
+            in_flight: 2,
+            request_count: 2,
+            success_count: 1,
+            failure_count: 1,
+            input_tokens: 32,
+            output_tokens: 48,
+            total_tokens: 80,
+            batch_size: 0,
+            text_count: 0,
+            documents_per_query: 0,
+            pair_count: 0,
+            image_count: 0,
+        };
+        db.insert_tick(&tick).await.unwrap();
+        db.insert_stage(&StageSample::from_tick_with_evidence(
+            1,
+            2,
+            &tick,
+            2,
+            0,
+            false,
+            Some("成功率未达到 SLA".to_string()),
+        ))
+        .await
+        .unwrap();
+        db.insert_request_log(&request_log_record(
+            &task.id,
+            1,
+            "success",
+            Some("介绍杭州的核心产业"),
+            Some("杭州核心产业包括数字经济与先进制造。"),
+            None,
+            Some("request_logs/test.jsonl"),
+        ))
+        .await
+        .unwrap();
+        db.insert_request_log(&request_log_record(
+            &task.id,
+            2,
+            "failed",
+            Some("解释 Transformer"),
+            None,
+            Some("timeout"),
+            None,
+        ))
+        .await
+        .unwrap();
+
+        let failed_page = db
+            .list_request_logs_page(crate::models::BenchmarkRequestLogPageInput {
+                task_id: task.id.clone(),
+                page: 1,
+                page_size: 20,
+                stage_index: Some(1),
+                status: Some("failed".to_string()),
+                keyword: Some("timeout".to_string()),
+            })
+            .await
+            .unwrap();
+        assert_eq!(failed_page.total, 1);
+        assert_eq!(failed_page.items[0].request_index, 2);
+
+        db.update_task_finished(&task.id, "completed", 50.0, 820, 2.0)
+            .await
+            .unwrap();
+        let report = db.generate_report(&task.id).await.unwrap();
+        let detail = db.get_report_detail(&report.id).await.unwrap();
+        assert!(detail.request_log_meta.enabled);
+        assert_eq!(detail.request_log_meta.total_records, 2);
+        assert_eq!(detail.request_log_meta.body_records, 1);
+
+        drop(db);
+        let _ = std::fs::remove_dir_all(data_dir);
+    }
+
+    fn request_log_record(
+        task_id: &str,
+        request_index: i64,
+        status: &str,
+        prompt: Option<&str>,
+        response: Option<&str>,
+        error_kind: Option<&str>,
+        body_ref: Option<&str>,
+    ) -> BenchmarkRequestLogRecord {
+        BenchmarkRequestLogRecord {
+            summary: BenchmarkRequestLogSummary {
+                id: Uuid::new_v4().to_string(),
+                task_id: task_id.to_string(),
+                stage_index: 1,
+                request_index,
+                sample_index: request_index,
+                status: status.to_string(),
+                latency_ms: 820,
+                ttft_ms: if status == "success" { 180 } else { 0 },
+                input_tokens: 16,
+                output_tokens: if status == "success" { 24 } else { 0 },
+                total_tokens: if status == "success" { 40 } else { 16 },
+                error_kind: error_kind.map(ToString::to_string),
+                prompt_preview: prompt.map(ToString::to_string),
+                response_preview: response.map(ToString::to_string),
+                created_at: chrono::Utc::now().to_rfc3339(),
+            },
+            body_ref: body_ref.map(ToString::to_string),
+            prompt: prompt.map(ToString::to_string),
+            response_text: response.map(ToString::to_string),
+            raw_error: error_kind.map(ToString::to_string),
+            raw_usage: None,
+        }
     }
 }

@@ -50,6 +50,14 @@ pub struct ReportErrorBucket {
     pub percent: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct ReportRequestLogMeta {
+    pub enabled: bool,
+    pub total_records: i64,
+    pub body_records: i64,
+    pub body_available: bool,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ReportSpecialtyMetric {
     pub label: String,
@@ -103,6 +111,7 @@ pub struct ReportDetail {
     pub preflight_result: Option<serde_json::Value>,
     pub diagnostics_snapshot: Option<ProviderDiagnosticsResult>,
     pub dataset_quality: Option<DatasetValidationResult>,
+    pub request_log_meta: ReportRequestLogMeta,
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -14,4 +14,14 @@ export const queryKeys = {
   ) => ["dataset-samples", datasetId, page, pageSize, keyword] as const,
   reports: () => ["reports"] as const,
   reportDetail: (reportId: string) => ["report-detail", reportId] as const,
+  benchmarkRequestLogs: (
+    taskId: string,
+    page: number,
+    pageSize: number,
+    stageIndex: number | undefined,
+    status: string,
+    keyword: string,
+  ) => ["benchmark-request-logs", taskId, page, pageSize, stageIndex ?? "all", status, keyword] as const,
+  benchmarkRequestLogDetail: (requestId: string) =>
+    ["benchmark-request-log-detail", requestId] as const,
 };

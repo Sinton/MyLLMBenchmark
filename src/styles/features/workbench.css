@@ -423,3 +423,12 @@
   font-size: 12px;
   line-height: 18px;
 }
+
+.request-log-config {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  padding: 12px;
+}

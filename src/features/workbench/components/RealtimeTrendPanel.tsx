@@ -1,7 +1,8 @@
-﻿import { Card } from "../../../components/common/Card";
-import { MetricCard } from "../../../components/common/MetricCard";
-import { Tabs } from "../../../components/common/Tabs";
 import { RealtimeChart } from "../../../charts/RealtimeChart";
+import { Card } from "../../../components/common/Card";
+import { MetricCard } from "../../../components/common/MetricCard";
+import { MetricHelp } from "../../../components/common/MetricHelp";
+import { Tabs } from "../../../components/common/Tabs";
 import type { BenchmarkTaskSummary, MetricsTick } from "../../../types/api";
 import type { ChartMetric } from "../types";
 
@@ -9,7 +10,7 @@ type RealtimeTrendPanelProps = {
   activeTask: BenchmarkTaskSummary | null;
   ticks: MetricsTick[];
   latestTick: MetricsTick | null;
-  metricCards: Array<{ label: string; value: string | number; unit?: string }>;
+  metricCards: Array<{ label: string; helpKey?: string; value: string | number; unit?: string }>;
   startPending: boolean;
   tabs: Array<{ key: ChartMetric; label: string }>;
   chartMetric: ChartMetric;
@@ -35,7 +36,7 @@ export function RealtimeTrendPanel({
         {metricCards.map((metric) => (
           <MetricCard
             key={metric.label}
-            label={metric.label}
+            label={<MetricHelp helpKey={metric.helpKey}>{metric.label}</MetricHelp>}
             unit={metric.unit}
             value={metric.value}
           />

@@ -13,6 +13,7 @@ type PaginationProps = {
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   disabled?: boolean;
+  itemLabel?: string;
 };
 
 export function Pagination({
@@ -22,6 +23,7 @@ export function Pagination({
   onPageChange,
   onPageSizeChange,
   disabled = false,
+  itemLabel = "样本",
 }: PaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safePage = Math.min(Math.max(page, 1), totalPages);
@@ -33,7 +35,7 @@ export function Pagination({
       <div className="pagination-summary">
         <strong>{total.toLocaleString("zh-CN")}</strong>
         <span>
-          条样本
+          条{itemLabel}
           {total > 0 && `，当前 ${start.toLocaleString("zh-CN")}-${end.toLocaleString("zh-CN")}`}
         </span>
       </div>

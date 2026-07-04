@@ -4,17 +4,20 @@ use crate::db::Database;
 use crate::domain::benchmark_sample::StageSample;
 use crate::mock::MockDataStore;
 use crate::models::{
-    BenchmarkErrorRecord, BenchmarkStartInput, BenchmarkTaskSummary, CreateProviderInput,
-    DashboardSummary, DatasetAppendInput, DatasetExportInput, DatasetExportResult,
-    DatasetImportInput, DatasetSample, DatasetSampleBatchDeleteInput, DatasetSampleCreateInput,
-    DatasetSamplePage, DatasetSamplePageInput, DatasetSamplePreview, DatasetSampleUpdateInput,
-    DatasetSummary, DatasetUpdateInput, DatasetValidationResult, DeleteResult, DiscoveredModel,
-    MetricsTick, ModelSummary, ProviderConnectionConfig, ProviderConnectionResult,
-    ProviderDiagnosticsResult, ProviderModelScanResult, ProviderSummary, ReportDetail,
-    ReportSummary, UpdateProviderInput,
+    BenchmarkErrorRecord, BenchmarkRequestLogDetail, BenchmarkRequestLogPage,
+    BenchmarkRequestLogPageInput, BenchmarkRequestLogRecord, BenchmarkStartInput,
+    BenchmarkTaskSummary, CreateProviderInput, DashboardSummary, DatasetAppendInput,
+    DatasetExportInput, DatasetExportResult, DatasetImportInput, DatasetSample,
+    DatasetSampleBatchDeleteInput, DatasetSampleCreateInput, DatasetSamplePage,
+    DatasetSamplePageInput, DatasetSamplePreview, DatasetSampleUpdateInput, DatasetSummary,
+    DatasetUpdateInput, DatasetValidationResult, DeleteResult, DiscoveredModel, MetricsTick,
+    ModelSummary, ProviderConnectionConfig, ProviderConnectionResult, ProviderDiagnosticsResult,
+    ProviderModelScanResult, ProviderSummary, ReportDetail, ReportSummary, UpdateProviderInput,
 };
 use crate::tasks::TaskManager;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use tokio::io::AsyncWriteExt;
 use tokio::sync::watch;
 
 #[derive(Clone)]
@@ -22,6 +25,7 @@ pub struct AppState {
     pub config: AppConfig,
     config_store: ConfigStore,
     data: AppDataSource,
+    data_dir: PathBuf,
     tasks: TaskManager,
 }
 
@@ -38,6 +42,7 @@ impl AppState {
             config,
             config_store,
             data,
+            data_dir,
             tasks: TaskManager::default(),
         })
     }
@@ -267,6 +272,59 @@ impl AppState {
         self.data.insert_benchmark_error(error).await
     }
 
+    pub async fn insert_request_log(
+        &self,
+        mut log: BenchmarkRequestLogRecord,
+    ) -> anyhow::Result<()> {
+        if matches!(&self.data, AppDataSource::Sqlite(_)) && request_log_has_body(&log) {
+            self.append_request_log_body(&log).await?;
+            log.body_ref = Some(request_log_body_ref(&log.summary.task_id));
+        }
+        self.data.insert_request_log(&log).await
+    }
+
+    pub async fn list_request_logs_page(
+        &self,
+        input: BenchmarkRequestLogPageInput,
+    ) -> anyhow::Result<BenchmarkRequestLogPage> {
+        self.data.list_request_logs_page(input).await
+    }
+
+    pub async fn get_request_log_detail(
+        &self,
+        request_id: &str,
+    ) -> anyhow::Result<BenchmarkRequestLogDetail> {
+        let mut detail = self.data.get_request_log_detail(request_id).await?;
+        if detail.body_available
+            && detail.prompt.is_none()
+            && matches!(&self.data, AppDataSource::Sqlite(_))
+        {
+            if let Some(body) = self
+                .read_request_log_body(&detail.summary.task_id, &detail.summary.id)
+                .await?
+            {
+                detail.prompt = body.prompt;
+                detail.response_text = body.response_text;
+                detail.raw_error = body.raw_error.or(detail.raw_error);
+                detail.raw_usage = body.raw_usage;
+            } else {
+                detail.body_available = false;
+            }
+        }
+        Ok(detail)
+    }
+
+    pub async fn delete_request_logs(&self, task_id: &str) -> anyhow::Result<DeleteResult> {
+        let result = self.data.delete_request_logs(task_id).await?;
+        let path = self.request_log_body_path(task_id);
+        match tokio::fs::remove_file(path).await {
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+        Ok(result)
+    }
+
     pub async fn get_task_summary(&self, task_id: &str) -> anyhow::Result<BenchmarkTaskSummary> {
         self.data.get_task_summary(task_id).await
     }
@@ -319,4 +377,72 @@ impl AppState {
     pub async fn remove_task(&self, task_id: &str) {
         self.tasks.remove(task_id).await;
     }
+
+    async fn append_request_log_body(&self, log: &BenchmarkRequestLogRecord) -> anyhow::Result<()> {
+        let dir = self.data_dir.join("request_logs");
+        tokio::fs::create_dir_all(&dir).await?;
+        let mut file = tokio::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(self.request_log_body_path(&log.summary.task_id))
+            .await?;
+        let line = serde_json::to_string(&RequestLogBodyLine {
+            id: log.summary.id.clone(),
+            prompt: log.prompt.clone(),
+            response_text: log.response_text.clone(),
+            raw_error: log.raw_error.clone(),
+            raw_usage: log.raw_usage.clone(),
+        })?;
+        file.write_all(line.as_bytes()).await?;
+        file.write_all(b"\n").await?;
+        Ok(())
+    }
+
+    async fn read_request_log_body(
+        &self,
+        task_id: &str,
+        request_id: &str,
+    ) -> anyhow::Result<Option<RequestLogBodyLine>> {
+        let path = self.request_log_body_path(task_id);
+        let content = match tokio::fs::read_to_string(path).await {
+            Ok(content) => content,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(error.into()),
+        };
+        for line in content.lines() {
+            let Ok(body) = serde_json::from_str::<RequestLogBodyLine>(line) else {
+                continue;
+            };
+            if body.id == request_id {
+                return Ok(Some(body));
+            }
+        }
+        Ok(None)
+    }
+
+    fn request_log_body_path(&self, task_id: &str) -> PathBuf {
+        self.data_dir
+            .join("request_logs")
+            .join(format!("{task_id}.jsonl"))
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct RequestLogBodyLine {
+    id: String,
+    prompt: Option<String>,
+    response_text: Option<String>,
+    raw_error: Option<String>,
+    raw_usage: Option<serde_json::Value>,
+}
+
+fn request_log_has_body(log: &BenchmarkRequestLogRecord) -> bool {
+    log.prompt.is_some()
+        || log.response_text.is_some()
+        || log.raw_error.is_some()
+        || log.raw_usage.is_some()
+}
+
+fn request_log_body_ref(task_id: &str) -> String {
+    format!("request_logs/{task_id}.jsonl")
 }

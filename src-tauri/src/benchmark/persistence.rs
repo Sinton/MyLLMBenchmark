@@ -1,5 +1,7 @@
 use crate::domain::benchmark_sample::StageSample;
-use crate::models::{BenchmarkErrorRecord, BenchmarkTaskSummary, MetricsTick};
+use crate::models::{
+    BenchmarkErrorRecord, BenchmarkRequestLogRecord, BenchmarkTaskSummary, MetricsTick,
+};
 use crate::state::AppState;
 
 #[derive(Clone)]
@@ -18,6 +20,10 @@ impl BenchmarkPersistence {
 
     pub async fn insert_error(&self, error: &BenchmarkErrorRecord) -> anyhow::Result<()> {
         self.state.insert_benchmark_error(error).await
+    }
+
+    pub async fn insert_request_log(&self, log: BenchmarkRequestLogRecord) -> anyhow::Result<()> {
+        self.state.insert_request_log(log).await
     }
 
     pub async fn mark_engine_mode(&self, task_id: &str, engine_mode: &str) -> anyhow::Result<()> {

@@ -49,6 +49,13 @@ export type ReportErrorBucket = {
   percent: number;
 };
 
+export type ReportRequestLogMeta = {
+  enabled: boolean;
+  total_records: number;
+  body_records: number;
+  body_available: boolean;
+};
+
 export type ReportSpecialtyMetric = {
   label: string;
   value: string | number;
@@ -108,6 +115,7 @@ export type ReportDetail = {
     | null;
   diagnostics_snapshot: ProviderDiagnosticsResult | null;
   dataset_quality: DatasetValidationResult | null;
+  request_log_meta: ReportRequestLogMeta;
 };
 
 export type ReportExportInput = {

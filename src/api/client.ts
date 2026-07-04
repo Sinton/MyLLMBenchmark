@@ -3,6 +3,9 @@ import { listenToEvent } from "./events";
 import type { AppApi } from "./types";
 import type {
   AppConfig,
+  BenchmarkRequestLogDetail,
+  BenchmarkRequestLogPage,
+  BenchmarkRequestLogPageInput,
   BenchmarkTaskSummary,
   ConfigUpdateResult,
   DashboardSummary,
@@ -87,6 +90,12 @@ export const api: AppApi = {
     invoke<BenchmarkTaskSummary>("get_benchmark_task", { taskId }),
   listBenchmarkTicks: (taskId) =>
     invoke<MetricsTick[]>("list_benchmark_ticks", { taskId }),
+  listBenchmarkRequestLogsPage: (input: BenchmarkRequestLogPageInput) =>
+    invoke<BenchmarkRequestLogPage>("list_benchmark_request_logs_page", { input }),
+  getBenchmarkRequestLogDetail: (requestId) =>
+    invoke<BenchmarkRequestLogDetail>("get_benchmark_request_log_detail", { requestId }),
+  deleteBenchmarkRequestLogs: (taskId) =>
+    invoke<DeleteResult>("delete_benchmark_request_logs", { taskId }),
   generateReport: (taskId) =>
     invoke<ReportSummary>("generate_report", { taskId }),
   listReports: () => invoke<ReportSummary[]>("list_reports"),

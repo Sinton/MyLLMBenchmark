@@ -2,14 +2,15 @@ use crate::db::Database;
 use crate::domain::benchmark_sample::StageSample;
 use crate::mock::MockDataStore;
 use crate::models::{
-    BenchmarkErrorRecord, BenchmarkStartInput, BenchmarkTaskSummary, CreateProviderInput,
-    DashboardSummary, DatasetAppendInput, DatasetExportInput, DatasetExportResult,
-    DatasetImportInput, DatasetSample, DatasetSampleBatchDeleteInput, DatasetSampleCreateInput,
-    DatasetSamplePage, DatasetSamplePageInput, DatasetSamplePreview, DatasetSampleUpdateInput,
-    DatasetSummary, DatasetUpdateInput, DatasetValidationResult, DeleteResult, DiscoveredModel,
-    MetricsTick, ModelSummary, ProviderConnectionConfig, ProviderConnectionResult,
-    ProviderDiagnosticsResult, ProviderModelScanResult, ProviderSummary, ReportDetail,
-    ReportSummary, UpdateProviderInput,
+    BenchmarkErrorRecord, BenchmarkRequestLogDetail, BenchmarkRequestLogPage,
+    BenchmarkRequestLogPageInput, BenchmarkRequestLogRecord, BenchmarkStartInput,
+    BenchmarkTaskSummary, CreateProviderInput, DashboardSummary, DatasetAppendInput,
+    DatasetExportInput, DatasetExportResult, DatasetImportInput, DatasetSample,
+    DatasetSampleBatchDeleteInput, DatasetSampleCreateInput, DatasetSamplePage,
+    DatasetSamplePageInput, DatasetSamplePreview, DatasetSampleUpdateInput, DatasetSummary,
+    DatasetUpdateInput, DatasetValidationResult, DeleteResult, DiscoveredModel, MetricsTick,
+    ModelSummary, ProviderConnectionConfig, ProviderConnectionResult, ProviderDiagnosticsResult,
+    ProviderModelScanResult, ProviderSummary, ReportDetail, ReportSummary, UpdateProviderInput,
 };
 
 mod benchmarks;
@@ -134,6 +135,16 @@ pub(crate) trait BenchmarkRepository {
     async fn insert_stage(&self, sample: &StageSample) -> anyhow::Result<()>;
     async fn insert_tick(&self, tick: &MetricsTick) -> anyhow::Result<()>;
     async fn insert_benchmark_error(&self, error: &BenchmarkErrorRecord) -> anyhow::Result<()>;
+    async fn insert_request_log(&self, log: &BenchmarkRequestLogRecord) -> anyhow::Result<()>;
+    async fn list_request_logs_page(
+        &self,
+        input: BenchmarkRequestLogPageInput,
+    ) -> anyhow::Result<BenchmarkRequestLogPage>;
+    async fn get_request_log_detail(
+        &self,
+        request_id: &str,
+    ) -> anyhow::Result<BenchmarkRequestLogDetail>;
+    async fn delete_request_logs(&self, task_id: &str) -> anyhow::Result<DeleteResult>;
     async fn get_task_summary(&self, task_id: &str) -> anyhow::Result<BenchmarkTaskSummary>;
     async fn list_ticks(&self, task_id: &str) -> anyhow::Result<Vec<MetricsTick>>;
     async fn update_task_engine_mode(&self, task_id: &str, engine_mode: &str)

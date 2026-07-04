@@ -4,6 +4,7 @@ import {
   DataTable,
   type DataTableColumn,
 } from "../../../components/common/DataTable";
+import { MetricHelp } from "../../../components/common/MetricHelp";
 import type { ReportDetail } from "../../../types/api";
 import type { StageColumn } from "../types";
 
@@ -26,12 +27,12 @@ export function ReportStageTableSection({
   const columns: Array<DataTableColumn<ReportStage>> = [
     ...stageColumns.map((column) => ({
       key: column.key,
-      title: column.label,
+      title: <MetricHelp helpKey={column.helpKey}>{column.label}</MetricHelp>,
       render: column.render,
     })),
     {
       key: "sla",
-      title: "SLA",
+      title: <MetricHelp helpKey="sla">SLA</MetricHelp>,
       render: (stage) => (
         <Badge tone={stage.sla_passed ? "success" : "warning"}>
           {stage.sla_passed ? "达标" : "未达标"}

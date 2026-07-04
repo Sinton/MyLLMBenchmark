@@ -1,5 +1,8 @@
 import type {
   AppConfig,
+  BenchmarkRequestLogDetail,
+  BenchmarkRequestLogPage,
+  BenchmarkRequestLogPageInput,
   BenchmarkStartInput,
   BenchmarkTaskSummary,
   ConfigUpdateResult,
@@ -67,6 +70,13 @@ export type AppApi = {
   stopBenchmark: (taskId: string) => Promise<StopResult>;
   getBenchmarkTask: (taskId: string) => Promise<BenchmarkTaskSummary>;
   listBenchmarkTicks: (taskId: string) => Promise<MetricsTick[]>;
+  listBenchmarkRequestLogsPage: (
+    input: BenchmarkRequestLogPageInput,
+  ) => Promise<BenchmarkRequestLogPage>;
+  getBenchmarkRequestLogDetail: (
+    requestId: string,
+  ) => Promise<BenchmarkRequestLogDetail>;
+  deleteBenchmarkRequestLogs: (taskId: string) => Promise<DeleteResult>;
   generateReport: (taskId: string) => Promise<ReportSummary>;
   listReports: () => Promise<ReportSummary[]>;
   getReportDetail: (reportId: string) => Promise<ReportDetail>;

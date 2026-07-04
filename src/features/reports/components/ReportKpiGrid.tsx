@@ -2,6 +2,7 @@ import { ReportKpi } from "./ReportKpi";
 
 type ReportKpiItem = {
   label: string;
+  helpKey?: string;
   value: string | number;
   unit?: string;
   hint?: string;
@@ -18,6 +19,7 @@ export function ReportKpiGrid({ kpis }: ReportKpiGridProps) {
         <ReportKpi
           key={metric.label}
           label={metric.label}
+          helpKey={metric.helpKey}
           value={metric.value}
           unit={metric.unit ?? ""}
           hint={metric.hint ?? ""}

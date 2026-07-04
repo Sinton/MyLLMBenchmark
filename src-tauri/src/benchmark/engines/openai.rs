@@ -11,8 +11,9 @@ use crate::{
     },
     domain::{benchmark_sample::StageSample, model_type::ModelType, workload::WorkloadConfig},
     models::{
-        BenchmarkErrorRecord, BenchmarkStartInput, BenchmarkTaskSummary, DatasetSample,
-        MetricsTick, StageChangedEvent,
+        BenchmarkErrorRecord, BenchmarkRequestLogRecord, BenchmarkRequestLogSummary,
+        BenchmarkStartInput, BenchmarkTaskSummary, DatasetSample, MetricsTick, RequestLogConfig,
+        StageChangedEvent,
     },
 };
 use futures_util::{future::join_all, StreamExt};
@@ -22,6 +23,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::watch;
 use tokio::time::Instant;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct OpenAICompatibleClient {
@@ -89,6 +91,7 @@ impl OpenAICompatibleClient {
         let started = Instant::now();
         let input_tokens = inputs.iter().map(|item| estimate_tokens(item)).sum::<i64>();
         let text_count = inputs.len() as i64;
+        let prompt_for_log = inputs.join("\n---\n");
         let body = embedding::embeddings_body(model, inputs);
         let response = match self
             .with_auth(
@@ -101,16 +104,27 @@ impl OpenAICompatibleClient {
             .await
         {
             Ok(response) => response,
-            Err(error) => return RequestOutcome::from_reqwest_error(error, started.elapsed()),
+            Err(error) => {
+                return RequestOutcome::from_reqwest_error(error, started.elapsed()).with_body(
+                    Some(prompt_for_log),
+                    None,
+                    None,
+                )
+            }
         };
         let status = response.status();
         if !status.is_success() {
-            return RequestOutcome::from_status(status, started.elapsed());
+            return RequestOutcome::from_status(status, started.elapsed()).with_body(
+                Some(prompt_for_log),
+                None,
+                None,
+            );
         }
         let payload = match response.json::<serde_json::Value>().await {
             Ok(payload) => payload,
             Err(error) => {
                 return RequestOutcome::failure("parse", &error.to_string(), started.elapsed())
+                    .with_body(Some(prompt_for_log), None, None)
             }
         };
         let usage = usage_from_value(&payload).unwrap_or(TokenUsage {
@@ -128,6 +142,13 @@ impl OpenAICompatibleClient {
                 ..RequestUnits::default()
             },
         )
+        .with_body(
+            Some(prompt_for_log),
+            Some(format!(
+                "Embedding 返回 {text_count} 条向量，向量正文未保存。"
+            )),
+            raw_usage_from_value(&payload),
+        )
     }
 
     async fn rerank(
@@ -141,6 +162,9 @@ impl OpenAICompatibleClient {
     ) -> RequestOutcome {
         let started = Instant::now();
         let documents_per_query = documents.len() as i64;
+        let query_for_log = query.clone();
+        let documents_for_log = documents.clone();
+        let prompt_for_log = rerank_prompt_for_log(&query_for_log, &documents_for_log);
         let input_tokens = estimate_tokens(&query)
             + documents
                 .iter()
@@ -158,15 +182,34 @@ impl OpenAICompatibleClient {
             .await
         {
             Ok(response) => response,
-            Err(error) => return RequestOutcome::from_reqwest_error(error, started.elapsed()),
+            Err(error) => {
+                return RequestOutcome::from_reqwest_error(error, started.elapsed()).with_body(
+                    Some(prompt_for_log),
+                    None,
+                    None,
+                )
+            }
         };
         let status = response.status();
         if !status.is_success() {
-            return RequestOutcome::from_status(status, started.elapsed());
+            return RequestOutcome::from_status(status, started.elapsed()).with_body(
+                Some(prompt_for_log),
+                None,
+                None,
+            );
         }
-        if let Err(error) = response.json::<serde_json::Value>().await {
-            return RequestOutcome::failure("parse", &error.to_string(), started.elapsed());
-        }
+        let payload = match response.json::<serde_json::Value>().await {
+            Ok(payload) => payload,
+            Err(error) => {
+                return RequestOutcome::failure("parse", &error.to_string(), started.elapsed())
+                    .with_body(Some(prompt_for_log), None, None)
+            }
+        };
+        let result_count = payload
+            .get("results")
+            .and_then(|value| value.as_array())
+            .map(|items| items.len())
+            .unwrap_or(0);
         RequestOutcome::success_with_units(
             started.elapsed(),
             Duration::ZERO,
@@ -180,6 +223,13 @@ impl OpenAICompatibleClient {
                 pair_count: documents_per_query,
                 ..RequestUnits::default()
             },
+        )
+        .with_body(
+            Some(prompt_for_log),
+            Some(format!(
+                "Rerank 返回 {result_count} 条结果，候选文档 {documents_per_query} 条。"
+            )),
+            raw_usage_from_value(&payload),
         )
     }
 
@@ -205,16 +255,27 @@ impl OpenAICompatibleClient {
             .await
         {
             Ok(response) => response,
-            Err(error) => return RequestOutcome::from_reqwest_error(error, started.elapsed()),
+            Err(error) => {
+                return RequestOutcome::from_reqwest_error(error, started.elapsed()).with_body(
+                    Some(prompt.to_string()),
+                    None,
+                    None,
+                )
+            }
         };
         let status = response.status();
         if !status.is_success() {
-            return RequestOutcome::from_status(status, started.elapsed());
+            return RequestOutcome::from_status(status, started.elapsed()).with_body(
+                Some(prompt.to_string()),
+                None,
+                None,
+            );
         }
         let payload = match response.json::<serde_json::Value>().await {
             Ok(payload) => payload,
             Err(error) => {
                 return RequestOutcome::failure("parse", &error.to_string(), started.elapsed())
+                    .with_body(Some(prompt.to_string()), None, None)
             }
         };
         let output = payload
@@ -226,6 +287,11 @@ impl OpenAICompatibleClient {
             started.elapsed(),
             started.elapsed(),
             usage_from_value(&payload).unwrap_or_else(|| TokenUsage::estimated(prompt, &output)),
+        )
+        .with_body(
+            Some(prompt.to_string()),
+            Some(output),
+            raw_usage_from_value(&payload),
         )
     }
 
@@ -251,11 +317,21 @@ impl OpenAICompatibleClient {
             .await
         {
             Ok(response) => response,
-            Err(error) => return RequestOutcome::from_reqwest_error(error, started.elapsed()),
+            Err(error) => {
+                return RequestOutcome::from_reqwest_error(error, started.elapsed()).with_body(
+                    Some(prompt.to_string()),
+                    None,
+                    None,
+                )
+            }
         };
         let status = response.status();
         if !status.is_success() {
-            return RequestOutcome::from_status(status, started.elapsed());
+            return RequestOutcome::from_status(status, started.elapsed()).with_body(
+                Some(prompt.to_string()),
+                None,
+                None,
+            );
         }
 
         let mut stream = response.bytes_stream();
@@ -264,10 +340,14 @@ impl OpenAICompatibleClient {
         let mut usage = None;
 
         while let Some(chunk) = stream.next().await {
-            let chunk = match chunk {
-                Ok(chunk) => chunk,
-                Err(error) => return RequestOutcome::from_reqwest_error(error, started.elapsed()),
-            };
+            let chunk =
+                match chunk {
+                    Ok(chunk) => chunk,
+                    Err(error) => {
+                        return RequestOutcome::from_reqwest_error(error, started.elapsed())
+                            .with_body(Some(prompt.to_string()), Some(output), None)
+                    }
+                };
             let text = String::from_utf8_lossy(&chunk);
             for line in text.lines() {
                 let Some(data) = line.trim().strip_prefix("data:") else {
@@ -301,6 +381,7 @@ impl OpenAICompatibleClient {
             first_token_at.unwrap_or_else(|| started.elapsed()),
             usage.unwrap_or_else(|| TokenUsage::estimated(prompt, &output)),
         )
+        .with_body(Some(prompt.to_string()), Some(output), None)
     }
 
     async fn vision_completion(
@@ -313,6 +394,7 @@ impl OpenAICompatibleClient {
     ) -> RequestOutcome {
         let started = Instant::now();
         let vision_sample = parse_vision_sample(&sample.prompt, workload.image_count);
+        let prompt_for_log = sample.prompt.clone();
         let body = vision::vision_completion_body(model, &vision_sample, workload);
         let response = match self
             .with_auth(
@@ -326,16 +408,27 @@ impl OpenAICompatibleClient {
             .await
         {
             Ok(response) => response,
-            Err(error) => return RequestOutcome::from_reqwest_error(error, started.elapsed()),
+            Err(error) => {
+                return RequestOutcome::from_reqwest_error(error, started.elapsed()).with_body(
+                    Some(prompt_for_log),
+                    None,
+                    None,
+                )
+            }
         };
         let status = response.status();
         if !status.is_success() {
-            return RequestOutcome::from_status(status, started.elapsed());
+            return RequestOutcome::from_status(status, started.elapsed()).with_body(
+                Some(prompt_for_log),
+                None,
+                None,
+            );
         }
         let payload = match response.json::<serde_json::Value>().await {
             Ok(payload) => payload,
             Err(error) => {
                 return RequestOutcome::failure("parse", &error.to_string(), started.elapsed())
+                    .with_body(Some(prompt_for_log), None, None)
             }
         };
         let output = payload
@@ -352,6 +445,11 @@ impl OpenAICompatibleClient {
                 image_count: vision_sample.image_urls.len() as i64,
                 ..RequestUnits::default()
             },
+        )
+        .with_body(
+            Some(prompt_for_log),
+            Some(output.to_string()),
+            raw_usage_from_value(&payload),
         )
     }
 }
@@ -430,6 +528,8 @@ impl OpenAICompatibleBenchmarkRuntime {
         let plan = BenchmarkPlan::from_input(&self.input);
         let workload =
             WorkloadConfig::from_value(&self.task.model_type, self.input.workload_config.as_ref());
+        let request_log_config =
+            RequestLogConfig::normalized(self.input.request_log_config.as_ref());
 
         self.publisher.task_started(&self.task);
         self.publisher.stage_changed(StageChangedEvent {
@@ -483,10 +583,13 @@ impl OpenAICompatibleBenchmarkRuntime {
                     .run_tick(
                         &task_id,
                         elapsed_global,
+                        stage_number,
+                        elapsed_in_stage,
                         *concurrency,
                         model_type,
                         &workload,
                         plan.request_timeout_seconds,
+                        &request_log_config,
                     )
                     .await?
                 {
@@ -592,15 +695,19 @@ impl OpenAICompatibleBenchmarkRuntime {
         &mut self,
         task_id: &str,
         elapsed: i64,
+        stage_index: i64,
+        round_index: i64,
         concurrency: i64,
         model_type: ModelType,
         workload: &WorkloadConfig,
         request_timeout_seconds: i64,
+        request_log_config: &RequestLogConfig,
     ) -> anyhow::Result<TickOutcome> {
         let started = Instant::now();
         let request_count = concurrency.clamp(1, 256) as usize;
         let futures = (0..request_count).map(|index| {
             let sample_index = ((elapsed as usize * request_count) + index) % self.samples.len();
+            let request_index = ((round_index - 1) * request_count as i64) + index as i64 + 1;
             let sample = self.samples[sample_index].clone();
             let client = self.client.clone();
             let provider = self.provider.clone();
@@ -608,7 +715,7 @@ impl OpenAICompatibleBenchmarkRuntime {
             let workload = workload.clone();
             let samples = self.samples.clone();
             async move {
-                match model_type {
+                let outcome = match model_type {
                     ModelType::Embedding => {
                         let inputs = collect_embedding_inputs(
                             &samples,
@@ -661,7 +768,8 @@ impl OpenAICompatibleBenchmarkRuntime {
                             )
                             .await
                     }
-                }
+                };
+                outcome.with_metadata(request_index, sample_index as i64 + 1)
             }
         });
         let results = tokio::select! {
@@ -675,6 +783,8 @@ impl OpenAICompatibleBenchmarkRuntime {
         };
         let elapsed_secs = started.elapsed().as_secs_f64().max(0.001);
         self.record_errors(task_id, &results).await?;
+        self.record_request_logs(task_id, stage_index, request_log_config, &results)
+            .await?;
         Ok(TickOutcome::Tick(build_tick_from_results(
             task_id,
             elapsed,
@@ -704,6 +814,64 @@ impl OpenAICompatibleBenchmarkRuntime {
                     error_kind,
                     message,
                     count,
+                })
+                .await?;
+        }
+        Ok(())
+    }
+
+    async fn record_request_logs(
+        &self,
+        task_id: &str,
+        stage_index: i64,
+        config: &RequestLogConfig,
+        results: &[RequestOutcome],
+    ) -> anyhow::Result<()> {
+        if !config.enabled {
+            return Ok(());
+        }
+
+        for result in results
+            .iter()
+            .filter(|result| result.request_index <= config.max_records_per_stage)
+        {
+            let status = if result.ok { "success" } else { "failed" }.to_string();
+            let prompt_preview = result.prompt.as_deref().map(preview_text);
+            let response_preview = result.response_text.as_deref().map(preview_text);
+            let summary = BenchmarkRequestLogSummary {
+                id: Uuid::new_v4().to_string(),
+                task_id: task_id.to_string(),
+                stage_index,
+                request_index: result.request_index,
+                sample_index: result.sample_index,
+                status,
+                latency_ms: result.latency_ms,
+                ttft_ms: result.ttft_ms,
+                input_tokens: result.usage.input_tokens,
+                output_tokens: result.usage.output_tokens,
+                total_tokens: result.usage.total_tokens,
+                error_kind: result.error_kind.map(str::to_string),
+                prompt_preview,
+                response_preview,
+                created_at: chrono::Utc::now().to_rfc3339(),
+            };
+            self.persistence
+                .insert_request_log(BenchmarkRequestLogRecord {
+                    summary,
+                    body_ref: None,
+                    prompt: config.capture_body.then(|| result.prompt.clone()).flatten(),
+                    response_text: config
+                        .capture_body
+                        .then(|| result.response_text.clone())
+                        .flatten(),
+                    raw_error: config
+                        .capture_body
+                        .then(|| result.error_message.clone())
+                        .flatten(),
+                    raw_usage: config
+                        .capture_body
+                        .then(|| result.raw_usage.clone())
+                        .flatten(),
                 })
                 .await?;
         }
@@ -851,12 +1019,17 @@ fn map_reqwest_error(error: reqwest::Error) -> anyhow::Error {
 #[derive(Debug, Clone)]
 struct RequestOutcome {
     ok: bool,
+    request_index: i64,
+    sample_index: i64,
     latency_ms: i64,
     ttft_ms: i64,
     usage: TokenUsage,
     units: RequestUnits,
     error_kind: Option<&'static str>,
     error_message: Option<String>,
+    prompt: Option<String>,
+    response_text: Option<String>,
+    raw_usage: Option<serde_json::Value>,
 }
 
 impl RequestOutcome {
@@ -872,25 +1045,53 @@ impl RequestOutcome {
     ) -> Self {
         Self {
             ok: true,
+            request_index: 0,
+            sample_index: 0,
             latency_ms: duration_ms(latency),
             ttft_ms: duration_ms(ttft),
             usage,
             units,
             error_kind: None,
             error_message: None,
+            prompt: None,
+            response_text: None,
+            raw_usage: None,
         }
     }
 
     fn failure(kind: &'static str, message: &str, latency: Duration) -> Self {
         Self {
             ok: false,
+            request_index: 0,
+            sample_index: 0,
             latency_ms: duration_ms(latency),
             ttft_ms: 0,
             usage: TokenUsage::default(),
             units: RequestUnits::default(),
             error_kind: Some(kind),
             error_message: Some(message.chars().take(180).collect()),
+            prompt: None,
+            response_text: None,
+            raw_usage: None,
         }
+    }
+
+    fn with_metadata(mut self, request_index: i64, sample_index: i64) -> Self {
+        self.request_index = request_index;
+        self.sample_index = sample_index;
+        self
+    }
+
+    fn with_body(
+        mut self,
+        prompt: Option<String>,
+        response_text: Option<String>,
+        raw_usage: Option<serde_json::Value>,
+    ) -> Self {
+        self.prompt = prompt;
+        self.response_text = response_text;
+        self.raw_usage = raw_usage;
+        self
     }
 
     fn from_status(status: StatusCode, latency: Duration) -> Self {
@@ -965,6 +1166,10 @@ fn usage_from_value(value: &serde_json::Value) -> Option<TokenUsage> {
         output_tokens,
         total_tokens,
     })
+}
+
+fn raw_usage_from_value(value: &serde_json::Value) -> Option<serde_json::Value> {
+    value.get("usage").cloned()
 }
 
 fn build_tick_from_results(
@@ -1120,6 +1325,15 @@ fn estimate_tokens(text: &str) -> i64 {
     ((text.chars().count() as f64) / 4.0).ceil().max(1.0) as i64
 }
 
+fn preview_text(text: &str) -> String {
+    const MAX_CHARS: usize = 120;
+    let mut preview = text.chars().take(MAX_CHARS).collect::<String>();
+    if text.chars().count() > MAX_CHARS {
+        preview.push('…');
+    }
+    preview
+}
+
 fn collect_embedding_inputs(
     samples: &[DatasetSample],
     start_index: usize,
@@ -1154,6 +1368,16 @@ fn collect_rerank_inputs(
         })
         .collect();
     (query, documents)
+}
+
+fn rerank_prompt_for_log(query: &str, documents: &[String]) -> String {
+    let docs = documents
+        .iter()
+        .enumerate()
+        .map(|(index, document)| format!("{}. {}", index + 1, document))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("Query:\n{query}\n\nDocuments:\n{docs}")
 }
 
 pub(super) struct VisionSample {

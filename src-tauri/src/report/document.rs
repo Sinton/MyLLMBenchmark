@@ -39,6 +39,13 @@ impl ReportDocument {
             ("数据集".to_string(), detail.dataset_name.clone()),
             ("数据来源".to_string(), source_label.to_string()),
             (
+                "请求明细".to_string(),
+                request_log_meta_text(
+                    detail.request_log_meta.total_records,
+                    detail.request_log_meta.body_records,
+                ),
+            ),
+            (
                 "推荐生产并发".to_string(),
                 format!("{} 路", detail.summary.recommended_concurrency),
             ),
@@ -88,6 +95,13 @@ impl ReportDocument {
                     vec!["任务名称".to_string(), detail.task_name.clone()],
                     vec!["模型类型".to_string(), detail.model_type.clone()],
                     vec!["数据集".to_string(), detail.dataset_name.clone()],
+                    vec![
+                        "请求明细".to_string(),
+                        request_log_meta_text(
+                            detail.request_log_meta.total_records,
+                            detail.request_log_meta.body_records,
+                        ),
+                    ],
                     vec!["计划阶梯".to_string(), join_numbers(&detail.planned_stages)],
                     vec![
                         "实际阶梯".to_string(),
@@ -194,7 +208,8 @@ impl ReportDocument {
             DocumentSection {
                 title: "附录".to_string(),
                 paragraphs: vec![
-                    "本报告不包含 API Key、完整请求正文或模型响应正文。".to_string(),
+                    request_log_appendix_text(detail),
+                    "本报告不包含 API Key；PDF/DOCX 默认不导出完整请求正文或模型响应正文。".to_string(),
                     "容量结论基于持久化阶段指标和秒级 tick；历史缺失字段仅在兼容模式下估算。".to_string(),
                 ],
                 rows: vec![
@@ -202,6 +217,14 @@ impl ReportDocument {
                     vec!["Report ID".to_string(), detail.summary.id.clone()],
                     vec!["Task ID".to_string(), detail.summary.task_id.clone()],
                     vec!["数据来源".to_string(), source_label.to_string()],
+                    vec![
+                        "请求明细索引".to_string(),
+                        format!("{} 条", detail.request_log_meta.total_records),
+                    ],
+                    vec![
+                        "正文可用记录".to_string(),
+                        format!("{} 条", detail.request_log_meta.body_records),
+                    ],
                     vec!["导出模板".to_string(), template.label().to_string()],
                 ],
             },
@@ -636,6 +659,27 @@ fn join_numbers(values: &[i64]) -> String {
         .map(ToString::to_string)
         .collect::<Vec<_>>()
         .join(" -> ")
+}
+
+fn request_log_meta_text(total_records: i64, body_records: i64) -> String {
+    if total_records <= 0 {
+        return "未采集".to_string();
+    }
+    if body_records > 0 {
+        format!("{total_records} 条索引，{body_records} 条正文可用")
+    } else {
+        format!("{total_records} 条索引，未保存正文")
+    }
+}
+
+fn request_log_appendix_text(detail: &ReportDetail) -> String {
+    if detail.request_log_meta.total_records <= 0 {
+        return "本次报告未记录请求级明细。".to_string();
+    }
+    format!(
+        "本次报告记录请求级明细索引 {} 条，其中正文可用 {} 条；单条详情请在 LLMBench 客户端内查看。",
+        detail.request_log_meta.total_records, detail.request_log_meta.body_records
+    )
 }
 
 fn escape_html(value: &str) -> String {

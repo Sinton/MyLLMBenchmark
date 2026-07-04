@@ -8,43 +8,44 @@ export function getLiveMetricCards(modelTypeValue: string, tick: MetricsTick | n
 
   if (modelType === "embedding") {
     return [
-      { label: "QPS", value: tick?.qps ?? "-" },
-      { label: "Batch", value: tick?.batch_size || "-" },
-      { label: "Text/s", value: tick?.text_count || "-" },
-      { label: "Input Token/s", value: tick?.input_tokens ?? "-", unit: "tok/s" },
-      { label: "Success", value: tick?.success_rate ?? "-", unit: "%" },
+      { label: "QPS", helpKey: "qps", value: tick?.qps ?? "-" },
+      { label: "Batch", helpKey: "batch", value: tick?.batch_size || "-" },
+      { label: "Text/s", helpKey: "text_s", value: tick?.text_count || "-" },
+      { label: "Input Token/s", helpKey: "input_s", value: tick?.input_tokens ?? "-", unit: "tok/s" },
+      { label: "Success", helpKey: "success_rate", value: tick?.success_rate ?? "-", unit: "%" },
     ];
   }
 
   if (modelType === "rerank") {
     return [
-      { label: "Query/s", value: tick?.qps ?? "-" },
-      { label: "Pair/s", value: tick?.pair_count || "-" },
-      { label: "Docs/Query", value: tick?.documents_per_query || "-" },
-      { label: "Latency", value: tick?.latency_ms ?? "-", unit: "ms" },
-      { label: "Success", value: tick?.success_rate ?? "-", unit: "%" },
+      { label: "Query/s", helpKey: "query_s", value: tick?.qps ?? "-" },
+      { label: "Pair/s", helpKey: "pair_s", value: tick?.pair_count || "-" },
+      { label: "Docs/Query", helpKey: "docs_q", value: tick?.documents_per_query || "-" },
+      { label: "Latency", helpKey: "latency", value: tick?.latency_ms ?? "-", unit: "ms" },
+      { label: "Success", helpKey: "success_rate", value: tick?.success_rate ?? "-", unit: "%" },
     ];
   }
 
   if (modelType === "multimodal") {
     return [
-      { label: "QPS", value: tick?.qps ?? "-" },
+      { label: "QPS", helpKey: "qps", value: tick?.qps ?? "-" },
       {
         label: "Image/s",
+        helpKey: "image_s",
         value: tick ? Math.round(tick.qps * Math.max(1, tick.image_count)) : "-",
       },
-      { label: "TTFT", value: tick?.ttft_ms ?? "-", unit: "ms" },
-      { label: "Latency", value: tick?.latency_ms ?? "-", unit: "ms" },
-      { label: "Success", value: tick?.success_rate ?? "-", unit: "%" },
+      { label: "TTFT", helpKey: "ttft", value: tick?.ttft_ms ?? "-", unit: "ms" },
+      { label: "Latency", helpKey: "latency", value: tick?.latency_ms ?? "-", unit: "ms" },
+      { label: "Success", helpKey: "success_rate", value: tick?.success_rate ?? "-", unit: "%" },
     ];
   }
 
   return [
-    { label: "QPS", value: tick?.qps ?? "-" },
-    { label: "TTFT", value: tick?.ttft_ms ?? "-", unit: "ms" },
-    { label: "Latency", value: tick?.latency_ms ?? "-", unit: "ms" },
-    { label: "Output TPS", value: tick?.tps ?? "-", unit: "tok/s" },
-    { label: "Success", value: tick?.success_rate ?? "-", unit: "%" },
+    { label: "QPS", helpKey: "qps", value: tick?.qps ?? "-" },
+    { label: "TTFT", helpKey: "ttft", value: tick?.ttft_ms ?? "-", unit: "ms" },
+    { label: "Latency", helpKey: "latency", value: tick?.latency_ms ?? "-", unit: "ms" },
+    { label: "Output TPS", helpKey: "out_tps", value: tick?.tps ?? "-", unit: "tok/s" },
+    { label: "Success", helpKey: "success_rate", value: tick?.success_rate ?? "-", unit: "%" },
   ];
 }
 

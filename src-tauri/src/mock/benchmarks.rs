@@ -7,8 +7,9 @@ use crate::domain::model_type::normalize_model_type;
 use crate::domain::workload::merge_workload_config;
 use crate::error::AppError;
 use crate::models::{
-    BenchmarkErrorRecord, BenchmarkStartInput, BenchmarkTaskSummary, MetricsTick,
-    ProviderDiagnosticsResult, ReportStageSummary,
+    BenchmarkErrorRecord, BenchmarkRequestLogDetail, BenchmarkRequestLogPage,
+    BenchmarkRequestLogPageInput, BenchmarkRequestLogRecord, BenchmarkStartInput,
+    BenchmarkTaskSummary, DeleteResult, MetricsTick, ProviderDiagnosticsResult, ReportStageSummary,
 };
 use crate::report::analyzer;
 use uuid::Uuid;
@@ -123,6 +124,114 @@ impl MockDataStore {
             .or_default()
             .push(error.clone());
         Ok(())
+    }
+
+    pub async fn insert_request_log(&self, log: &BenchmarkRequestLogRecord) -> anyhow::Result<()> {
+        let mut data = self.inner.write().await;
+        data.request_logs
+            .entry(log.summary.task_id.clone())
+            .or_default()
+            .push(BenchmarkRequestLogDetail {
+                summary: log.summary.clone(),
+                prompt: log.prompt.clone(),
+                response_text: log.response_text.clone(),
+                raw_error: log.raw_error.clone(),
+                raw_usage: log.raw_usage.clone(),
+                body_available: log.prompt.is_some()
+                    || log.response_text.is_some()
+                    || log.raw_error.is_some()
+                    || log.raw_usage.is_some(),
+            });
+        Ok(())
+    }
+
+    pub async fn list_request_logs_page(
+        &self,
+        input: BenchmarkRequestLogPageInput,
+    ) -> anyhow::Result<BenchmarkRequestLogPage> {
+        let input = input.normalized();
+        let data = self.inner.read().await;
+        if !data
+            .tasks
+            .iter()
+            .any(|task| task.summary.id == input.task_id)
+        {
+            return Err(AppError::not_found("task").into());
+        }
+        let keyword = input.keyword.as_ref().map(|value| value.to_lowercase());
+        let filtered = data
+            .request_logs
+            .get(&input.task_id)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|detail| detail.summary)
+            .filter(|item| {
+                input
+                    .stage_index
+                    .map(|stage_index| item.stage_index == stage_index)
+                    .unwrap_or(true)
+            })
+            .filter(|item| {
+                input
+                    .status
+                    .as_ref()
+                    .map(|status| item.status == *status)
+                    .unwrap_or(true)
+            })
+            .filter(|item| {
+                keyword
+                    .as_ref()
+                    .map(|keyword| {
+                        item.prompt_preview
+                            .as_deref()
+                            .unwrap_or("")
+                            .to_lowercase()
+                            .contains(keyword)
+                            || item
+                                .response_preview
+                                .as_deref()
+                                .unwrap_or("")
+                                .to_lowercase()
+                                .contains(keyword)
+                    })
+                    .unwrap_or(true)
+            })
+            .collect::<Vec<_>>();
+        let total = filtered.len() as i64;
+        let start = ((input.page - 1) * input.page_size).max(0) as usize;
+        Ok(BenchmarkRequestLogPage {
+            items: filtered
+                .into_iter()
+                .skip(start)
+                .take(input.page_size as usize)
+                .collect(),
+            total,
+            page: input.page,
+            page_size: input.page_size,
+        })
+    }
+
+    pub async fn get_request_log_detail(
+        &self,
+        request_id: &str,
+    ) -> anyhow::Result<BenchmarkRequestLogDetail> {
+        let data = self.inner.read().await;
+        data.request_logs
+            .values()
+            .flat_map(|logs| logs.iter())
+            .find(|detail| detail.summary.id == request_id)
+            .cloned()
+            .ok_or_else(|| AppError::not_found("request_log").into())
+    }
+
+    pub async fn delete_request_logs(&self, task_id: &str) -> anyhow::Result<DeleteResult> {
+        let mut data = self.inner.write().await;
+        let deleted = data.request_logs.remove(task_id).is_some();
+        Ok(DeleteResult {
+            id: task_id.to_string(),
+            deleted,
+        })
     }
 
     pub async fn update_task_engine_mode(

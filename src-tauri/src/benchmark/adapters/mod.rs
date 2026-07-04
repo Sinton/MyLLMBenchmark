@@ -68,6 +68,7 @@ mod tests {
             min_success_rate: None,
             sla_stop_policy: None,
             workload_config: None,
+            request_log_config: None,
         }
     }
 

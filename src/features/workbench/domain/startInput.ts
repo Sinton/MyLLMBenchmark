@@ -53,6 +53,11 @@ export function buildBenchmarkStartInput({
       min_success_rate: form.min_success_rate,
       sla_stop_policy: form.sla_stop_policy,
       workload_config: buildWorkloadConfig(selectedModelType, form),
+      request_log_config: {
+        enabled: form.request_log_enabled,
+        capture_body: form.request_log_enabled && form.request_log_capture_body,
+        max_records_per_stage: form.request_log_max_records_per_stage,
+      },
     },
   };
 }
@@ -69,6 +74,7 @@ function validateNumericFields(form: WorkbenchForm, estimatedSeconds: number) {
     finiteNumber("请求超时", form.request_timeout_seconds),
     finiteNumber("P95 SLA", form.sla_p95_ms),
     finiteNumber("最低成功率", form.min_success_rate),
+    finiteNumber("请求明细保存上限", form.request_log_max_records_per_stage),
     finiteNumber("预计请求轮次", estimatedSeconds),
   ]);
   if (numericError) return numericError;
@@ -85,5 +91,6 @@ function validateNumericFields(form: WorkbenchForm, estimatedSeconds: number) {
     numberRange("请求超时", form.request_timeout_seconds, 5, 600),
     greaterThan("P95 SLA", form.sla_p95_ms, 0),
     numberRange("最低成功率", form.min_success_rate, 0, 100),
+    numberRange("请求明细保存上限", form.request_log_max_records_per_stage, 1, 1000),
   ]);
 }

@@ -1,6 +1,8 @@
 use super::{now, MockDataStore};
 use crate::error::AppError;
-use crate::models::{BenchmarkErrorRecord, ReportDetail, ReportErrorBucket, ReportSummary};
+use crate::models::{
+    BenchmarkErrorRecord, ReportDetail, ReportErrorBucket, ReportRequestLogMeta, ReportSummary,
+};
 use crate::report::analyzer::{self, ReportContext};
 use uuid::Uuid;
 
@@ -80,6 +82,7 @@ impl MockDataStore {
             .as_ref()
             .and_then(|value| value.get("dataset_quality").cloned())
             .and_then(|value| serde_json::from_value(value).ok());
+        let request_log_meta = request_log_meta(data.request_logs.get(&summary.task_id));
         let context = ReportContext {
             model_type: task.summary.model_type,
             task_name: task.summary.name,
@@ -97,6 +100,7 @@ impl MockDataStore {
             preflight_result: task.preflight_result,
             diagnostics_snapshot: task.diagnostics_snapshot,
             dataset_quality,
+            request_log_meta,
         };
 
         let source = if task.engine_mode == "openai_compatible" {
@@ -111,6 +115,21 @@ impl MockDataStore {
         }
 
         Ok(detail)
+    }
+}
+
+fn request_log_meta(
+    logs: Option<&Vec<crate::models::BenchmarkRequestLogDetail>>,
+) -> ReportRequestLogMeta {
+    let total_records = logs.map(|items| items.len() as i64).unwrap_or(0);
+    let body_records = logs
+        .map(|items| items.iter().filter(|item| item.body_available).count() as i64)
+        .unwrap_or(0);
+    ReportRequestLogMeta {
+        enabled: total_records > 0,
+        total_records,
+        body_records,
+        body_available: body_records > 0,
     }
 }
 
