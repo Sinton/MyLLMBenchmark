@@ -1,0 +1,203 @@
+.window-titlebar {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 34px;
+  border-bottom: 1px solid rgba(214, 202, 192, 0.72);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(242, 235, 229, 0.94)),
+    var(--bg-sidebar);
+  color: var(--text);
+  user-select: none;
+}
+
+.window-titlebar.platform-macos {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.window-drag-region {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+}
+
+.platform-macos .window-drag-region {
+  grid-column: 2;
+  justify-content: center;
+  padding-left: 0;
+}
+
+.window-titlebar-brand {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.window-titlebar-brand span {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid rgba(145, 89, 60, 0.18);
+  border-radius: 8px;
+  background: rgba(145, 89, 60, 0.12);
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.window-titlebar-brand strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 16px;
+}
+
+.window-titlebar-context {
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 16px;
+}
+
+.window-titlebar-context span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-macos .window-titlebar-brand {
+  display: none;
+}
+
+.platform-macos .window-titlebar-context {
+  justify-self: center;
+  color: var(--text-secondary);
+}
+
+.window-controls {
+  display: inline-flex;
+  align-items: stretch;
+  -webkit-app-region: no-drag;
+}
+
+.window-control {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: default;
+  padding: 0;
+}
+
+.window-control:focus-visible {
+  outline: 2px solid var(--primary-soft);
+  outline-offset: -2px;
+}
+
+.platform-windows .window-control,
+.platform-linux .window-control {
+  width: 46px;
+  min-height: 34px;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.platform-windows .window-control:hover,
+.platform-linux .window-control:hover {
+  background: rgba(230, 221, 214, 0.72);
+  color: var(--text);
+}
+
+.platform-windows .windows-close:hover,
+.platform-linux .windows-close:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.windows-minimize span {
+  display: block;
+  width: 12px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.windows-maximize span {
+  display: block;
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+}
+
+.windows-close span {
+  position: relative;
+  display: block;
+  width: 13px;
+  height: 13px;
+}
+
+.windows-close span::before,
+.windows-close span::after {
+  position: absolute;
+  top: 6px;
+  left: 1px;
+  width: 11px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+}
+
+.windows-close span::before {
+  transform: rotate(45deg);
+}
+
+.windows-close span::after {
+  transform: rotate(-45deg);
+}
+
+.platform-macos .window-controls {
+  gap: 8px;
+  align-items: center;
+  padding: 0 12px;
+}
+
+.platform-macos .window-control {
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(45, 35, 29, 0.12);
+  border-radius: 999px;
+  transition:
+    filter 140ms ease,
+    transform 120ms ease;
+}
+
+.platform-macos .window-control:hover {
+  filter: brightness(0.94);
+}
+
+.platform-macos .window-control:active {
+  transform: scale(0.92);
+}
+
+.macos-close {
+  background: #ff5f57;
+}
+
+.macos-minimize {
+  background: #febc2e;
+}
+
+.macos-maximize {
+  background: #28c840;
+}

@@ -1,0 +1,37 @@
+.popconfirm {
+  display: inline-flex;
+}
+
+.popover-content.popconfirm {
+  display: block;
+  width: min(280px, calc(100vw - 24px));
+}
+
+.popconfirm-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-floating);
+  padding: 14px;
+}
+
+.popconfirm-panel strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.popconfirm-panel span {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.popconfirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}

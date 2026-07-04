@@ -1,0 +1,38 @@
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 14px;
+  box-shadow: none;
+  transition:
+    transform 260ms var(--motion-spring),
+    box-shadow 260ms ease,
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.card-interactive:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+}
+
+.card-interactive:active {
+  transform: scale(0.98);
+}
+
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.card h2 {
+  margin: 2px 0 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 760;
+  line-height: 20px;
+}

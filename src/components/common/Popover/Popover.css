@@ -1,0 +1,18 @@
+.popover-root {
+  position: relative;
+  min-width: 0;
+}
+
+.popover-content {
+  position: fixed;
+  z-index: 90;
+  width: var(--popover-trigger-width);
+  animation: popover-in 140ms var(--motion-spring);
+}
+
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}

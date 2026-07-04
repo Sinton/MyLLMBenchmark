@@ -1,0 +1,85 @@
+/* Migrated from app.css. Keep new rules in this scoped file. */
+
+@media (max-width: 1320px) {
+  .providers-layout,
+  .provider-console {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  .providers-layout > .card:last-child,
+  .provider-panels,
+  .provider-create-card {
+    grid-column: 1 / -1;
+  }
+
+  .provider-meta-grid,
+  .provider-panels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .provider-hero-top,
+  .provider-action-stack {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .provider-action-stack,
+  .provider-primary-actions {
+    width: 100%;
+  }
+
+  .provider-primary-actions {
+    justify-content: flex-start;
+  }
+
+  .provider-detail-list {
+    grid-template-columns: 1fr;
+  }
+
+  .provider-danger-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .provider-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .provider-form-action {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 1180px) {
+  .workbench-layout {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+
+  .workbench-side {
+    position: static;
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dataset-tool-row,
+  .report-evidence-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 920px) {
+  .workbench-layout,
+  .workbench-side {
+    grid-template-columns: 1fr;
+  }
+
+  .workbench-config {
+    position: static;
+    max-height: none;
+  }
+
+  .workbench-start-dock {
+    position: static;
+  }
+}

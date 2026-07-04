@@ -1,0 +1,58 @@
+.workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 50px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 249, 245, 0.92) 100%),
+    var(--surface);
+  padding: 9px 12px;
+}
+
+.workspace-header-copy {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.workspace-breadcrumb {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 14px;
+}
+
+.workspace-header h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 780;
+  line-height: 24px;
+}
+
+.workspace-header p {
+  overflow: hidden;
+  max-width: 760px;
+  margin: 1px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}

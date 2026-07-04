@@ -1,0 +1,85 @@
+.command-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(300px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 54px;
+  border-bottom: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, rgba(249, 245, 242, 0.96), rgba(242, 235, 229, 0.84)),
+    var(--bg);
+  padding: 0 14px;
+}
+
+.command-toolbar-title {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.command-toolbar-title span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  line-height: 15px;
+  text-transform: uppercase;
+}
+
+.command-toolbar-title strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-toolbar-title em {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-style: normal;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-toolbar-search {
+  display: flex;
+  height: 32px;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text-muted);
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.command-toolbar-search span {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-toolbar-search kbd {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  padding: 2px 5px;
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.command-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}

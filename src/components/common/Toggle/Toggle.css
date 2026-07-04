@@ -1,0 +1,40 @@
+.toggle-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.toggle {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--selected);
+  cursor: pointer;
+  padding: 0;
+}
+
+.toggle span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: transform 180ms var(--motion-spring);
+}
+
+.toggle.checked {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+
+.toggle.checked span {
+  transform: translateX(16px);
+}

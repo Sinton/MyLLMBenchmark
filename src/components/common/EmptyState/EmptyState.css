@@ -1,0 +1,39 @@
+.empty-state {
+  display: grid;
+  min-height: 220px;
+  justify-items: center;
+  align-content: center;
+  color: var(--text-muted);
+  gap: 6px;
+  padding: 28px;
+  text-align: center;
+}
+
+.empty-state.compact {
+  min-height: auto;
+  padding: 14px;
+}
+
+.empty-state-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: var(--radius-xl);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.empty-state strong {
+  display: block;
+  color: var(--text);
+}
+
+.empty-state span {
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.empty-state-action {
+  margin-top: 8px;
+}

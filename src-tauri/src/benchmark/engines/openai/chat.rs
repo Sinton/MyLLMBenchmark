@@ -1,0 +1,31 @@
+use crate::domain::workload::WorkloadConfig;
+
+pub(super) fn completion_body(
+    model: &str,
+    prompt: &str,
+    workload: &WorkloadConfig,
+    stream: bool,
+    temperature: f64,
+) -> serde_json::Value {
+    serde_json::json!({
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": stream,
+        "max_tokens": workload.max_output_tokens.max(1),
+        "temperature": temperature
+    })
+}
+
+pub(super) fn streaming_completion_body(
+    model: &str,
+    prompt: &str,
+    workload: &WorkloadConfig,
+) -> serde_json::Value {
+    let mut body = completion_body(model, prompt, workload, true, 0.7);
+    body["stream_options"] = serde_json::json!({"include_usage": true});
+    body
+}
+
+pub(super) fn diagnostic_prompt() -> &'static str {
+    "请用一句中文回复：LLMBench 连接诊断成功。"
+}

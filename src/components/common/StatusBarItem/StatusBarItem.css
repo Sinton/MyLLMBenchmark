@@ -1,0 +1,38 @@
+.status-bar-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.status-bar-item::before {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 999px;
+  background: var(--text-disabled);
+  content: "";
+}
+
+.status-bar-item strong {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-bar-item-success::before {
+  background: var(--success);
+}
+
+.status-bar-item-warning::before {
+  background: var(--warning);
+}
+
+.status-bar-item-danger::before {
+  background: var(--danger);
+}

@@ -1,0 +1,33 @@
+.segment {
+  display: flex;
+  gap: 6px;
+}
+
+.segment button {
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    transform 120ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease,
+    opacity 180ms ease;
+}
+
+.segment button:active {
+  transform: scale(0.95);
+}
+
+.segment button.active {
+  border-color: var(--border-strong);
+  background: var(--primary-soft);
+  color: var(--primary);
+}

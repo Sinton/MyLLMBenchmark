@@ -1,0 +1,19 @@
+.progress-bar {
+  display: grid;
+  grid-template-columns: repeat(20, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+}
+
+.progress-bar span {
+  min-width: 0;
+  background: transparent;
+  transition: background 180ms ease;
+}
+
+.progress-bar span.is-filled {
+  background: var(--warning);
+}

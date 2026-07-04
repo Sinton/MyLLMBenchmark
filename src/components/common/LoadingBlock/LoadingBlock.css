@@ -1,0 +1,21 @@
+.loading-block {
+  display: flex;
+  min-height: 120px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.loading-block .button-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: spin 700ms linear infinite;
+}

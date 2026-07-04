@@ -1,0 +1,119 @@
+.dialog-backdrop {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(45, 35, 29, 0.18);
+  padding: 24px;
+  backdrop-filter: blur(5px);
+}
+
+.dialog-backdrop-drawer {
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
+}
+
+.dialog-panel {
+  display: flex;
+  width: min(var(--dialog-width, 680px), calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xxl);
+  background: var(--surface);
+  box-shadow: var(--shadow-floating);
+  animation: dialog-in 180ms var(--motion-spring);
+}
+
+.dialog-panel-drawer {
+  width: min(var(--dialog-width, 560px), 100vw);
+  max-height: none;
+  height: 100vh;
+  border-width: 0 0 0 1px;
+  border-radius: var(--radius-xxl) 0 0 var(--radius-xxl);
+  animation: drawer-in 220ms var(--motion-spring);
+}
+
+.dialog-header,
+.dialog-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+  padding: 18px 20px;
+}
+
+.dialog-footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+  border-bottom: 0;
+}
+
+.dialog-header h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 18px;
+  line-height: 26px;
+}
+
+.dialog-header p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.dialog-body {
+  max-height: calc(100vh - 210px);
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 20px;
+}
+
+.dialog-panel-drawer .dialog-body {
+  max-height: none;
+  padding: 22px;
+}
+
+.dialog-close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.dialog-close:active {
+  transform: scale(0.95);
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+@media (max-width: 720px) {
+  .dialog-panel-drawer {
+    width: 100vw;
+    border-left: 0;
+    border-radius: 0;
+  }
+}
