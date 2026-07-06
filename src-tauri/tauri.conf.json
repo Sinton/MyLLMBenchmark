@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "LLMBench",
+  "productName": "MyLLMBenchmark",
   "version": "0.1.0",
-  "identifier": "com.sinton.llmbench",
+  "identifier": "com.l0101.myllmbenchmark",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://127.0.0.1:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "LLMBench",
+        "title": "MyLLMBenchmark",
         "width": 1440,
         "height": 920,
         "minWidth": 1280,

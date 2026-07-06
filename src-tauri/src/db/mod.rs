@@ -21,6 +21,8 @@ impl Database {
     pub async fn initialize(data_dir: &Path) -> anyhow::Result<Self> {
         std::fs::create_dir_all(data_dir)?;
 
+        // Keep the historical filename so existing local SQLite data remains readable
+        // after the product and Tauri package names are migrated.
         let db_path = data_dir.join("llmbench.db");
         let options = SqliteConnectOptions::new()
             .filename(db_path)
@@ -57,7 +59,7 @@ mod tests {
     use uuid::Uuid;
 
     fn temp_data_dir(name: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("llmbench-{name}-{}", Uuid::new_v4()))
+        std::env::temp_dir().join(format!("my-llm-benchmark-{name}-{}", Uuid::new_v4()))
     }
 
     fn provider_input() -> CreateProviderInput {

@@ -15,7 +15,7 @@ pub(super) fn rerank_body(
 }
 
 pub(super) fn diagnostic_query() -> String {
-    "LLMBench 如何评估大模型接口容量？".to_string()
+    "MyLLMBenchmark 如何评估大模型接口容量？".to_string()
 }
 
 pub(super) fn diagnostic_documents() -> Vec<String> {

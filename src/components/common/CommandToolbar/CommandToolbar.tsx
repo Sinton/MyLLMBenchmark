@@ -15,7 +15,7 @@ export function CommandToolbar({
   return (
     <header className="command-toolbar">
       <div className="command-toolbar-title">
-        <span>LLMBench Desktop</span>
+        <span>MyLLMBenchmark</span>
         <strong>{title}</strong>
         {subtitle && <em>{subtitle}</em>}
       </div>

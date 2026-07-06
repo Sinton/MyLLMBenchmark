@@ -7,7 +7,7 @@ pub(super) fn embeddings_body(model: &str, inputs: Vec<String>) -> serde_json::V
 
 pub(super) fn diagnostic_inputs() -> Vec<String> {
     vec![
-        "LLMBench embedding diagnostic sample one".to_string(),
-        "LLMBench embedding diagnostic sample two".to_string(),
+        "MyLLMBenchmark embedding diagnostic sample one".to_string(),
+        "MyLLMBenchmark embedding diagnostic sample two".to_string(),
     ]
 }

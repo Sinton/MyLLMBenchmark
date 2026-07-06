@@ -27,5 +27,5 @@ pub(super) fn streaming_completion_body(
 }
 
 pub(super) fn diagnostic_prompt() -> &'static str {
-    "请用一句中文回复：LLMBench 连接诊断成功。"
+    "请用一句中文回复：MyLLMBenchmark 连接诊断成功。"
 }

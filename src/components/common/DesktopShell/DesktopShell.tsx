@@ -34,7 +34,7 @@ export function DesktopShell({
     <div className="desktop-shell">
       <WindowTitleBar title={toolbarTitle} />
       <aside className="activity-rail" aria-label="主导航">
-        <div className="activity-brand" title="LLMBench">
+        <div className="activity-brand" title="MyLLMBenchmark">
           <span>LB</span>
         </div>
         <nav className="activity-nav">

@@ -1,3 +1,3 @@
 fn main() {
-    llmbench_lib::run();
+    my_llm_benchmark_lib::run();
 }

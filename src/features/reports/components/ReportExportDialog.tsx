@@ -57,7 +57,7 @@ export function ReportExportDialog({
     <Dialog
       open={open}
       title="导出测试报告"
-      description="统一配置报告格式、模板和敏感信息策略，文件会写入本机 LLMBench 应用数据目录。"
+      description="统一配置报告格式、模板和敏感信息策略，文件会写入本机 MyLLMBenchmark 应用数据目录。"
       onClose={onClose}
       footer={
         <>

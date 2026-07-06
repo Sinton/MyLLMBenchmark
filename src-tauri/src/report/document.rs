@@ -248,7 +248,7 @@ impl ReportDocument {
         }
 
         Self {
-            title: format!("LLMBench 压测报告 - {}", detail.summary.model_name),
+            title: format!("MyLLMBenchmark 压测报告 - {}", detail.summary.model_name),
             subtitle: format!(
                 "{} / {} / {}",
                 detail.task_name, detail.summary.provider_name, source_label
@@ -269,7 +269,7 @@ impl ReportDocument {
         html.push_str(HTML_STYLE);
         html.push_str("</style></head><body><main class=\"report\"><div class=\"watermark\">");
         html.push_str(&escape_html(&self.source_label));
-        html.push_str("</div><header class=\"cover\"><span>LLMBench</span><h1>");
+        html.push_str("</div><header class=\"cover\"><span>MyLLMBenchmark</span><h1>");
         html.push_str(&escape_html(&self.title));
         html.push_str("</h1><p>");
         html.push_str(&escape_html(&self.subtitle));
@@ -677,7 +677,7 @@ fn request_log_appendix_text(detail: &ReportDetail) -> String {
         return "本次报告未记录请求级明细。".to_string();
     }
     format!(
-        "本次报告记录请求级明细索引 {} 条，其中正文可用 {} 条；单条详情请在 LLMBench 客户端内查看。",
+        "本次报告记录请求级明细索引 {} 条，其中正文可用 {} 条；单条详情请在 MyLLMBenchmark 客户端内查看。",
         detail.request_log_meta.total_records, detail.request_log_meta.body_records
     )
 }
@@ -742,7 +742,7 @@ fn build_simple_pdf(lines: &[String]) -> Vec<u8> {
         .map(|chunk| chunk.to_vec())
         .collect::<Vec<_>>();
     let pages = if pages.is_empty() {
-        vec![vec!["LLMBench 压测报告".to_string()]]
+        vec![vec!["MyLLMBenchmark 压测报告".to_string()]]
     } else {
         pages
     };
@@ -822,7 +822,7 @@ fn wrap_pdf_lines(lines: &[String], max_chars: usize) -> Vec<String> {
 fn pdf_page_content(lines: &[String], page: usize, total: usize) -> String {
     let mut content = String::from("BT /F1 9 Tf 50 805 Td 13 TL ");
     content.push('<');
-    content.push_str(&utf16be_hex("LLMBench 压测报告"));
+    content.push_str(&utf16be_hex("MyLLMBenchmark 压测报告"));
     content.push_str("> Tj T* ");
     content.push_str("0 -8 Td ");
     for line in lines {
@@ -948,7 +948,7 @@ mod tests {
 
     #[test]
     fn simple_pdf_has_pdf_header_and_eof_marker() {
-        let bytes = build_simple_pdf(&["LLMBench 测试报告".to_string()]);
+        let bytes = build_simple_pdf(&["MyLLMBenchmark 测试报告".to_string()]);
 
         assert!(bytes.starts_with(b"%PDF-1.4"));
         assert!(bytes.ends_with(b"%%EOF"));
@@ -971,7 +971,7 @@ mod tests {
     #[test]
     fn docx_package_is_a_zip_with_word_document_part() {
         let bytes = build_docx_package(
-            r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:tbl><w:tr><w:tc><w:p><w:r><w:t>LLMBench</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>"#,
+            r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:tbl><w:tr><w:tc><w:p><w:r><w:t>MyLLMBenchmark</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>"#,
         );
 
         assert!(bytes.starts_with(b"PK\x03\x04"));

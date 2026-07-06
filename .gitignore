@@ -3,7 +3,7 @@ dist
 target
 src-tauri/target
 src-tauri/gen
-.llmbench
+.my-llm-benchmark
 .vite
 *.log
 *.local

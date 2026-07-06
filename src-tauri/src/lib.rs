@@ -77,5 +77,5 @@ pub fn run() {
             export_report
         ])
         .run(tauri::generate_context!())
-        .expect("error while running LLMBench");
+        .expect("error while running MyLLMBenchmark");
 }

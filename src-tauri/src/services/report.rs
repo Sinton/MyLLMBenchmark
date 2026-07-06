@@ -94,7 +94,7 @@ fn sanitize_file_part(value: &str) -> String {
         .collect::<String>();
     let sanitized = sanitized.trim().trim_matches('-');
     if sanitized.is_empty() {
-        "LLMBench".to_string()
+        "MyLLMBenchmark".to_string()
     } else {
         sanitized.chars().take(48).collect()
     }

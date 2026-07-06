@@ -1,6 +1,6 @@
 type RealtimeDebugChannel = "event" | "polling";
 
-const PREFIX = "[LLMBench realtime]";
+const PREFIX = "[MyLLMBenchmark realtime]";
 
 export function debugRealtime(
   channel: RealtimeDebugChannel,
@@ -31,5 +31,5 @@ export function warnRealtime(
 }
 
 function isRealtimeDebugEnabled() {
-  return globalThis.localStorage?.getItem("LLMBENCH_REALTIME_DEBUG") !== "0";
+  return globalThis.localStorage?.getItem("MYLLMBENCHMARK_REALTIME_DEBUG") !== "0";
 }

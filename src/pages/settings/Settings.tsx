@@ -99,7 +99,7 @@ export function Settings() {
           title="基础设置"
           description="系统名称、语言、时区和默认工作目录。"
         >
-          <Input label="系统名称" defaultValue="LLMBench" />
+          <Input label="系统名称" defaultValue="MyLLMBenchmark" />
           <SelectField<DataMode>
             label="数据来源"
             value={configDraft.data_mode}

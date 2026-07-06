@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Allow the main LLMBench window to use Tauri core APIs, including event listeners for live benchmark metrics.",
+  "description": "Allow the main MyLLMBenchmark window to use Tauri core APIs, including event listeners for live benchmark metrics.",
   "windows": ["main"],
   "remote": {
     "urls": [

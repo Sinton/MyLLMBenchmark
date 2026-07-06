@@ -1,12 +1,12 @@
 [package]
-name = "llmbench"
+name = "my-llm-benchmark"
 version = "0.1.0"
-description = "LLMBench AI model benchmark desktop app"
+description = "MyLLMBenchmark AI model benchmark desktop app"
 authors = ["Sinton"]
 edition = "2021"
 
 [lib]
-name = "llmbench_lib"
+name = "my_llm_benchmark_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
