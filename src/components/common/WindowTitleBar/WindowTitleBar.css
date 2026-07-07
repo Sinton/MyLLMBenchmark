@@ -16,11 +16,9 @@
 }
 
 .window-drag-region {
-  display: grid;
+  display: flex;
   min-width: 0;
-  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
   padding: 0 12px;
 }
 
@@ -57,26 +55,7 @@
   line-height: 16px;
 }
 
-.window-titlebar-context {
-  min-width: 0;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 16px;
-}
-
-.window-titlebar-context span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .platform-macos .window-titlebar-brand {
-  display: none;
-}
-
-.platform-macos .window-titlebar-context {
   justify-self: center;
   color: var(--text-secondary);
 }

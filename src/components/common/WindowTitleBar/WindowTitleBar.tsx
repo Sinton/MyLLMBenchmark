@@ -3,11 +3,7 @@ import { useMemo } from "react";
 
 type DesktopPlatform = "windows" | "macos" | "linux";
 
-type WindowTitleBarProps = {
-  title: string;
-};
-
-export function WindowTitleBar({ title }: WindowTitleBarProps) {
+export function WindowTitleBar() {
   const platform = useMemo(detectDesktopPlatform, []);
 
   async function handleDragStart() {
@@ -112,9 +108,6 @@ export function WindowTitleBar({ title }: WindowTitleBarProps) {
         <div className="window-titlebar-brand" data-tauri-drag-region>
           <span data-tauri-drag-region>LB</span>
           <strong data-tauri-drag-region>MyLLMBenchmark</strong>
-        </div>
-        <div className="window-titlebar-context" data-tauri-drag-region>
-          <span data-tauri-drag-region>{title}</span>
         </div>
       </div>
       {platform !== "macos" && controls}

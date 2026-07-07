@@ -1,9 +1,9 @@
 .command-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 0.7fr) minmax(300px, 1fr) auto;
+  grid-template-columns: minmax(190px, 0.58fr) minmax(280px, 1fr) auto;
   gap: 12px;
   align-items: center;
-  min-height: 54px;
+  min-height: 48px;
   border-bottom: 1px solid var(--border);
   background:
     linear-gradient(180deg, rgba(249, 245, 242, 0.96), rgba(242, 235, 229, 0.84)),
@@ -14,16 +14,7 @@
 .command-toolbar-title {
   display: grid;
   min-width: 0;
-  gap: 1px;
-}
-
-.command-toolbar-title span {
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.02em;
-  line-height: 15px;
-  text-transform: uppercase;
+  gap: 2px;
 }
 
 .command-toolbar-title strong {

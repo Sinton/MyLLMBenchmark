@@ -32,7 +32,7 @@ export function DesktopShell({
 }: DesktopShellProps) {
   return (
     <div className="desktop-shell">
-      <WindowTitleBar title={toolbarTitle} />
+      <WindowTitleBar />
       <aside className="activity-rail" aria-label="主导航">
         <div className="activity-brand" title="MyLLMBenchmark">
           <span>LB</span>

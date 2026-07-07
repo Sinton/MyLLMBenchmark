@@ -1,16 +1,13 @@
 import { Link } from "react-router-dom";
 import { Badge, statusLabel, statusTone } from "../../components/common/Badge";
-import { Button } from "../../components/common/Button";
 import { Card } from "../../components/common/Card";
 import {
   ArrowRight,
   Building2,
   Database,
   FileText,
-  Rocket,
 } from "../../components/common/icons";
 import { InlineAlert } from "../../components/common/InlineAlert";
-import { PageHeader } from "../../components/common/PageHeader";
 import { MetricCard } from "../../components/common/MetricCard";
 import { useDashboardSummary } from "../../features/dashboard/hooks/useDashboardSummary";
 
@@ -19,24 +16,6 @@ export function Dashboard() {
 
   return (
     <div className="page">
-      <PageHeader
-        eyebrow="启动中心"
-        title="本地压测工作台"
-        description="查看本机数据源、最近任务和报告状态，快速进入下一次容量评估。"
-        actions={
-          <>
-            <Link to="/providers">
-              <Button icon={<Building2 size={16} />}>新增服务商</Button>
-            </Link>
-            <Link to="/workbench">
-              <Button variant="primary" icon={<Rocket size={16} />}>
-                开始压测
-              </Button>
-            </Link>
-          </>
-        }
-      />
-
       <div className="metric-grid">
         <MetricCard label="模型服务商" value={isLoading ? "-" : data?.providers ?? 0} />
         <MetricCard label="模型数量" value={isLoading ? "-" : data?.models ?? 0} />
