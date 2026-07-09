@@ -17,14 +17,15 @@ use crate::models::{
 use crate::tasks::TaskManager;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::watch;
+use tokio::sync::{watch, RwLock};
 
 #[derive(Clone)]
 pub struct AppState {
-    pub config: AppConfig,
+    config: Arc<RwLock<AppConfig>>,
     config_store: ConfigStore,
-    data: AppDataSource,
+    data: Arc<RwLock<AppDataSource>>,
     data_dir: PathBuf,
     tasks: TaskManager,
 }
@@ -33,45 +34,53 @@ impl AppState {
     pub async fn initialize(config_dir: PathBuf, data_dir: PathBuf) -> anyhow::Result<Self> {
         let config_store = ConfigStore::new(config_dir);
         let config = config_store.load_or_create()?;
-        let data = if config.uses_mock_data() {
-            AppDataSource::Mock(MockDataStore::new())
-        } else {
-            AppDataSource::Sqlite(Database::initialize(&data_dir).await?)
-        };
+        let data = create_data_source(&config, &data_dir).await?;
         Ok(Self {
-            config,
+            config: Arc::new(RwLock::new(config)),
             config_store,
-            data,
+            data: Arc::new(RwLock::new(data)),
             data_dir,
             tasks: TaskManager::default(),
         })
     }
 
-    pub fn current_config(&self) -> anyhow::Result<AppConfig> {
-        self.config_store.load_or_create()
+    pub async fn current_config(&self) -> anyhow::Result<AppConfig> {
+        Ok(self.config.read().await.clone())
     }
 
-    pub fn save_config(&self, config: AppConfig) -> anyhow::Result<ConfigUpdateResult> {
+    pub async fn save_config(&self, config: AppConfig) -> anyhow::Result<ConfigUpdateResult> {
+        let current = self.config.read().await.clone();
         self.config_store.save(&config)?;
+
+        if current.data_mode != config.data_mode {
+            let data = create_data_source(&config, &self.data_dir).await?;
+            *self.data.write().await = data;
+        }
+
+        *self.config.write().await = config.clone();
         Ok(ConfigUpdateResult {
             config,
-            restart_required: true,
+            restart_required: false,
         })
     }
 
+    async fn data_source(&self) -> AppDataSource {
+        self.data.read().await.clone()
+    }
+
     pub async fn dashboard_summary(&self) -> anyhow::Result<DashboardSummary> {
-        self.data.dashboard_summary().await
+        self.data_source().await.dashboard_summary().await
     }
 
     pub async fn list_providers(&self) -> anyhow::Result<Vec<ProviderSummary>> {
-        self.data.list_providers().await
+        self.data_source().await.list_providers().await
     }
 
     pub async fn create_provider(
         &self,
         input: CreateProviderInput,
     ) -> anyhow::Result<ProviderSummary> {
-        self.data.create_provider(input).await
+        self.data_source().await.create_provider(input).await
     }
 
     pub async fn update_provider(
@@ -79,39 +88,54 @@ impl AppState {
         provider_id: &str,
         input: UpdateProviderInput,
     ) -> anyhow::Result<ProviderSummary> {
-        self.data.update_provider(provider_id, input).await
+        self.data_source()
+            .await
+            .update_provider(provider_id, input)
+            .await
     }
 
     pub async fn delete_provider(&self, provider_id: &str) -> anyhow::Result<DeleteResult> {
-        self.data.delete_provider(provider_id).await
+        self.data_source().await.delete_provider(provider_id).await
     }
 
     pub async fn test_provider_connection(
         &self,
         provider_id: &str,
     ) -> anyhow::Result<ProviderConnectionResult> {
-        self.data.test_provider_connection(provider_id).await
+        self.data_source()
+            .await
+            .test_provider_connection(provider_id)
+            .await
     }
 
     pub async fn list_provider_models(
         &self,
         provider_id: &str,
     ) -> anyhow::Result<Vec<ModelSummary>> {
-        self.data.list_provider_models(provider_id).await
+        self.data_source()
+            .await
+            .list_provider_models(provider_id)
+            .await
     }
 
     pub async fn scan_provider_models(
         &self,
         provider_id: &str,
     ) -> anyhow::Result<ProviderModelScanResult> {
-        self.data.scan_provider_models(provider_id).await
+        self.data_source()
+            .await
+            .scan_provider_models(provider_id)
+            .await
     }
 
     pub async fn provider_connection_config(
         &self,
         provider_id: &str,
     ) -> anyhow::Result<ProviderConnectionConfig> {
-        self.data.get_provider_connection_config(provider_id).await
+        self.data_source()
+            .await
+            .get_provider_connection_config(provider_id)
+            .await
     }
 
     pub async fn update_provider_connection_status(
@@ -120,7 +144,8 @@ impl AppState {
         status: &str,
         checked_at: &str,
     ) -> anyhow::Result<()> {
-        self.data
+        self.data_source()
+            .await
             .update_provider_connection_status(provider_id, status, checked_at)
             .await
     }
@@ -131,7 +156,8 @@ impl AppState {
         models: Vec<DiscoveredModel>,
         scanned_at: &str,
     ) -> anyhow::Result<Vec<ModelSummary>> {
-        self.data
+        self.data_source()
+            .await
             .replace_provider_models(provider_id, models, scanned_at)
             .await
     }
@@ -140,36 +166,42 @@ impl AppState {
         &self,
         result: &ProviderDiagnosticsResult,
     ) -> anyhow::Result<()> {
-        self.data.save_provider_diagnostics(result).await
+        self.data_source()
+            .await
+            .save_provider_diagnostics(result)
+            .await
     }
 
     pub async fn get_provider_diagnostics(
         &self,
         provider_id: &str,
     ) -> anyhow::Result<Option<ProviderDiagnosticsResult>> {
-        self.data.get_provider_diagnostics(provider_id).await
+        self.data_source()
+            .await
+            .get_provider_diagnostics(provider_id)
+            .await
     }
 
     pub async fn list_datasets(&self) -> anyhow::Result<Vec<DatasetSummary>> {
-        self.data.list_datasets().await
+        self.data_source().await.list_datasets().await
     }
 
     pub async fn import_dataset(
         &self,
         input: DatasetImportInput,
     ) -> anyhow::Result<DatasetSummary> {
-        self.data.import_dataset(input).await
+        self.data_source().await.import_dataset(input).await
     }
 
     pub async fn update_dataset(
         &self,
         input: DatasetUpdateInput,
     ) -> anyhow::Result<DatasetSummary> {
-        self.data.update_dataset(input).await
+        self.data_source().await.update_dataset(input).await
     }
 
     pub async fn delete_dataset(&self, dataset_id: &str) -> anyhow::Result<DeleteResult> {
-        self.data.delete_dataset(dataset_id).await
+        self.data_source().await.delete_dataset(dataset_id).await
     }
 
     pub async fn preview_dataset_samples(
@@ -177,74 +209,92 @@ impl AppState {
         dataset_id: &str,
         limit: i64,
     ) -> anyhow::Result<Vec<DatasetSamplePreview>> {
-        self.data.preview_dataset_samples(dataset_id, limit).await
+        self.data_source()
+            .await
+            .preview_dataset_samples(dataset_id, limit)
+            .await
     }
 
     pub async fn list_dataset_samples_page(
         &self,
         input: DatasetSamplePageInput,
     ) -> anyhow::Result<DatasetSamplePage> {
-        self.data.list_dataset_samples_page(input).await
+        self.data_source()
+            .await
+            .list_dataset_samples_page(input)
+            .await
     }
 
     pub async fn list_dataset_samples(
         &self,
         dataset_id: &str,
     ) -> anyhow::Result<Vec<DatasetSample>> {
-        self.data.list_dataset_samples(dataset_id).await
+        self.data_source()
+            .await
+            .list_dataset_samples(dataset_id)
+            .await
     }
 
     pub async fn create_dataset_sample(
         &self,
         input: DatasetSampleCreateInput,
     ) -> anyhow::Result<DatasetSamplePreview> {
-        self.data.create_dataset_sample(input).await
+        self.data_source().await.create_dataset_sample(input).await
     }
 
     pub async fn update_dataset_sample(
         &self,
         input: DatasetSampleUpdateInput,
     ) -> anyhow::Result<DatasetSamplePreview> {
-        self.data.update_dataset_sample(input).await
+        self.data_source().await.update_dataset_sample(input).await
     }
 
     pub async fn delete_dataset_sample(&self, sample_id: &str) -> anyhow::Result<DeleteResult> {
-        self.data.delete_dataset_sample(sample_id).await
+        self.data_source()
+            .await
+            .delete_dataset_sample(sample_id)
+            .await
     }
 
     pub async fn append_dataset_samples(
         &self,
         input: DatasetAppendInput,
     ) -> anyhow::Result<DatasetSummary> {
-        self.data.append_dataset_samples(input).await
+        self.data_source().await.append_dataset_samples(input).await
     }
 
     pub async fn delete_dataset_samples_batch(
         &self,
         input: DatasetSampleBatchDeleteInput,
     ) -> anyhow::Result<DeleteResult> {
-        self.data.delete_dataset_samples_batch(input).await
+        self.data_source()
+            .await
+            .delete_dataset_samples_batch(input)
+            .await
     }
 
     pub async fn export_dataset(
         &self,
         input: DatasetExportInput,
     ) -> anyhow::Result<DatasetExportResult> {
-        self.data.export_dataset(input).await
+        self.data_source().await.export_dataset(input).await
     }
 
     pub async fn validate_dataset_samples(
         &self,
         dataset_id: &str,
     ) -> anyhow::Result<DatasetValidationResult> {
-        self.data.validate_dataset_samples(dataset_id).await
+        self.data_source()
+            .await
+            .validate_dataset_samples(dataset_id)
+            .await
     }
 
     pub async fn create_task(
         &self,
         input: &BenchmarkStartInput,
     ) -> anyhow::Result<BenchmarkTaskSummary> {
-        self.data.create_task(input).await
+        self.data_source().await.create_task(input).await
     }
 
     pub async fn update_task_finished(
@@ -255,49 +305,52 @@ impl AppState {
         p95_latency_ms: i64,
         goodput_qps: f64,
     ) -> anyhow::Result<()> {
-        self.data
+        self.data_source()
+            .await
             .update_task_finished(task_id, status, success_rate, p95_latency_ms, goodput_qps)
             .await
     }
 
     pub async fn insert_stage(&self, sample: &StageSample) -> anyhow::Result<()> {
-        self.data.insert_stage(sample).await
+        self.data_source().await.insert_stage(sample).await
     }
 
     pub async fn insert_tick(&self, tick: &MetricsTick) -> anyhow::Result<()> {
-        self.data.insert_tick(tick).await
+        self.data_source().await.insert_tick(tick).await
     }
 
     pub async fn insert_benchmark_error(&self, error: &BenchmarkErrorRecord) -> anyhow::Result<()> {
-        self.data.insert_benchmark_error(error).await
+        self.data_source().await.insert_benchmark_error(error).await
     }
 
     pub async fn insert_request_log(
         &self,
         mut log: BenchmarkRequestLogRecord,
     ) -> anyhow::Result<()> {
-        if matches!(&self.data, AppDataSource::Sqlite(_)) && request_log_has_body(&log) {
+        let data = self.data_source().await;
+        if matches!(&data, AppDataSource::Sqlite(_)) && request_log_has_body(&log) {
             self.append_request_log_body(&log).await?;
             log.body_ref = Some(request_log_body_ref(&log.summary.task_id));
         }
-        self.data.insert_request_log(&log).await
+        data.insert_request_log(&log).await
     }
 
     pub async fn list_request_logs_page(
         &self,
         input: BenchmarkRequestLogPageInput,
     ) -> anyhow::Result<BenchmarkRequestLogPage> {
-        self.data.list_request_logs_page(input).await
+        self.data_source().await.list_request_logs_page(input).await
     }
 
     pub async fn get_request_log_detail(
         &self,
         request_id: &str,
     ) -> anyhow::Result<BenchmarkRequestLogDetail> {
-        let mut detail = self.data.get_request_log_detail(request_id).await?;
+        let data = self.data_source().await;
+        let mut detail = data.get_request_log_detail(request_id).await?;
         if detail.body_available
             && detail.prompt.is_none()
-            && matches!(&self.data, AppDataSource::Sqlite(_))
+            && matches!(&data, AppDataSource::Sqlite(_))
         {
             if let Some(body) = self
                 .read_request_log_body(&detail.summary.task_id, &detail.summary.id)
@@ -315,7 +368,11 @@ impl AppState {
     }
 
     pub async fn delete_request_logs(&self, task_id: &str) -> anyhow::Result<DeleteResult> {
-        let result = self.data.delete_request_logs(task_id).await?;
+        let result = self
+            .data_source()
+            .await
+            .delete_request_logs(task_id)
+            .await?;
         let path = self.request_log_body_path(task_id);
         match tokio::fs::remove_file(path).await {
             Ok(_) => {}
@@ -326,11 +383,11 @@ impl AppState {
     }
 
     pub async fn get_task_summary(&self, task_id: &str) -> anyhow::Result<BenchmarkTaskSummary> {
-        self.data.get_task_summary(task_id).await
+        self.data_source().await.get_task_summary(task_id).await
     }
 
     pub async fn list_ticks(&self, task_id: &str) -> anyhow::Result<Vec<MetricsTick>> {
-        self.data.list_ticks(task_id).await
+        self.data_source().await.list_ticks(task_id).await
     }
 
     pub async fn update_task_engine_mode(
@@ -338,7 +395,8 @@ impl AppState {
         task_id: &str,
         engine_mode: &str,
     ) -> anyhow::Result<()> {
-        self.data
+        self.data_source()
+            .await
             .update_task_engine_mode(task_id, engine_mode)
             .await
     }
@@ -349,21 +407,22 @@ impl AppState {
         preflight_result: Option<serde_json::Value>,
         diagnostics_snapshot: Option<ProviderDiagnosticsResult>,
     ) -> anyhow::Result<()> {
-        self.data
+        self.data_source()
+            .await
             .update_task_preflight(task_id, preflight_result, diagnostics_snapshot)
             .await
     }
 
     pub async fn generate_report(&self, task_id: &str) -> anyhow::Result<ReportSummary> {
-        self.data.generate_report(task_id).await
+        self.data_source().await.generate_report(task_id).await
     }
 
     pub async fn list_reports(&self) -> anyhow::Result<Vec<ReportSummary>> {
-        self.data.list_reports().await
+        self.data_source().await.list_reports().await
     }
 
     pub async fn get_report_detail(&self, report_id: &str) -> anyhow::Result<ReportDetail> {
-        self.data.get_report_detail(report_id).await
+        self.data_source().await.get_report_detail(report_id).await
     }
 
     pub async fn register_task(&self, task_id: String, tx: watch::Sender<bool>) {
@@ -445,4 +504,72 @@ fn request_log_has_body(log: &BenchmarkRequestLogRecord) -> bool {
 
 fn request_log_body_ref(task_id: &str) -> String {
     format!("request_logs/{task_id}.jsonl")
+}
+
+async fn create_data_source(
+    config: &AppConfig,
+    data_dir: &PathBuf,
+) -> anyhow::Result<AppDataSource> {
+    if config.uses_mock_data() {
+        Ok(AppDataSource::Mock(MockDataStore::new()))
+    } else {
+        Ok(AppDataSource::Sqlite(Database::initialize(data_dir).await?))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AppState;
+    use crate::config::{AppConfig, BenchmarkEngineMode, DataMode};
+    use crate::models::CreateProviderInput;
+    use uuid::Uuid;
+
+    #[tokio::test]
+    async fn config_update_switches_runtime_data_source_to_sqlite() {
+        let root =
+            std::env::temp_dir().join(format!("my-llm-benchmark-state-switch-{}", Uuid::new_v4()));
+        let config_dir = root.join("config");
+        let data_dir = root.join("data");
+        let state = AppState::initialize(config_dir.clone(), data_dir.clone())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            state.current_config().await.unwrap().data_mode,
+            DataMode::Mock
+        );
+
+        let result = state
+            .save_config(AppConfig {
+                data_mode: DataMode::Sqlite,
+                benchmark_engine: BenchmarkEngineMode::Mock,
+            })
+            .await
+            .unwrap();
+        assert!(!result.restart_required);
+        assert_eq!(
+            state.current_config().await.unwrap().data_mode,
+            DataMode::Sqlite
+        );
+
+        let provider = state
+            .create_provider(CreateProviderInput {
+                name: "Runtime SQLite Provider".to_string(),
+                base_url: "http://127.0.0.1:9000/v1".to_string(),
+                api_key: Some("runtime-key".to_string()),
+                interface_type: "OpenAI".to_string(),
+            })
+            .await
+            .unwrap();
+
+        let reloaded = AppState::initialize(config_dir, data_dir).await.unwrap();
+        assert!(reloaded
+            .list_providers()
+            .await
+            .unwrap()
+            .iter()
+            .any(|item| item.id == provider.id));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
 }

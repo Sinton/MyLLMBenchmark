@@ -18,14 +18,15 @@ pub async fn start_benchmark(
     state: &AppState,
     input: BenchmarkStartInput,
 ) -> AppResult<BenchmarkTaskSummary> {
-    let real_context = if state.config.benchmark_engine == BenchmarkEngineMode::OpenaiCompatible {
+    let engine_mode = state.current_config().await?.benchmark_engine;
+    let real_context = if engine_mode == BenchmarkEngineMode::OpenaiCompatible {
         Some(prepare_openai_compatible_context(state, &input).await?)
     } else {
         None
     };
 
     let task = state.create_task(&input).await?;
-    if state.config.benchmark_engine == BenchmarkEngineMode::OpenaiCompatible {
+    if engine_mode == BenchmarkEngineMode::OpenaiCompatible {
         state
             .update_task_engine_mode(&task.id, "openai_compatible")
             .await?;
@@ -42,7 +43,7 @@ pub async fn start_benchmark(
 
     let (tx, rx) = watch::channel(false);
     state.register_task(task.id.clone(), tx).await;
-    match state.config.benchmark_engine {
+    match engine_mode {
         BenchmarkEngineMode::Mock => {
             spawn_mock_benchmark(app, state.clone(), task.clone(), input, rx);
         }

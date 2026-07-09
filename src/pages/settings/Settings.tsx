@@ -35,12 +35,12 @@ export function Settings() {
     mutationFn: api.updateAppConfig,
     onSuccess: async (result) => {
       setConfigDraft(result.config);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.appConfig() });
+      await queryClient.invalidateQueries();
       pushToast({
         title: "系统设置已保存",
         description: result.restart_required
-          ? "配置已写入 Tauri config.json，数据源切换会在应用重启后生效。"
-          : "配置已写入 Tauri config.json。",
+          ? "配置已写入 Tauri config.json，部分系统级配置会在应用重启后生效。"
+          : "配置已立即生效，并已写入 Tauri config.json。",
         tone: "success" as const,
       });
     },
@@ -120,7 +120,7 @@ export function Settings() {
               {
                 value: "openai_compatible",
                 label: "OpenAI Compatible",
-                description: "调用真实 Chat 接口压测，切换后需重启并重新创建任务",
+                description: "调用真实 OpenAI Compatible / Jina 接口压测，保存后立即用于新任务",
               },
             ]}
           />

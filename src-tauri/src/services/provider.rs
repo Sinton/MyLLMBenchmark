@@ -36,7 +36,8 @@ pub async fn test_provider_connection(
     state: &AppState,
     provider_id: &str,
 ) -> AppResult<ProviderConnectionResult> {
-    if state.config.benchmark_engine == BenchmarkEngineMode::Mock {
+    let engine_mode = state.current_config().await?.benchmark_engine;
+    if engine_mode == BenchmarkEngineMode::Mock {
         return Ok(state.test_provider_connection(provider_id).await?);
     }
 
@@ -86,7 +87,8 @@ pub async fn scan_provider_models(
     state: &AppState,
     provider_id: &str,
 ) -> AppResult<ProviderModelScanResult> {
-    if state.config.benchmark_engine == BenchmarkEngineMode::Mock {
+    let engine_mode = state.current_config().await?.benchmark_engine;
+    if engine_mode == BenchmarkEngineMode::Mock {
         return Ok(state.scan_provider_models(provider_id).await?);
     }
 
@@ -138,7 +140,7 @@ pub async fn diagnose_provider(
             &input,
             &models,
             &samples,
-            state.config.benchmark_engine,
+            state.current_config().await?.benchmark_engine,
             checked_at,
         )
         .await;
