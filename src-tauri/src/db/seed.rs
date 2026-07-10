@@ -8,45 +8,6 @@ const SEEDED_CHAT_DATASET_NAME: &str = "文本生成标准问答样本";
 
 impl Database {
     pub(super) async fn seed_defaults(&self) -> anyhow::Result<()> {
-        let provider_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM providers")
-            .fetch_one(&self.pool)
-            .await?;
-
-        if provider_count == 0 {
-            let now = now();
-            let provider_id = Uuid::new_v4().to_string();
-            sqlx::query(
-                "INSERT INTO providers (id, name, base_url, api_key_masked, api_key_plaintext, interface_type, status, last_checked_at, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);",
-            )
-            .bind(&provider_id)
-            .bind("OpenAI 演示服务")
-            .bind("http://127.0.0.1:8000/v1")
-            .bind("demo")
-            .bind("demo")
-            .bind("OpenAI")
-            .bind("online")
-            .bind(&now)
-            .bind(&now)
-            .execute(&self.pool)
-            .await?;
-
-            sqlx::query(
-                "INSERT INTO models (id, provider_id, name, model_type, capabilities, supports_streaming, recommended_concurrency, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
-            )
-            .bind(Uuid::new_v4().to_string())
-            .bind(&provider_id)
-            .bind("DeepSeek-R1-Demo")
-            .bind("text_generation")
-            .bind(r#"["streaming","reasoning"]"#)
-            .bind(1)
-            .bind(32)
-            .bind(&now)
-            .execute(&self.pool)
-            .await?;
-        }
-
         let dataset_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM datasets")
             .fetch_one(&self.pool)
             .await?;

@@ -1,9 +1,12 @@
 use super::Database;
 use crate::domain::benchmark_sample::StageSample;
+use crate::domain::model_catalog::{model_templates_for_interface, CatalogFlavor};
+use crate::domain::model_type::default_capabilities;
 use crate::models::{
     BenchmarkRequestLogRecord, BenchmarkRequestLogSummary, BenchmarkStartInput,
     CreateProviderInput, DatasetImportInput, DatasetSampleCreateInput, DatasetSamplePageInput,
-    DatasetSampleUpdateInput, DatasetUpdateInput, MetricsTick, UpdateProviderInput,
+    DatasetSampleUpdateInput, DatasetUpdateInput, DiscoveredModel, MetricsTick, ModelSummary,
+    UpdateProviderInput,
 };
 use base64::prelude::*;
 use std::fs;
@@ -32,6 +35,30 @@ fn dataset_input() -> DatasetImportInput {
         content_base64: BASE64_STANDARD
             .encode("{\"prompt\":\"介绍杭州\"}\n{\"prompt\":\"解释 Transformer\"}"),
     }
+}
+
+async fn replace_demo_models(
+    db: &Database,
+    provider_id: &str,
+    interface_type: &str,
+) -> Vec<ModelSummary> {
+    let discovered = model_templates_for_interface(interface_type, CatalogFlavor::Demo)
+        .into_iter()
+        .map(|template| DiscoveredModel {
+            name: template.name,
+            model_type: template.model_type.clone(),
+            capabilities: if template.capabilities.is_empty() {
+                default_capabilities(&template.model_type)
+            } else {
+                template.capabilities
+            },
+            supports_streaming: template.supports_streaming,
+            recommended_concurrency: template.recommended_concurrency,
+        })
+        .collect();
+    db.replace_provider_models(provider_id, discovered, &chrono::Utc::now().to_rfc3339())
+        .await
+        .unwrap()
 }
 
 #[tokio::test]
@@ -143,13 +170,34 @@ async fn sqlite_seed_backfills_chat_samples_for_existing_database() {
 }
 
 #[tokio::test]
+async fn sqlite_initialization_does_not_seed_demo_provider() {
+    let data_dir = temp_data_dir("no-demo-provider");
+    let db = Database::initialize(&data_dir).await.unwrap();
+
+    let providers = db.list_providers().await.unwrap();
+    assert!(providers.is_empty());
+    assert!(!providers
+        .iter()
+        .any(|provider| provider.name == "OpenAI 演示服务"));
+
+    drop(db);
+    let _ = std::fs::remove_dir_all(data_dir);
+}
+
+#[tokio::test]
 async fn provider_name_update_keeps_sqlite_state_key_and_models() {
     let data_dir = temp_data_dir("provider-name");
     let db = Database::initialize(&data_dir).await.unwrap();
     let provider = db.create_provider(provider_input()).await.unwrap();
-    db.test_provider_connection(&provider.id).await.unwrap();
-    let scanned = db.scan_provider_models(&provider.id).await.unwrap();
-    assert!(!scanned.models.is_empty());
+    db.update_provider_connection_status(
+        &provider.id,
+        "online",
+        &chrono::Utc::now().to_rfc3339(),
+    )
+    .await
+    .unwrap();
+    let scanned = replace_demo_models(&db, &provider.id, &provider.interface_type).await;
+    assert!(!scanned.is_empty());
 
     let provider = db
         .list_providers()
@@ -175,10 +223,10 @@ async fn provider_name_update_keeps_sqlite_state_key_and_models() {
     assert_eq!(updated.status, provider.status);
     assert_eq!(updated.last_checked_at, provider.last_checked_at);
     assert_eq!(updated.api_key_masked, provider.api_key_masked);
-    assert_eq!(updated.model_count, scanned.models.len() as i64);
+    assert_eq!(updated.model_count, scanned.len() as i64);
     assert_eq!(
         db.list_provider_models(&provider.id).await.unwrap().len(),
-        scanned.models.len()
+        scanned.len()
     );
     drop(db);
 
@@ -190,9 +238,15 @@ async fn provider_config_update_resets_sqlite_state_and_clears_models() {
     let data_dir = temp_data_dir("provider-config");
     let db = Database::initialize(&data_dir).await.unwrap();
     let provider = db.create_provider(provider_input()).await.unwrap();
-    db.test_provider_connection(&provider.id).await.unwrap();
-    let scanned = db.scan_provider_models(&provider.id).await.unwrap();
-    assert!(!scanned.models.is_empty());
+    db.update_provider_connection_status(
+        &provider.id,
+        "online",
+        &chrono::Utc::now().to_rfc3339(),
+    )
+    .await
+    .unwrap();
+    let scanned = replace_demo_models(&db, &provider.id, &provider.interface_type).await;
+    assert!(!scanned.is_empty());
 
     let provider = db
         .list_providers()
@@ -233,13 +287,13 @@ async fn provider_config_update_detaches_historical_task_models_before_clearing_
     let data_dir = temp_data_dir("provider-config-task-fk");
     let db = Database::initialize(&data_dir).await.unwrap();
     let provider = db.create_provider(provider_input()).await.unwrap();
-    let scanned = db.scan_provider_models(&provider.id).await.unwrap();
+    let scanned = replace_demo_models(&db, &provider.id, &provider.interface_type).await;
     let dataset = db.import_dataset(dataset_input()).await.unwrap();
 
     let task = db
         .create_task(&BenchmarkStartInput {
             provider_id: provider.id.clone(),
-            model_id: Some(scanned.models[0].id.clone()),
+            model_id: Some(scanned[0].id.clone()),
             dataset_id: dataset.id.clone(),
             mode: "fixed".to_string(),
             concurrency: 1,

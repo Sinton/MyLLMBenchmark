@@ -3,8 +3,7 @@ use crate::db::Database;
 use crate::mock::MockDataStore;
 use crate::models::{
     CreateProviderInput, DeleteResult, DiscoveredModel, ModelSummary, ProviderConnectionConfig,
-    ProviderConnectionResult, ProviderDiagnosticsResult, ProviderModelScanResult, ProviderSummary,
-    UpdateProviderInput,
+    ProviderDiagnosticsResult, ProviderSummary, UpdateProviderInput,
 };
 
 impl ProviderRepository for MockDataStore {
@@ -28,22 +27,8 @@ impl ProviderRepository for MockDataStore {
         MockDataStore::delete_provider(self, provider_id).await
     }
 
-    async fn test_provider_connection(
-        &self,
-        provider_id: &str,
-    ) -> anyhow::Result<ProviderConnectionResult> {
-        MockDataStore::test_provider_connection(self, provider_id).await
-    }
-
     async fn list_provider_models(&self, provider_id: &str) -> anyhow::Result<Vec<ModelSummary>> {
         MockDataStore::list_provider_models(self, provider_id).await
-    }
-
-    async fn scan_provider_models(
-        &self,
-        provider_id: &str,
-    ) -> anyhow::Result<ProviderModelScanResult> {
-        MockDataStore::scan_provider_models(self, provider_id).await
     }
 
     async fn get_provider_connection_config(
@@ -112,22 +97,8 @@ impl ProviderRepository for Database {
         })
     }
 
-    async fn test_provider_connection(
-        &self,
-        provider_id: &str,
-    ) -> anyhow::Result<ProviderConnectionResult> {
-        Database::test_provider_connection(self, provider_id).await
-    }
-
     async fn list_provider_models(&self, provider_id: &str) -> anyhow::Result<Vec<ModelSummary>> {
         Database::list_provider_models(self, provider_id).await
-    }
-
-    async fn scan_provider_models(
-        &self,
-        provider_id: &str,
-    ) -> anyhow::Result<ProviderModelScanResult> {
-        Database::scan_provider_models(self, provider_id).await
     }
 
     async fn get_provider_connection_config(
@@ -210,20 +181,6 @@ impl AppDataSource {
         }
     }
 
-    pub async fn test_provider_connection(
-        &self,
-        provider_id: &str,
-    ) -> anyhow::Result<ProviderConnectionResult> {
-        match self {
-            Self::Mock(source) => {
-                ProviderRepository::test_provider_connection(source, provider_id).await
-            }
-            Self::Sqlite(source) => {
-                ProviderRepository::test_provider_connection(source, provider_id).await
-            }
-        }
-    }
-
     pub async fn list_provider_models(
         &self,
         provider_id: &str,
@@ -234,20 +191,6 @@ impl AppDataSource {
             }
             Self::Sqlite(source) => {
                 ProviderRepository::list_provider_models(source, provider_id).await
-            }
-        }
-    }
-
-    pub async fn scan_provider_models(
-        &self,
-        provider_id: &str,
-    ) -> anyhow::Result<ProviderModelScanResult> {
-        match self {
-            Self::Mock(source) => {
-                ProviderRepository::scan_provider_models(source, provider_id).await
-            }
-            Self::Sqlite(source) => {
-                ProviderRepository::scan_provider_models(source, provider_id).await
             }
         }
     }

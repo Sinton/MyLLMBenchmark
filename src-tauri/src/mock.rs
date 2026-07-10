@@ -60,10 +60,13 @@ pub(in crate::mock) fn now() -> String {
 #[cfg(test)]
 mod tests {
     use super::MockDataStore;
+    use crate::domain::model_catalog::{model_templates_for_interface, CatalogFlavor};
+    use crate::domain::model_type::default_capabilities;
     use crate::error::AppError;
     use crate::models::{
         BenchmarkStartInput, CreateProviderInput, DatasetSampleCreateInput, DatasetSamplePageInput,
-        DatasetSampleUpdateInput, DatasetUpdateInput, UpdateProviderInput,
+        DatasetSampleUpdateInput, DatasetUpdateInput, DiscoveredModel, ModelSummary,
+        UpdateProviderInput,
     };
 
     fn benchmark_input() -> BenchmarkStartInput {
@@ -89,6 +92,35 @@ mod tests {
             workload_config: None,
             request_log_config: None,
         }
+    }
+
+    async fn replace_demo_models(
+        store: &MockDataStore,
+        provider_id: &str,
+        interface_type: &str,
+    ) -> Vec<ModelSummary> {
+        let discovered = model_templates_for_interface(interface_type, CatalogFlavor::Demo)
+            .into_iter()
+            .map(|template| DiscoveredModel {
+                name: template.name,
+                model_type: template.model_type.clone(),
+                capabilities: if template.capabilities.is_empty() {
+                    default_capabilities(&template.model_type)
+                } else {
+                    template.capabilities
+                },
+                supports_streaming: template.supports_streaming,
+                recommended_concurrency: template.recommended_concurrency,
+            })
+            .collect();
+        store
+            .replace_provider_models(
+                provider_id,
+                discovered,
+                &chrono::Utc::now().to_rfc3339(),
+            )
+            .await
+            .unwrap()
     }
 
     #[tokio::test]
@@ -131,8 +163,8 @@ mod tests {
             .into_iter()
             .find(|item| item.id == "mock-provider-openai")
             .unwrap();
-        let scanned = store.scan_provider_models(&provider.id).await.unwrap();
-        assert!(!scanned.models.is_empty());
+        let scanned = replace_demo_models(&store, &provider.id, &provider.interface_type).await;
+        assert!(!scanned.is_empty());
 
         let updated = store
             .update_provider(
@@ -151,14 +183,14 @@ mod tests {
         assert_eq!(updated.status, provider.status);
         assert_eq!(updated.last_checked_at, provider.last_checked_at);
         assert_eq!(updated.api_key_masked, provider.api_key_masked);
-        assert_eq!(updated.model_count, scanned.models.len() as i64);
+        assert_eq!(updated.model_count, scanned.len() as i64);
         assert_eq!(
             store
                 .list_provider_models(&provider.id)
                 .await
                 .unwrap()
                 .len(),
-            scanned.models.len()
+            scanned.len()
         );
     }
 
@@ -174,9 +206,16 @@ mod tests {
             })
             .await
             .unwrap();
-        store.test_provider_connection(&provider.id).await.unwrap();
-        let scanned = store.scan_provider_models(&provider.id).await.unwrap();
-        assert!(!scanned.models.is_empty());
+        store
+            .update_provider_connection_status(
+                &provider.id,
+                "online",
+                &chrono::Utc::now().to_rfc3339(),
+            )
+            .await
+            .unwrap();
+        let scanned = replace_demo_models(&store, &provider.id, &provider.interface_type).await;
+        assert!(!scanned.is_empty());
 
         let updated = store
             .update_provider(

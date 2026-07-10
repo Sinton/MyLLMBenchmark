@@ -1,13 +1,11 @@
 use super::{now, Database};
-use crate::domain::model_catalog::{model_templates_for_interface, CatalogFlavor};
 use crate::domain::provider::{
     prepare_provider_create, prepare_provider_update, ExistingProviderConfig,
 };
 use crate::error::AppError;
 use crate::models::{
     CreateProviderInput, DiscoveredModel, ModelSummary, ProviderConnectionConfig,
-    ProviderConnectionResult, ProviderDiagnosticsResult, ProviderModelScanResult, ProviderSummary,
-    UpdateProviderInput,
+    ProviderDiagnosticsResult, ProviderSummary, UpdateProviderInput,
 };
 use sqlx::Row;
 use uuid::Uuid;
@@ -171,41 +169,6 @@ impl Database {
         Ok(result.rows_affected() > 0)
     }
 
-    pub async fn test_provider_connection(
-        &self,
-        provider_id: &str,
-    ) -> anyhow::Result<ProviderConnectionResult> {
-        let checked_at = now();
-        let result = sqlx::query(
-            "UPDATE providers
-             SET status = ?, last_checked_at = ?
-             WHERE id = ?;",
-        )
-        .bind("online")
-        .bind(&checked_at)
-        .bind(provider_id)
-        .execute(&self.pool)
-        .await?;
-
-        if result.rows_affected() == 0 {
-            return Ok(ProviderConnectionResult {
-                provider_id: provider_id.to_string(),
-                ok: false,
-                status: "offline".to_string(),
-                message: "未找到服务商，无法进行连接测试。".to_string(),
-                checked_at,
-            });
-        }
-
-        Ok(ProviderConnectionResult {
-            provider_id: provider_id.to_string(),
-            ok: true,
-            status: "online".to_string(),
-            message: "连接测试通过（MVP 模拟结果，下一轮会替换为真实接口探测）。".to_string(),
-            checked_at,
-        })
-    }
-
     pub async fn list_provider_models(
         &self,
         provider_id: &str,
@@ -222,53 +185,6 @@ impl Database {
         .await?;
 
         Ok(rows.into_iter().map(super::rows::model_from_row).collect())
-    }
-
-    pub async fn scan_provider_models(
-        &self,
-        provider_id: &str,
-    ) -> anyhow::Result<ProviderModelScanResult> {
-        let provider = sqlx::query("SELECT interface_type FROM providers WHERE id = ?;")
-            .bind(provider_id)
-            .fetch_optional(&self.pool)
-            .await?
-            .ok_or_else(|| AppError::not_found("provider"))?;
-        let interface_type: String = provider.get("interface_type");
-        let specs = model_templates_for_interface(&interface_type, CatalogFlavor::Demo);
-        let now = now();
-
-        let mut tx = self.pool.begin().await?;
-
-        clear_provider_model_cache(&mut tx, provider_id).await?;
-
-        for spec in specs {
-            let capabilities = serde_json::to_string(&spec.capabilities)?;
-            sqlx::query(
-                "INSERT INTO models
-                 (id, provider_id, name, model_type, capabilities, supports_streaming, recommended_concurrency, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
-            )
-            .bind(Uuid::new_v4().to_string())
-            .bind(provider_id)
-            .bind(spec.name)
-            .bind(spec.model_type)
-            .bind(capabilities)
-            .bind(if spec.supports_streaming { 1 } else { 0 })
-            .bind(spec.recommended_concurrency)
-            .bind(&now)
-            .execute(&mut *tx)
-            .await?;
-        }
-
-        tx.commit().await?;
-
-        let models = self.list_provider_models(provider_id).await?;
-        Ok(ProviderModelScanResult {
-            provider_id: provider_id.to_string(),
-            message: format!("已扫描到 {} 个模型（MVP 模拟结果）。", models.len()),
-            models,
-            scanned_at: now,
-        })
     }
 
     pub async fn get_provider_connection_config(

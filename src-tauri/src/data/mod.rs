@@ -9,8 +9,8 @@ use crate::models::{
     DatasetSampleBatchDeleteInput, DatasetSampleCreateInput, DatasetSamplePage,
     DatasetSamplePageInput, DatasetSamplePreview, DatasetSampleUpdateInput, DatasetSummary,
     DatasetUpdateInput, DatasetValidationResult, DeleteResult, DiscoveredModel, MetricsTick,
-    ModelSummary, ProviderConnectionConfig, ProviderConnectionResult, ProviderDiagnosticsResult,
-    ProviderModelScanResult, ProviderSummary, ReportDetail, ReportSummary, UpdateProviderInput,
+    ModelSummary, ProviderConnectionConfig, ProviderDiagnosticsResult, ProviderSummary,
+    ReportDetail, ReportSummary, UpdateProviderInput,
 };
 
 mod benchmarks;
@@ -83,15 +83,7 @@ pub(crate) trait ProviderRepository {
         input: UpdateProviderInput,
     ) -> anyhow::Result<ProviderSummary>;
     async fn delete_provider(&self, provider_id: &str) -> anyhow::Result<DeleteResult>;
-    async fn test_provider_connection(
-        &self,
-        provider_id: &str,
-    ) -> anyhow::Result<ProviderConnectionResult>;
     async fn list_provider_models(&self, provider_id: &str) -> anyhow::Result<Vec<ModelSummary>>;
-    async fn scan_provider_models(
-        &self,
-        provider_id: &str,
-    ) -> anyhow::Result<ProviderModelScanResult>;
     async fn get_provider_connection_config(
         &self,
         provider_id: &str,

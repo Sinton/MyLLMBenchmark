@@ -11,8 +11,8 @@ use crate::models::{
     DatasetSampleBatchDeleteInput, DatasetSampleCreateInput, DatasetSamplePage,
     DatasetSamplePageInput, DatasetSamplePreview, DatasetSampleUpdateInput, DatasetSummary,
     DatasetUpdateInput, DatasetValidationResult, DeleteResult, DiscoveredModel, MetricsTick,
-    ModelSummary, ProviderConnectionConfig, ProviderConnectionResult, ProviderDiagnosticsResult,
-    ProviderModelScanResult, ProviderSummary, ReportDetail, ReportSummary, UpdateProviderInput,
+    ModelSummary, ProviderConnectionConfig, ProviderDiagnosticsResult, ProviderSummary,
+    ReportDetail, ReportSummary, UpdateProviderInput,
 };
 use crate::tasks::TaskManager;
 use serde::{Deserialize, Serialize};
@@ -98,16 +98,6 @@ impl AppState {
         self.data_source().await.delete_provider(provider_id).await
     }
 
-    pub async fn test_provider_connection(
-        &self,
-        provider_id: &str,
-    ) -> anyhow::Result<ProviderConnectionResult> {
-        self.data_source()
-            .await
-            .test_provider_connection(provider_id)
-            .await
-    }
-
     pub async fn list_provider_models(
         &self,
         provider_id: &str,
@@ -115,16 +105,6 @@ impl AppState {
         self.data_source()
             .await
             .list_provider_models(provider_id)
-            .await
-    }
-
-    pub async fn scan_provider_models(
-        &self,
-        provider_id: &str,
-    ) -> anyhow::Result<ProviderModelScanResult> {
-        self.data_source()
-            .await
-            .scan_provider_models(provider_id)
             .await
     }
 

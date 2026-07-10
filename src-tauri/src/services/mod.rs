@@ -3,6 +3,7 @@ mod config;
 mod dashboard;
 mod dataset;
 mod provider;
+mod provider_demo;
 mod report;
 
 pub use benchmark::{

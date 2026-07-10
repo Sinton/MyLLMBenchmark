@@ -1,3 +1,4 @@
+use super::provider_demo;
 use crate::benchmark::engines::openai::OpenAICompatibleClient;
 use crate::config::BenchmarkEngineMode;
 use crate::error::AppResult;
@@ -38,7 +39,13 @@ pub async fn test_provider_connection(
 ) -> AppResult<ProviderConnectionResult> {
     let engine_mode = state.current_config().await?.benchmark_engine;
     if engine_mode == BenchmarkEngineMode::Mock {
-        return Ok(state.test_provider_connection(provider_id).await?);
+        let checked_at = Utc::now().to_rfc3339();
+        let config = state.provider_connection_config(provider_id).await?;
+        let result = provider_demo::test_connection(&config, checked_at.clone());
+        state
+            .update_provider_connection_status(provider_id, "online", &checked_at)
+            .await?;
+        return Ok(result);
     }
 
     let checked_at = Utc::now().to_rfc3339();
@@ -53,11 +60,7 @@ pub async fn test_provider_connection(
                 provider_id: provider_id.to_string(),
                 ok: true,
                 status: "online".to_string(),
-                message: format!(
-                    "连接成功，已从 {} 获取到 {} 个模型。",
-                    config.name,
-                    models.len()
-                ),
+                message: format!("连接成功，已从 {} 获取到 {} 个模型。", config.name, models.len()),
                 checked_at,
             })
         }
@@ -69,7 +72,7 @@ pub async fn test_provider_connection(
                 provider_id: provider_id.to_string(),
                 ok: false,
                 status: "offline".to_string(),
-                message: format!("连接失败：{}", error),
+                message: format!("连接失败：{error}"),
                 checked_at,
             })
         }
@@ -89,7 +92,21 @@ pub async fn scan_provider_models(
 ) -> AppResult<ProviderModelScanResult> {
     let engine_mode = state.current_config().await?.benchmark_engine;
     if engine_mode == BenchmarkEngineMode::Mock {
-        return Ok(state.scan_provider_models(provider_id).await?);
+        let scanned_at = Utc::now().to_rfc3339();
+        let config = state.provider_connection_config(provider_id).await?;
+        let discovered = provider_demo::discover_models(&config);
+        let models = state
+            .replace_provider_models(provider_id, discovered, &scanned_at)
+            .await?;
+        state
+            .update_provider_connection_status(provider_id, "online", &scanned_at)
+            .await?;
+        return Ok(ProviderModelScanResult {
+            provider_id: provider_id.to_string(),
+            message: format!("已扫描到 {} 个演示模型（Mock 引擎）。", models.len()),
+            models,
+            scanned_at,
+        });
     }
 
     let scanned_at = Utc::now().to_rfc3339();
@@ -153,4 +170,82 @@ pub async fn get_provider_diagnostics(
     provider_id: &str,
 ) -> AppResult<Option<ProviderDiagnosticsResult>> {
     Ok(state.get_provider_diagnostics(provider_id).await?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{scan_provider_models, test_provider_connection};
+    use crate::config::{AppConfig, BenchmarkEngineMode, DataMode};
+    use crate::models::CreateProviderInput;
+    use crate::state::AppState;
+    use uuid::Uuid;
+
+    #[tokio::test]
+    async fn mock_engine_uses_demo_gateway_with_sqlite_data_source() {
+        let root = std::env::temp_dir().join(format!(
+            "my-llm-benchmark-provider-demo-sqlite-{}",
+            Uuid::new_v4()
+        ));
+        let state = AppState::initialize(root.join("config"), root.join("data"))
+            .await
+            .unwrap();
+        state
+            .save_config(AppConfig {
+                data_mode: DataMode::Sqlite,
+                benchmark_engine: BenchmarkEngineMode::Mock,
+            })
+            .await
+            .unwrap();
+        let provider = state
+            .create_provider(CreateProviderInput {
+                name: "SQLite Demo Gateway Provider".to_string(),
+                base_url: "http://127.0.0.1:8000/v1".to_string(),
+                api_key: Some("demo-key".to_string()),
+                interface_type: "OpenAI".to_string(),
+            })
+            .await
+            .unwrap();
+
+        let connection = test_provider_connection(&state, &provider.id).await.unwrap();
+        assert!(connection.ok);
+        assert_eq!(connection.status, "online");
+        assert!(connection.message.contains("Mock 引擎"));
+
+        let scanned = scan_provider_models(&state, &provider.id).await.unwrap();
+        assert!(!scanned.models.is_empty());
+        assert!(scanned.models.iter().any(|model| model.name.contains("Demo")));
+        assert_eq!(
+            state
+                .list_provider_models(&provider.id)
+                .await
+                .unwrap()
+                .len(),
+            scanned.models.len()
+        );
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[tokio::test]
+    async fn mock_engine_uses_demo_gateway_with_mock_data_source() {
+        let root = std::env::temp_dir().join(format!(
+            "my-llm-benchmark-provider-demo-mock-{}",
+            Uuid::new_v4()
+        ));
+        let state = AppState::initialize(root.join("config"), root.join("data"))
+            .await
+            .unwrap();
+
+        let connection = test_provider_connection(&state, "mock-provider-openai")
+            .await
+            .unwrap();
+        assert!(connection.ok);
+        let scanned = scan_provider_models(&state, "mock-provider-openai")
+            .await
+            .unwrap();
+        assert!(!scanned.models.is_empty());
+        assert!(scanned.models.iter().any(|model| model.name.contains("Demo")));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
 }

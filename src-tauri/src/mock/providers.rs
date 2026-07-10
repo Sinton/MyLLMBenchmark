@@ -1,13 +1,11 @@
 use super::{now, types::MockData, with_model_count, MockDataStore};
-use crate::domain::model_catalog::{model_summaries_for_interface, CatalogFlavor};
 use crate::domain::provider::{
     prepare_provider_create, prepare_provider_update, ExistingProviderConfig,
 };
 use crate::error::AppError;
 use crate::models::{
     CreateProviderInput, DeleteResult, DiscoveredModel, ModelSummary, ProviderConnectionConfig,
-    ProviderConnectionResult, ProviderDiagnosticsResult, ProviderModelScanResult, ProviderSummary,
-    UpdateProviderInput,
+    ProviderDiagnosticsResult, ProviderSummary, UpdateProviderInput,
 };
 use uuid::Uuid;
 
@@ -132,36 +130,6 @@ impl MockDataStore {
         })
     }
 
-    pub async fn test_provider_connection(
-        &self,
-        provider_id: &str,
-    ) -> anyhow::Result<ProviderConnectionResult> {
-        let mut data = self.inner.write().await;
-        let checked_at = now();
-        if let Some(provider) = data
-            .providers
-            .iter_mut()
-            .find(|item| item.id == provider_id)
-        {
-            provider.status = "online".to_string();
-            provider.last_checked_at = Some(checked_at.clone());
-            return Ok(ProviderConnectionResult {
-                provider_id: provider_id.to_string(),
-                ok: true,
-                status: "online".to_string(),
-                message: "Mock connection check passed in Rust backend.".to_string(),
-                checked_at,
-            });
-        }
-        Ok(ProviderConnectionResult {
-            provider_id: provider_id.to_string(),
-            ok: false,
-            status: "offline".to_string(),
-            message: "Provider not found.".to_string(),
-            checked_at,
-        })
-    }
-
     pub async fn list_provider_models(
         &self,
         provider_id: &str,
@@ -173,30 +141,6 @@ impl MockDataStore {
             .filter(|model| model.provider_id == provider_id)
             .cloned()
             .collect())
-    }
-
-    pub async fn scan_provider_models(
-        &self,
-        provider_id: &str,
-    ) -> anyhow::Result<ProviderModelScanResult> {
-        let mut data = self.inner.write().await;
-        let interface_type = data
-            .providers
-            .iter()
-            .find(|provider| provider.id == provider_id)
-            .map(|provider| provider.interface_type.clone())
-            .ok_or_else(|| AppError::not_found("provider"))?;
-        let scanned_at = now();
-        data.models.retain(|model| model.provider_id != provider_id);
-        let models =
-            model_summaries_for_interface(provider_id, &interface_type, CatalogFlavor::Mock);
-        data.models.extend(models.clone());
-        Ok(ProviderModelScanResult {
-            provider_id: provider_id.to_string(),
-            models: models.clone(),
-            message: format!("Rust backend mock scanned {} models.", models.len()),
-            scanned_at,
-        })
     }
 
     pub async fn get_provider_connection_config(
