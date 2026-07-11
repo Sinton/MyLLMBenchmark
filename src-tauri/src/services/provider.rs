@@ -60,7 +60,11 @@ pub async fn test_provider_connection(
                 provider_id: provider_id.to_string(),
                 ok: true,
                 status: "online".to_string(),
-                message: format!("连接成功，已从 {} 获取到 {} 个模型。", config.name, models.len()),
+                message: format!(
+                    "连接成功，已从 {} 获取到 {} 个模型。",
+                    config.name,
+                    models.len()
+                ),
                 checked_at,
             })
         }
@@ -206,14 +210,19 @@ mod tests {
             .await
             .unwrap();
 
-        let connection = test_provider_connection(&state, &provider.id).await.unwrap();
+        let connection = test_provider_connection(&state, &provider.id)
+            .await
+            .unwrap();
         assert!(connection.ok);
         assert_eq!(connection.status, "online");
         assert!(connection.message.contains("Mock 引擎"));
 
         let scanned = scan_provider_models(&state, &provider.id).await.unwrap();
         assert!(!scanned.models.is_empty());
-        assert!(scanned.models.iter().any(|model| model.name.contains("Demo")));
+        assert!(scanned
+            .models
+            .iter()
+            .any(|model| model.name.contains("Demo")));
         assert_eq!(
             state
                 .list_provider_models(&provider.id)
@@ -244,7 +253,10 @@ mod tests {
             .await
             .unwrap();
         assert!(!scanned.models.is_empty());
-        assert!(scanned.models.iter().any(|model| model.name.contains("Demo")));
+        assert!(scanned
+            .models
+            .iter()
+            .any(|model| model.name.contains("Demo")));
 
         let _ = std::fs::remove_dir_all(root);
     }

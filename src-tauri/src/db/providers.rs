@@ -240,6 +240,15 @@ impl Database {
         models: Vec<DiscoveredModel>,
         scanned_at: &str,
     ) -> anyhow::Result<Vec<ModelSummary>> {
+        let provider_exists: Option<i64> =
+            sqlx::query_scalar("SELECT 1 FROM providers WHERE id = ?;")
+                .bind(provider_id)
+                .fetch_optional(&self.pool)
+                .await?;
+        if provider_exists.is_none() {
+            return Err(AppError::not_found("provider").into());
+        }
+
         let mut tx = self.pool.begin().await?;
 
         clear_provider_model_cache(&mut tx, provider_id).await?;

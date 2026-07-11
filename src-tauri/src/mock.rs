@@ -114,11 +114,7 @@ mod tests {
             })
             .collect();
         store
-            .replace_provider_models(
-                provider_id,
-                discovered,
-                &chrono::Utc::now().to_rfc3339(),
-            )
+            .replace_provider_models(provider_id, discovered, &chrono::Utc::now().to_rfc3339())
             .await
             .unwrap()
     }
@@ -165,6 +161,13 @@ mod tests {
             .unwrap();
         let scanned = replace_demo_models(&store, &provider.id, &provider.interface_type).await;
         assert!(!scanned.is_empty());
+        let provider = store
+            .list_providers()
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|item| item.id == provider.id)
+            .unwrap();
 
         let updated = store
             .update_provider(

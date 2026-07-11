@@ -176,9 +176,6 @@ async fn sqlite_initialization_does_not_seed_demo_provider() {
 
     let providers = db.list_providers().await.unwrap();
     assert!(providers.is_empty());
-    assert!(!providers
-        .iter()
-        .any(|provider| provider.name == "OpenAI 演示服务"));
 
     drop(db);
     let _ = std::fs::remove_dir_all(data_dir);
@@ -189,13 +186,9 @@ async fn provider_name_update_keeps_sqlite_state_key_and_models() {
     let data_dir = temp_data_dir("provider-name");
     let db = Database::initialize(&data_dir).await.unwrap();
     let provider = db.create_provider(provider_input()).await.unwrap();
-    db.update_provider_connection_status(
-        &provider.id,
-        "online",
-        &chrono::Utc::now().to_rfc3339(),
-    )
-    .await
-    .unwrap();
+    db.update_provider_connection_status(&provider.id, "online", &chrono::Utc::now().to_rfc3339())
+        .await
+        .unwrap();
     let scanned = replace_demo_models(&db, &provider.id, &provider.interface_type).await;
     assert!(!scanned.is_empty());
 
@@ -238,13 +231,9 @@ async fn provider_config_update_resets_sqlite_state_and_clears_models() {
     let data_dir = temp_data_dir("provider-config");
     let db = Database::initialize(&data_dir).await.unwrap();
     let provider = db.create_provider(provider_input()).await.unwrap();
-    db.update_provider_connection_status(
-        &provider.id,
-        "online",
-        &chrono::Utc::now().to_rfc3339(),
-    )
-    .await
-    .unwrap();
+    db.update_provider_connection_status(&provider.id, "online", &chrono::Utc::now().to_rfc3339())
+        .await
+        .unwrap();
     let scanned = replace_demo_models(&db, &provider.id, &provider.interface_type).await;
     assert!(!scanned.is_empty());
 
