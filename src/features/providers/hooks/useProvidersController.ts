@@ -2,16 +2,15 @@ import { type FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../../api/client";
 import { queryKeys } from "../../../api/queryKeys";
+import { useToast } from "../../../components/common/Toast";
 import {
   countCapabilities,
   DEFAULT_INTERFACE_TYPE,
   getErrorMessage,
 } from "../domain/providerView";
 import type {
-  ProviderConnectionResult,
   ProviderDiagnosticsResult,
   ProviderInterfaceType,
-  ProviderModelScanResult,
   ProviderSummary,
 } from "../../../types/api";
 import { PROVIDER_INTERFACE_TYPES } from "../../../types/api";
@@ -34,12 +33,15 @@ const emptyProviderForm = (): ProviderFormState => ({
 
 export function useProvidersController() {
   const queryClient = useQueryClient();
+  const { pushToast } = useToast();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerMode, setDrawerMode] = useState<ProviderDrawerMode>(null);
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
-  const [connectionResult, setConnectionResult] =
-    useState<ProviderConnectionResult | null>(null);
-  const [scanResult, setScanResult] = useState<ProviderModelScanResult | null>(null);
+  const [recentConnectedProviderId, setRecentConnectedProviderId] = useState<string | null>(null);
+  const [connectionFailure, setConnectionFailure] = useState<{
+    providerId: string;
+    message: string;
+  } | null>(null);
   const [diagnosticsResult, setDiagnosticsResult] =
     useState<ProviderDiagnosticsResult | null>(null);
   const [form, setForm] = useState<ProviderFormState>(emptyProviderForm);
@@ -111,8 +113,8 @@ export function useProvidersController() {
     onSuccess: async (provider) => {
       setSelectedId(provider.id);
       closeProviderDrawer();
-      setConnectionResult(null);
-      setScanResult(null);
+      setRecentConnectedProviderId(null);
+      setConnectionFailure(null);
       setDiagnosticsResult(null);
       await invalidateProviderViews();
     },
@@ -124,8 +126,8 @@ export function useProvidersController() {
     onSuccess: async (provider) => {
       setSelectedId(provider.id);
       closeProviderDrawer();
-      setConnectionResult(null);
-      setScanResult(null);
+      setRecentConnectedProviderId(null);
+      setConnectionFailure(null);
       setDiagnosticsResult(null);
       await invalidateProviderViews();
       await queryClient.invalidateQueries({
@@ -138,6 +140,8 @@ export function useProvidersController() {
     mutationFn: api.deleteProvider,
     onSuccess: async () => {
       setSelectedId(null);
+      setRecentConnectedProviderId(null);
+      setConnectionFailure(null);
       await invalidateProviderViews();
       await queryClient.invalidateQueries({ queryKey: queryKeys.reports() });
     },
@@ -145,9 +149,12 @@ export function useProvidersController() {
 
   const scanModelsMutation = useMutation({
     mutationFn: api.scanProviderModels,
-    onMutate: () => setScanResult(null),
     onSuccess: async (result) => {
-      setScanResult(result);
+      pushToast({
+        title: "模型列表已更新",
+        description: `已扫描到 ${result.models.length} 个模型`,
+        tone: "success",
+      });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.providerModels(result.provider_id),
       });
@@ -157,13 +164,28 @@ export function useProvidersController() {
 
   const testConnectionMutation = useMutation({
     mutationFn: api.testProviderConnection,
-    onMutate: () => setConnectionResult(null),
+    onMutate: () => {
+      setConnectionFailure(null);
+      setRecentConnectedProviderId(null);
+    },
     onSuccess: async (result) => {
-      setConnectionResult(result);
       await invalidateProviderViews();
       if (result.ok) {
+        setConnectionFailure(null);
+        setRecentConnectedProviderId(result.provider_id);
+        pushToast({
+          title: "连接测试通过",
+          description: `${result.message} 正在继续扫描模型。`,
+          tone: "success",
+        });
         scanModelsMutation.mutate(result.provider_id);
+        return;
       }
+      setRecentConnectedProviderId(null);
+      setConnectionFailure({
+        providerId: result.provider_id,
+        message: result.message,
+      });
     },
   });
 
@@ -185,8 +207,7 @@ export function useProvidersController() {
   );
   const canScanSelected = Boolean(
     selected &&
-      (selected.status === "online" ||
-        (connectionResult?.provider_id === selected.id && connectionResult.ok)),
+      (selected.status === "online" || recentConnectedProviderId === selected.id),
   );
   const showCreatePanel = Boolean(drawerMode);
   const showEmptyOnboarding = providers.length === 0 && !drawerMode;
@@ -205,7 +226,6 @@ export function useProvidersController() {
   return {
     canScanSelected,
     capabilityStats,
-    connectionResult,
     createPending: createMutation.isPending,
     deleteError: deleteMutation.isError ? deleteMutation.error : undefined,
     deleting: deleteMutation.isPending,
@@ -231,7 +251,6 @@ export function useProvidersController() {
       scanModelsMutation.variables === selected.id
         ? scanModelsMutation.error
         : undefined,
-    scanResult,
     selected,
     selectedModelCount,
     closeProviderDrawer,
@@ -249,7 +268,11 @@ export function useProvidersController() {
       selected &&
       testConnectionMutation.variables === selected.id
         ? testConnectionMutation.error
-        : undefined,
+        : selected &&
+            connectionFailure &&
+            connectionFailure.providerId === selected.id
+          ? connectionFailure.message
+          : undefined,
     testPending: testConnectionMutation.isPending,
     onDelete: async () => {
       if (!selected) return;

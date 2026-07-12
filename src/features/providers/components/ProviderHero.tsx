@@ -18,18 +18,11 @@ import {
   Settings2,
   Trash2,
 } from "../../../components/common/icons";
-import type {
-  ProviderConnectionResult,
-  ProviderDiagnosticsResult,
-  ProviderModelScanResult,
-  ProviderSummary,
-} from "../../../types/api";
+import type { ProviderDiagnosticsResult, ProviderSummary } from "../../../types/api";
 import { formatDate, getInitials } from "../domain/providerView";
-import { ConnectionResult, ScanResult } from "./ProviderFeedback";
 
 type ProviderHeroProps = {
   canScan: boolean;
-  connectionResult: ProviderConnectionResult | null;
   deleteError?: unknown;
   deleting: boolean;
   diagnosticsError?: unknown;
@@ -39,7 +32,6 @@ type ProviderHeroProps = {
   modelsFetching: boolean;
   scanError?: unknown;
   scanPending: boolean;
-  scanResult: ProviderModelScanResult | null;
   selected: ProviderSummary;
   selectedModelCount: number;
   testError?: unknown;
@@ -53,7 +45,6 @@ type ProviderHeroProps = {
 
 export function ProviderHero({
   canScan,
-  connectionResult,
   deleteError,
   deleting,
   diagnosticsError,
@@ -63,7 +54,6 @@ export function ProviderHero({
   modelsFetching,
   scanError,
   scanPending,
-  scanResult,
   selected,
   selectedModelCount,
   testError,
@@ -133,19 +123,6 @@ export function ProviderHero({
           </div>
         </div>
 
-        {connectionResult?.provider_id === selected.id && (
-          <ConnectionResult result={connectionResult} />
-        )}
-        {scanPending && (
-          <div className="connection-result info">
-            <Search size={18} />
-            <div>
-              <strong>正在扫描模型</strong>
-              <span>连接已通过，正在按接口类型读取可用模型并刷新能力统计。</span>
-            </div>
-          </div>
-        )}
-        {scanResult?.provider_id === selected.id && <ScanResult result={scanResult} />}
         {Boolean(scanError) && (
           <div className="connection-result danger">
             <AlertCircle size={18} />
@@ -209,7 +186,7 @@ export function ProviderHero({
         <div className="provider-danger-row">
           <div>
             <strong>危险操作</strong>
-            <span>删除服务商会清理关联的模拟任务、模型缓存和报告记录。</span>
+            <span>删除服务商会清理关联的压测任务、模型缓存和报告记录。</span>
           </div>
           <Button
             disabled={deleting}
@@ -224,7 +201,7 @@ export function ProviderHero({
       </Card>
 
       <Dialog
-        description="该操作会同步清理这个服务商下的模拟模型、压测任务和测试报告，删除后无法在当前应用内恢复。"
+        description="该操作会同步清理这个服务商下的模型缓存、压测任务和测试报告，删除后无法在当前应用内恢复。"
         footer={
           <>
             <Button disabled={deleting} onClick={() => setDeleteOpen(false)} variant="ghost">

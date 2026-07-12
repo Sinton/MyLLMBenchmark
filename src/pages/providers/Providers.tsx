@@ -62,7 +62,6 @@ export function Providers() {
           {providersView.selected && (
             <ProviderHero
               canScan={providersView.canScanSelected}
-              connectionResult={providersView.connectionResult}
               deleteError={providersView.deleteError}
               deleting={providersView.deleting}
               diagnosticsError={providersView.diagnosticsError}
@@ -72,7 +71,6 @@ export function Providers() {
               modelsFetching={providersView.isModelsFetching}
               scanError={providersView.scanError}
               scanPending={providersView.isScanningCurrent}
-              scanResult={providersView.scanResult}
               selected={providersView.selected}
               selectedModelCount={providersView.selectedModelCount}
               testError={providersView.testError}

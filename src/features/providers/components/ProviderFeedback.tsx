@@ -1,52 +1,18 @@
 import type { ReactNode } from "react";
 import {
-  AlertCircle,
+  Activity,
   Bot,
-  CheckCircle2,
   Database,
   KeyRound,
   Link2,
-  Activity,
 } from "../../../components/common/icons";
 import {
   getModelTypeDescription,
   getModelTypeLabel,
   MODEL_CAPABILITY_LABELS,
 } from "../../../lib/modelTaxonomy";
-import type {
-  ModelSummary,
-  ProviderConnectionResult,
-  ProviderModelScanResult,
-} from "../../../types/api";
-import { capabilityNames, formatDate } from "../domain/providerView";
-
-export function ConnectionResult({ result }: { result: ProviderConnectionResult }) {
-  return (
-    <div className={`connection-result ${result.ok ? "success" : "danger"}`}>
-      {result.ok ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-      <div>
-        <strong>{result.ok ? "连接测试通过" : "连接测试失败"}</strong>
-        <span>
-          {result.message} · {formatDate(result.checked_at)}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-export function ScanResult({ result }: { result: ProviderModelScanResult }) {
-  return (
-    <div className="connection-result success">
-      <CheckCircle2 size={18} />
-      <div>
-        <strong>模型扫描完成</strong>
-        <span>
-          {result.message} · {formatDate(result.scanned_at)}
-        </span>
-      </div>
-    </div>
-  );
-}
+import type { ModelSummary } from "../../../types/api";
+import { capabilityNames } from "../domain/providerView";
 
 export function ModelRow({ model }: { model: ModelSummary }) {
   const capabilities = capabilityNames(model);

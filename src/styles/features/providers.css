@@ -293,15 +293,6 @@
   line-height: 18px;
 }
 
-.connection-result.success {
-  border-color: #bbf7d0;
-  background: var(--success-soft);
-}
-
-.connection-result.success svg {
-  color: var(--success);
-}
-
 .connection-result.danger {
   border-color: #fecaca;
   background: var(--danger-soft);
