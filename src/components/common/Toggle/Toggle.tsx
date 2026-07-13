@@ -1,15 +1,27 @@
-﻿type ToggleProps = {
+type ToggleProps = {
   checked: boolean;
   onChange: (checked: boolean) => void;
-  label: string;
+  label?: string;
   disabled?: boolean;
+  ariaLabel?: string;
+  className?: string;
 };
 
-export function Toggle({ checked, onChange, label, disabled = false }: ToggleProps) {
+export function Toggle({
+  checked,
+  onChange,
+  label,
+  disabled = false,
+  ariaLabel,
+  className = "",
+}: ToggleProps) {
+  const accessibleLabel = label ?? ariaLabel ?? "切换开关";
+
   return (
-    <label className="toggle-row">
+    <label className={`toggle-row ${className}`.trim()}>
       <button
         aria-checked={checked}
+        aria-label={label ? undefined : accessibleLabel}
         className={`toggle ${checked ? "checked" : ""}`}
         disabled={disabled}
         onClick={() => onChange(!checked)}
@@ -18,8 +30,7 @@ export function Toggle({ checked, onChange, label, disabled = false }: TogglePro
       >
         <span />
       </button>
-      <span>{label}</span>
+      {label && <span>{label}</span>}
     </label>
   );
 }
-

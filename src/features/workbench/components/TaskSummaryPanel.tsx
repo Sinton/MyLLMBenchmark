@@ -97,6 +97,7 @@ export function TaskSummaryPanel({
           value={`${form.request_timeout_seconds}s；超时前不会主动丢弃已发请求`}
         />
         <SummaryRow label="失败策略" value={slaPolicyLabel(form.sla_stop_policy)} />
+        <SummaryRow label="证据采集" value={requestLogSummary(form)} />
         <SummaryRow label="模型类型" value={getModelTypeLabel(modelType)} />
         <SummaryRow label="专项负载" value={workloadSummary(form, modelType)} />
       </div>
@@ -206,6 +207,12 @@ function workloadSummary(form: WorkbenchForm, modelType: string) {
 
 function slaPolicyLabel(value: WorkbenchForm["sla_stop_policy"]) {
   return value === "stop_on_failure" ? "保护性停止" : "继续完整阶梯";
+}
+
+function requestLogSummary(form: WorkbenchForm) {
+  if (!form.request_log_enabled) return "不保存请求明细";
+  if (form.request_log_capture_body) return "保存明细索引 + 正文";
+  return "保存明细索引";
 }
 
 function promptProfileLabel(value: string) {

@@ -1,4 +1,4 @@
-﻿import type { Dispatch, FormEvent, SetStateAction } from "react";
+import { useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { Card } from "../../../components/common/Card";
 import { InlineAlert } from "../../../components/common/InlineAlert";
 import type {
@@ -8,7 +8,11 @@ import type {
   ProviderSummary,
 } from "../../../types/api";
 import type { StartNotice, WorkbenchForm } from "../types";
-import { AdvancedSettingsSection } from "./AdvancedSettingsSection";
+import {
+  AdvancedSettingsDrawer,
+  type AdvancedSettingsSectionKey,
+} from "./AdvancedSettingsDrawer";
+import { AdvancedSettingsLauncher } from "./AdvancedSettingsLauncher";
 import { BenchmarkModeSection } from "./BenchmarkModeSection";
 import { FixedLoadConfigSection } from "./FixedLoadConfigSection";
 import { StaircaseConfigSection } from "./StaircaseConfigSection";
@@ -53,6 +57,15 @@ export function BenchmarkConfigPanel({
   startPending,
   onSubmit,
 }: BenchmarkConfigPanelProps) {
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [advancedSection, setAdvancedSection] =
+    useState<AdvancedSettingsSectionKey>("workload");
+
+  const openAdvancedSettings = (section: AdvancedSettingsSectionKey) => {
+    setAdvancedSection(section);
+    setAdvancedOpen(true);
+  };
+
   return (
     <Card title="任务配置" eyebrow="核心配置" className="workbench-config">
       <form className="form-stack" onSubmit={onSubmit}>
@@ -98,10 +111,10 @@ export function BenchmarkConfigPanel({
           )}
         </div>
 
-        <AdvancedSettingsSection
+        <AdvancedSettingsLauncher
           form={form}
           modelType={selectedModelType}
-          setForm={setForm}
+          onOpen={openAdvancedSettings}
         />
 
         <div className="workbench-start-dock">
@@ -113,6 +126,16 @@ export function BenchmarkConfigPanel({
           />
         </div>
       </form>
+
+      <AdvancedSettingsDrawer
+        form={form}
+        modelType={selectedModelType}
+        open={advancedOpen}
+        section={advancedSection}
+        setForm={setForm}
+        onClose={() => setAdvancedOpen(false)}
+        onSectionChange={setAdvancedSection}
+      />
     </Card>
   );
 }
