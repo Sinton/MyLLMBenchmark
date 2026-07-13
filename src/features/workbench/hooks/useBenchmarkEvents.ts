@@ -11,8 +11,10 @@ import type {
 import { debugRealtime, warnRealtime } from "../domain/realtimeDebug";
 
 type UseBenchmarkEventsInput = {
+  activeTaskId: string | null;
   addLog: (message: string) => void;
   addTick: (tick: MetricsTick) => void;
+  enabled: boolean;
   markTaskStopped: (taskId: string, title: string) => void;
   onMetricsTick?: (tick: MetricsTick) => void;
   queryClient: QueryClient;
@@ -22,8 +24,10 @@ type UseBenchmarkEventsInput = {
 };
 
 export function useBenchmarkEvents({
+  activeTaskId,
   addLog,
   addTick,
+  enabled,
   markTaskStopped,
   onMetricsTick,
   queryClient,
@@ -53,6 +57,8 @@ export function useBenchmarkEvents({
   };
 
   useEffect(() => {
+    if (!enabled || !activeTaskId) return;
+
     const unsubs: Array<() => void> = [];
     let disposed = false;
 
@@ -70,6 +76,8 @@ export function useBenchmarkEvents({
       try {
         unsubs.push(
           await listenToEvent<MetricsTick>("benchmark:metrics_tick", (payload) => {
+            if (payload.task_id !== activeTaskId) return;
+
             const handlers = handlersRef.current;
             debugRealtime("event", "收到 benchmark:metrics_tick", {
               taskId: payload.task_id,
@@ -89,6 +97,8 @@ export function useBenchmarkEvents({
         );
         unsubs.push(
           await listenToEvent<StageChangedEvent>("benchmark:stage_changed", (payload) => {
+            if (payload.task_id !== activeTaskId) return;
+
             const handlers = handlersRef.current;
             debugRealtime("event", "收到 benchmark:stage_changed", {
               taskId: payload.task_id,
@@ -104,6 +114,8 @@ export function useBenchmarkEvents({
           await listenToEvent<BenchmarkTaskSummary>(
             "benchmark:task_completed",
             (payload) => {
+              if (payload.id !== activeTaskId) return;
+
               const handlers = handlersRef.current;
               debugRealtime("event", "收到 benchmark:task_completed", {
                 taskId: payload.id,
@@ -117,6 +129,8 @@ export function useBenchmarkEvents({
         );
         unsubs.push(
           await listenToEvent<string>("benchmark:task_stopped", (taskId) => {
+            if (taskId !== activeTaskId) return;
+
             const handlers = handlersRef.current;
             debugRealtime("event", "收到 benchmark:task_stopped", { taskId });
             handlers.markTaskStopped(taskId, "压测已停止");
@@ -126,6 +140,8 @@ export function useBenchmarkEvents({
         );
         unsubs.push(
           await listenToEvent<ReportSummary>("benchmark:report_ready", (payload) => {
+            if (payload.task_id !== activeTaskId) return;
+
             const handlers = handlersRef.current;
             debugRealtime("event", "收到 benchmark:report_ready", {
               reportId: payload.id,
@@ -156,7 +172,7 @@ export function useBenchmarkEvents({
       debugRealtime("event", "清理 Tauri 实时事件订阅");
       unsubs.forEach((unsub) => unsub());
     };
-  }, [queryClient]);
+  }, [activeTaskId, enabled, queryClient]);
 }
 
 function getErrorMessage(error: unknown) {

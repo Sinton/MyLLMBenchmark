@@ -45,6 +45,9 @@ export function Workbench() {
           <RealtimeTrendPanel
             activeTask={workbench.activeTask}
             chartMetric={workbench.chartMetric}
+            historyError={workbench.historyError}
+            historyLoading={workbench.historyLoading}
+            isHistoryView={workbench.isHistoryView}
             latestTick={workbench.latestTick}
             metricCards={workbench.liveMetricCards}
             onChartMetricChange={workbench.onChartMetricChange}
@@ -60,6 +63,7 @@ export function Workbench() {
             dataset={workbench.selectedDataset}
             estimatedSeconds={workbench.estimatedSeconds}
             form={workbench.form}
+            historyTask={workbench.isHistoryView ? workbench.activeTask : null}
             isStaircase={workbench.isStaircase}
             model={workbench.selectedModel}
             modelType={workbench.selectedModelType}

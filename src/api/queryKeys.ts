@@ -14,6 +14,8 @@ export const queryKeys = {
   ) => ["dataset-samples", datasetId, page, pageSize, keyword] as const,
   reports: () => ["reports"] as const,
   reportDetail: (reportId: string) => ["report-detail", reportId] as const,
+  benchmarkTask: (taskId: string) => ["benchmark-task", taskId] as const,
+  benchmarkTicks: (taskId: string) => ["benchmark-ticks", taskId] as const,
   benchmarkRequestLogs: (
     taskId: string,
     page: number,

@@ -13,6 +13,8 @@ import { useDashboardSummary } from "../../features/dashboard/hooks/useDashboard
 
 export function Dashboard() {
   const { data, isLoading } = useDashboardSummary();
+  const latestTask = data?.recent_tasks[0];
+  const latestTaskLink = latestTask ? taskWorkbenchLink(latestTask.id) : "/workbench";
 
   return (
     <div className="page">
@@ -28,21 +30,21 @@ export function Dashboard() {
           title="最近压测"
           eyebrow="任务"
           action={
-            <Link className="text-link" to="/workbench">
-              查看工作台 <ArrowRight size={14} />
+            <Link className="text-link" to={latestTaskLink}>
+              {latestTask ? "查看最新任务" : "查看工作台"} <ArrowRight size={14} />
             </Link>
           }
         >
           <div className="list-stack">
             {data?.recent_tasks.length ? (
               data.recent_tasks.map((task) => (
-                <div className="list-row" key={task.id}>
+                <Link className="list-row list-row-link" key={task.id} to={taskWorkbenchLink(task.id)}>
                   <div>
                     <strong>{task.model_name}</strong>
                     <span>{task.dataset_name}</span>
                   </div>
                   <Badge tone={statusTone(task.status)}>{statusLabel(task.status)}</Badge>
-                </div>
+                </Link>
               ))
             ) : (
               <InlineAlert title="还没有压测任务">
@@ -106,4 +108,8 @@ export function Dashboard() {
       </div>
     </div>
   );
+}
+
+function taskWorkbenchLink(taskId: string) {
+  return `/workbench?taskId=${encodeURIComponent(taskId)}`;
 }

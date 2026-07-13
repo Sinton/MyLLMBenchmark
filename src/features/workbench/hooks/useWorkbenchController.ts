@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   buildStageSequence,
   getStartBlockReason,
@@ -8,6 +9,7 @@ import {
   getLiveMetricCards,
 } from "../domain/metricDefinitions";
 import { useBenchmarkRunController } from "./useBenchmarkRunController";
+import { useWorkbenchHistoryTask } from "./useWorkbenchHistoryTask";
 import { useWorkbenchData } from "./useWorkbenchData";
 import { useWorkbenchFormSync } from "./useWorkbenchFormSync";
 import {
@@ -19,6 +21,7 @@ import { useWorkbenchStore } from "../../../stores/workbenchStore";
 import type { StageChangedEvent } from "../../../types/api";
 
 export function useWorkbenchController() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [chartMetric, setChartMetric] = useState<ChartMetric>("latency");
   const [form, setForm] = useState(defaultWorkbenchForm);
   const [currentStage, setCurrentStage] = useState<StageChangedEvent | null>(null);
@@ -34,9 +37,12 @@ export function useWorkbenchController() {
     updateActiveTask,
     addTick,
     mergeTicks,
+    hydrateTask,
     addLog,
     setGeneratedReport,
+    resetRun,
   } = useWorkbenchStore();
+  const historyTaskId = searchParams.get("taskId");
 
   const data = useWorkbenchData(form, activeTask);
   const startBlockReason = getStartBlockReason({
@@ -90,6 +96,14 @@ export function useWorkbenchController() {
     updateActiveTask,
   });
 
+  const historyState = useWorkbenchHistoryTask({
+    taskId: historyTaskId,
+    hydrateTask,
+    resetRun,
+    setCurrentStage,
+    setStartNotice,
+  });
+
   useWorkbenchFormSync({
     datasets: data.datasets,
     form,
@@ -98,6 +112,13 @@ export function useWorkbenchController() {
     selectedModelType: data.selectedModelType,
     setForm,
   });
+
+  const submit = (event: FormEvent) => {
+    if (historyTaskId && !startBlockReason) {
+      setSearchParams({}, { replace: true });
+    }
+    runController.submit(event);
+  };
 
   return {
     activeTask,
@@ -110,7 +131,11 @@ export function useWorkbenchController() {
     estimatedSeconds,
     form,
     generatedReport,
+    historyError: historyState.historyError,
+    historyLoading: historyState.historyLoading,
+    historyTaskId: historyState.historyTaskId,
     isStaircase,
+    isHistoryView: historyState.isHistoryView,
     latestTick,
     liveChartTabs,
     liveMetricCards,
@@ -119,7 +144,7 @@ export function useWorkbenchController() {
     onGenerateReport: () =>
       activeTask?.id && runController.reportMutation.mutate(activeTask.id),
     onStop: () => activeTask?.id && runController.stopMutation.mutate(activeTask.id),
-    onSubmit: runController.submit,
+    onSubmit: submit,
     providerModels: data.providerModels,
     providerDiagnostics: data.providerDiagnostics,
     providerDiagnosticsFetching: data.providerDiagnosticsFetching,

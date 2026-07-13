@@ -11,6 +11,7 @@ export type WorkbenchState = {
   updateActiveTask: (task: BenchmarkTaskSummary) => void;
   addTick: (tick: MetricsTick) => void;
   mergeTicks: (ticks: MetricsTick[]) => void;
+  hydrateTask: (task: BenchmarkTaskSummary, ticks: MetricsTick[], message: string) => void;
   addLog: (message: string) => void;
   setGeneratedReport: (report: ReportSummary | null) => void;
   resetRun: () => void;
@@ -62,6 +63,19 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
       return {
         latestTick: ticks.at(-1) ?? state.latestTick,
         ticks,
+      };
+    }),
+  hydrateTask: (task, incomingTicks, message) =>
+    set(() => {
+      const ticks = [...incomingTicks].sort(
+        (a, b) => a.elapsed_seconds - b.elapsed_seconds,
+      );
+      return {
+        activeTask: task,
+        latestTick: ticks.at(-1) ?? null,
+        ticks,
+        logs: [`${formatTime()} ${message}`],
+        generatedReport: null,
       };
     }),
   addLog: (message) =>

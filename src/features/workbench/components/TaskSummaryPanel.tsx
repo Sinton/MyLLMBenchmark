@@ -1,7 +1,9 @@
 import { Card } from "../../../components/common/Card";
 import { Disclosure } from "../../../components/common/Disclosure";
+import { statusLabel } from "../../../components/common/Badge";
 import { getModelTypeLabel } from "../../../lib/modelTaxonomy";
 import type {
+  BenchmarkTaskSummary,
   DatasetSummary,
   ModelSummary,
   ProviderSummary,
@@ -14,6 +16,7 @@ type TaskSummaryPanelProps = {
   provider?: ProviderSummary;
   model?: ModelSummary;
   dataset?: DatasetSummary;
+  historyTask?: BenchmarkTaskSummary | null;
   modelType: string;
   isStaircase: boolean;
   stageSequence: number[];
@@ -25,11 +28,16 @@ export function TaskSummaryPanel({
   provider,
   model,
   dataset,
+  historyTask,
   modelType,
   isStaircase,
   stageSequence,
   estimatedSeconds,
 }: TaskSummaryPanelProps) {
+  if (historyTask) {
+    return <HistoryTaskSummary task={historyTask} />;
+  }
+
   const estimatedRequests = estimateRequests(form, isStaircase, stageSequence);
   const estimatedTokens = estimateTokens(
     form,
@@ -51,7 +59,7 @@ export function TaskSummaryPanel({
         <h3>执行计划</h3>
         <SummaryRow label="模式" value={form.mode} />
         <SummaryRow
-          label="阶梯序列"
+          label="阶段序列"
           value={
             isStaircase
               ? stageSequence.join(" -> ")
@@ -106,6 +114,35 @@ export function TaskSummaryPanel({
           provider={provider}
         />
       </Disclosure>
+    </Card>
+  );
+}
+
+function HistoryTaskSummary({ task }: { task: BenchmarkTaskSummary }) {
+  return (
+    <Card title="任务摘要" eyebrow="历史任务" className="task-summary-card">
+      <div className="summary-section">
+        <h3>测试对象</h3>
+        <SummaryRow label="服务商" value={task.provider_name} />
+        <SummaryRow label="模型" value={task.model_name} />
+        <SummaryRow label="数据集" value={task.dataset_name} />
+        <SummaryRow label="模型类型" value={getModelTypeLabel(task.model_type)} />
+      </div>
+
+      <div className="summary-section">
+        <h3>执行结果</h3>
+        <SummaryRow label="任务状态" value={statusLabel(task.status)} strong />
+        <SummaryRow label="并发" value={task.concurrency} />
+        <SummaryRow label="Goodput" value={`${formatNumber(task.goodput_qps)} qps`} />
+        <SummaryRow label="P95" value={`${task.p95_latency_ms} ms`} />
+        <SummaryRow label="成功率" value={`${formatPercent(task.success_rate)}%`} />
+      </div>
+
+      <div className="summary-section">
+        <h3>历史信息</h3>
+        <SummaryRow label="任务名称" value={task.name} />
+        <SummaryRow label="创建时间" value={formatDate(task.created_at)} />
+      </div>
     </Card>
   );
 }
@@ -181,4 +218,12 @@ function imageProfileLabel(value: string) {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("zh-CN").format(Math.max(0, Math.round(value)));
+}
+
+function formatPercent(value: number) {
+  return Number.isFinite(value) ? value.toFixed(2) : "0.00";
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString("zh-CN", { hour12: false });
 }

@@ -137,8 +137,10 @@ export function useBenchmarkRunController({
   }, [activeTaskId, activeTaskStatus, addLog]);
 
   useBenchmarkEvents({
+    activeTaskId,
     addLog,
     addTick,
+    enabled: Boolean(activeTaskId && isRunning(activeTaskStatus ?? undefined)),
     markTaskStopped: actions.markTaskStopped,
     onMetricsTick: handleMetricsTick,
     queryClient,

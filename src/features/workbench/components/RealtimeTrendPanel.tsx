@@ -11,6 +11,9 @@ type RealtimeTrendPanelProps = {
   ticks: MetricsTick[];
   latestTick: MetricsTick | null;
   metricCards: Array<{ label: string; helpKey?: string; value: string | number; unit?: string }>;
+  historyError?: unknown | null;
+  historyLoading: boolean;
+  isHistoryView: boolean;
   startPending: boolean;
   tabs: Array<{ key: ChartMetric; label: string }>;
   chartMetric: ChartMetric;
@@ -22,13 +25,20 @@ export function RealtimeTrendPanel({
   ticks,
   latestTick,
   metricCards,
+  historyError,
+  historyLoading,
+  isHistoryView,
   startPending,
   tabs,
   chartMetric,
   onChartMetricChange,
 }: RealtimeTrendPanelProps) {
-  const emptyState = getChartEmptyState(activeTask, startPending);
-  const trendNote = getTrendNote(activeTask, latestTick, ticks.length);
+  const emptyState = getChartEmptyState(activeTask, startPending, {
+    historyError,
+    historyLoading,
+    isHistoryView,
+  });
+  const trendNote = getTrendNote(activeTask, latestTick, ticks.length, isHistoryView);
 
   return (
     <div className="workbench-main">
@@ -58,7 +68,28 @@ export function RealtimeTrendPanel({
 function getChartEmptyState(
   activeTask: BenchmarkTaskSummary | null,
   startPending: boolean,
+  history: {
+    historyError?: unknown | null;
+    historyLoading: boolean;
+    isHistoryView: boolean;
+  },
 ) {
+  if (history.historyLoading) {
+    return {
+      title: "正在加载历史任务",
+      description: "正在从本地数据源读取任务摘要和持久化指标。",
+      tone: "loading" as const,
+    };
+  }
+
+  if (history.historyError) {
+    return {
+      title: "历史任务加载失败",
+      description: getErrorMessage(history.historyError),
+      tone: "idle" as const,
+    };
+  }
+
   if (startPending) {
     return {
       title: "正在创建压测任务",
@@ -83,6 +114,15 @@ function getChartEmptyState(
     };
   }
 
+  if (history.isHistoryView && activeTask) {
+    return {
+      title: "该历史任务没有可回放指标",
+      description:
+        "这个任务没有持久化 tick，可能是任务初始化失败、旧版本任务，或 Mock 内存数据已丢失。",
+      tone: "idle" as const,
+    };
+  }
+
   return {
     title: "尚未开始压测",
     description: "选择服务商、模型和数据集后点击开始压测，这里会展示实时趋势。",
@@ -94,8 +134,13 @@ function getTrendNote(
   activeTask: BenchmarkTaskSummary | null,
   latestTick: MetricsTick | null,
   tickCount: number,
+  isHistoryView: boolean,
 ) {
   if (!tickCount) return null;
+
+  if (isHistoryView) {
+    return "历史任务已加载，当前趋势图展示后端持久化指标；事件日志只显示当前会话信息。";
+  }
 
   if (activeTask?.status === "cancelled") {
     return `任务已停止，展示停止前第 ${latestTick?.elapsed_seconds ?? tickCount} 轮的最后指标数据。`;
@@ -106,4 +151,10 @@ function getTrendNote(
   }
 
   return null;
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return "任务不存在或当前数据源不可用。";
 }
