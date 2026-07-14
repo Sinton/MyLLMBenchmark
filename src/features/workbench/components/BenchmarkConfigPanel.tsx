@@ -61,11 +61,6 @@ export function BenchmarkConfigPanel({
   const [advancedSection, setAdvancedSection] =
     useState<AdvancedSettingsSectionKey>("workload");
 
-  const openAdvancedSettings = (section: AdvancedSettingsSectionKey) => {
-    setAdvancedSection(section);
-    setAdvancedOpen(true);
-  };
-
   return (
     <Card title="任务配置" eyebrow="核心配置" className="workbench-config">
       <form className="form-stack" onSubmit={onSubmit}>
@@ -111,11 +106,7 @@ export function BenchmarkConfigPanel({
           )}
         </div>
 
-        <AdvancedSettingsLauncher
-          form={form}
-          modelType={selectedModelType}
-          onOpen={openAdvancedSettings}
-        />
+        <AdvancedSettingsLauncher onOpen={() => setAdvancedOpen(true)} />
 
         <div className="workbench-start-dock">
           <StartReadiness notice={startNotice} reason={startBlockReason} />

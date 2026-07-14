@@ -8,6 +8,8 @@ type TabsProps<T extends string = string> = {
   value: T;
   onChange: (value: T) => void;
   className?: string;
+  variant?: "segmented" | "line";
+  ariaLabel?: string;
 };
 
 export function Tabs<T extends string = string>({
@@ -15,14 +17,22 @@ export function Tabs<T extends string = string>({
   value,
   onChange,
   className = "",
+  variant = "segmented",
+  ariaLabel,
 }: TabsProps<T>) {
   return (
-    <div className={`segment ${className}`.trim()}>
+    <div
+      aria-label={ariaLabel}
+      className={`tabs tabs-${variant} ${className}`.trim()}
+      role="tablist"
+    >
       {items.map((item) => (
         <button
+          aria-selected={value === item.key}
           className={value === item.key ? "active" : ""}
           key={item.key}
           onClick={() => onChange(item.key)}
+          role="tab"
           type="button"
         >
           {item.label}

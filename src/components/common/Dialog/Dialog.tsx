@@ -1,5 +1,6 @@
-﻿import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "../icons";
 
 type DialogProps = {
@@ -78,7 +79,7 @@ export function Dialog({
     ? ({ "--dialog-width": width } as CSSProperties)
     : undefined;
 
-  return (
+  return createPortal(
     <div
       className={`dialog-backdrop dialog-backdrop-${variant}`}
       role="presentation"
@@ -113,7 +114,8 @@ export function Dialog({
         <div className="dialog-body">{children}</div>
         {footer && <footer className="dialog-footer">{footer}</footer>}
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -158,4 +160,3 @@ function getInitialFocusElement(root: HTMLElement | null) {
     null
   );
 }
-

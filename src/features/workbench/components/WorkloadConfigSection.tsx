@@ -122,14 +122,18 @@ export function WorkloadConfigSection({
                 }))
               }
             />
-            <div className="workload-toggle-cell">
-              <Toggle
-                checked={form.streaming}
-                label="Streaming"
-                onChange={(streaming) =>
-                  setForm((current) => ({ ...current, streaming }))
-                }
-              />
+            <div className="workload-toggle-field">
+              <span className="workload-toggle-label">Streaming</span>
+              <div className="workload-toggle-shell">
+                <span>{form.streaming ? "已开启" : "已关闭"}</span>
+                <Toggle
+                  ariaLabel="Streaming"
+                  checked={form.streaming}
+                  onChange={(streaming) =>
+                    setForm((current) => ({ ...current, streaming }))
+                  }
+                />
+              </div>
             </div>
           </div>
           <SelectField

@@ -47,8 +47,10 @@ export function AdvancedSettingsDrawer({
     >
       <div className="advanced-settings-drawer">
         <Tabs
+          ariaLabel="高级设置分类"
           className="advanced-settings-tabs"
           items={advancedTabs}
+          variant="line"
           value={section}
           onChange={onSectionChange}
         />
