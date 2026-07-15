@@ -1,7 +1,8 @@
-import { Badge, statusLabel, statusTone } from "../../../components/common/Badge";
-import { Button } from "../../../components/common/Button";
-import { WorkspaceHeader } from "../../../components/common/WorkspaceHeader";
-import { FileText, Square } from "../../../components/common/icons";
+import { Badge } from "../../../components/ui/Badge";
+import { Button } from "../../../components/ui/Button";
+import { WorkspaceHeader } from "../../../components/app-shell/WorkspaceHeader";
+import { FileText, Square } from "../../../components/ui/icons";
+import { statusLabel, statusTone } from "../../../domain/statusPresentation";
 import type { BenchmarkTaskSummary } from "../../../types/api";
 
 type WorkbenchHeaderProps = {

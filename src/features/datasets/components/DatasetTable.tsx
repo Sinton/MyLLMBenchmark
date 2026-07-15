@@ -1,8 +1,8 @@
-import { Badge } from "../../../components/common/Badge";
-import { Button } from "../../../components/common/Button";
-import { DataTable, type DataTableColumn } from "../../../components/common/DataTable";
-import { EmptyState } from "../../../components/common/EmptyState";
-import { Eye, FileCheck, Pencil, Trash2 } from "../../../components/common/icons";
+import { Badge } from "../../../components/ui/Badge";
+import { Button } from "../../../components/ui/Button";
+import { DataTable, type DataTableColumn } from "../../../components/ui/DataTable";
+import { EmptyState } from "../../../components/ui/EmptyState";
+import { Eye, FileCheck, Pencil, Trash2 } from "../../../components/ui/icons";
 import { getModelTypeLabel } from "../../../lib/modelTaxonomy";
 import type { DatasetSummary } from "../../../types/api";
 

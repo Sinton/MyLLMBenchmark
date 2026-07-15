@@ -1,15 +1,15 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { queryKeys } from "../../api/queryKeys";
-import { Button } from "../../components/common/Button";
-import { Input } from "../../components/common/Input";
-import { Lock, Network, Settings2, SlidersHorizontal } from "../../components/common/icons";
-import { PageHeader } from "../../components/common/PageHeader";
-import { useToast } from "../../components/common/Toast";
-import { Toggle } from "../../components/common/Toggle";
-import { SelectField } from "../../components/common/SelectField";
+import { Button } from "../../components/ui/Button";
+import { Input } from "../../components/ui/Input";
+import { Lock, Network, Settings2, SlidersHorizontal } from "../../components/ui/icons";
+import { WorkspaceHeader } from "../../components/app-shell/WorkspaceHeader";
+import { useToast } from "../../components/ui/Toast";
+import { Toggle } from "../../components/ui/Toggle";
+import { SelectField } from "../../components/ui/SelectField";
 import { SettingsPanel } from "../../features/settings/components/SettingsPanel";
 import type { AppConfig, BenchmarkEngineMode, DataMode } from "../../types/api";
 
@@ -77,10 +77,10 @@ export function Settings() {
 
   return (
     <div className="page">
-      <PageHeader
-        eyebrow="系统配置"
+      <WorkspaceHeader
+        breadcrumb="系统配置"
         title="系统设置"
-        description="配置默认 SLA、安全策略、网络访问和报告模板，让压测任务拥有一致的执行边界。"
+        subtitle="配置默认 SLA、安全策略、网络访问和报告模板，让压测任务拥有一致的执行边界。"
         actions={
           <Button
             variant="primary"

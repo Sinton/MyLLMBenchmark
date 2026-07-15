@@ -1,6 +1,6 @@
-import { Badge } from "../../../components/common/Badge";
-import { Card } from "../../../components/common/Card";
-import { AlertTriangle, ShieldCheck } from "../../../components/common/icons";
+import { Badge } from "../../../components/ui/Badge";
+import { Card } from "../../../components/ui/Card";
+import { AlertTriangle, ShieldCheck } from "../../../components/ui/icons";
 import type { ReportDetail } from "../../../types/api";
 import { InfoPill } from "./InfoPill";
 

@@ -3,8 +3,8 @@ import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { queryKeys } from "../api/queryKeys";
-import { Button } from "../components/common/Button";
-import { DesktopShell, type DesktopNavItem } from "../components/common/DesktopShell";
+import { Button } from "../components/ui/Button";
+import { DesktopShell, type DesktopNavItem } from "../components/app-shell/DesktopShell";
 import {
   Activity,
   Building2,
@@ -14,9 +14,9 @@ import {
   Plus,
   Rocket,
   Settings as SettingsIcon,
-} from "../components/common/icons";
-import { LoadingBlock } from "../components/common/LoadingBlock";
-import { StatusBarItem } from "../components/common/StatusBarItem";
+} from "../components/ui/icons";
+import { LoadingBlock } from "../components/ui/LoadingBlock";
+import { StatusBarItem } from "../components/app-shell/StatusBarItem";
 import { useWorkbenchStore } from "../stores/workbenchStore";
 
 const Dashboard = lazy(() =>

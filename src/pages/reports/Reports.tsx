@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { api } from "../../api/client";
 import { Link } from "react-router-dom";
-import { Button } from "../../components/common/Button";
-import { Card } from "../../components/common/Card";
-import { Download, FileText } from "../../components/common/icons";
-import { EmptyState } from "../../components/common/EmptyState";
-import { LoadingBlock } from "../../components/common/LoadingBlock";
-import { PageHeader } from "../../components/common/PageHeader";
-import { useToast } from "../../components/common/Toast";
+import { Button } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import { Download, FileText } from "../../components/ui/icons";
+import { EmptyState } from "../../components/ui/EmptyState";
+import { LoadingBlock } from "../../components/ui/LoadingBlock";
+import { WorkspaceHeader } from "../../components/app-shell/WorkspaceHeader";
+import { useToast } from "../../components/ui/Toast";
 import { ReportDetailView } from "../../features/reports/components/ReportDetailView";
 import { ReportExportDialog } from "../../features/reports/components/ReportExportDialog";
 import { ReportRail } from "../../features/reports/components/ReportRail";
@@ -21,10 +21,10 @@ export function Reports() {
 
   return (
     <div className="page reports-page">
-      <PageHeader
-        eyebrow="交付报告"
+      <WorkspaceHeader
+        breadcrumb="交付报告"
         title="测试报告"
-        description="面向大模型黑盒压测的交付报告，集中展示容量结论、LLM 专项指标、阶段数据和上线建议。"
+        subtitle="面向大模型黑盒压测的交付报告，集中展示容量结论、LLM 专项指标、阶段数据和上线建议。"
         actions={
           <Button
             disabled={!reportsView.selectedReport}

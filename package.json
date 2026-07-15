@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && pnpm check:architecture",
+    "check:architecture": "node scripts/check-component-boundaries.mjs",
     "test": "vitest run",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"

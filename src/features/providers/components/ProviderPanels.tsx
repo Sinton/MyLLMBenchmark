@@ -1,5 +1,5 @@
-import { Card } from "../../../components/common/Card";
-import { ShieldCheck } from "../../../components/common/icons";
+import { Card } from "../../../components/ui/Card";
+import { ShieldCheck } from "../../../components/ui/icons";
 import type { ModelSummary } from "../../../types/api";
 import { ModelRow } from "./ProviderFeedback";
 

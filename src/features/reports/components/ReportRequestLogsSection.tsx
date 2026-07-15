@@ -2,15 +2,15 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../../api/client";
 import { queryKeys } from "../../../api/queryKeys";
-import { Badge } from "../../../components/common/Badge";
-import { Button } from "../../../components/common/Button";
-import { Card } from "../../../components/common/Card";
-import { DataTable, type DataTableColumn } from "../../../components/common/DataTable";
-import { Dialog } from "../../../components/common/Dialog";
-import { Input } from "../../../components/common/Input";
+import { Badge } from "../../../components/ui/Badge";
+import { Button } from "../../../components/ui/Button";
+import { Card } from "../../../components/ui/Card";
+import { DataTable, type DataTableColumn } from "../../../components/ui/DataTable";
+import { Dialog } from "../../../components/ui/Dialog";
+import { Input } from "../../../components/ui/Input";
 import { MetricHelp } from "../../../components/common/MetricHelp";
-import { Pagination } from "../../../components/common/Pagination";
-import { SelectField } from "../../../components/common/SelectField";
+import { Pagination } from "../../../components/ui/Pagination";
+import { SelectField } from "../../../components/ui/SelectField";
 import type {
   BenchmarkRequestLogSummary,
   ReportDetail,

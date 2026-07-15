@@ -1,9 +1,9 @@
-import { Badge } from "../../../components/common/Badge";
-import { Card } from "../../../components/common/Card";
+import { Badge } from "../../../components/ui/Badge";
+import { Card } from "../../../components/ui/Card";
 import {
   DataTable,
   type DataTableColumn,
-} from "../../../components/common/DataTable";
+} from "../../../components/ui/DataTable";
 import { MetricHelp } from "../../../components/common/MetricHelp";
 import type { ReportDetail } from "../../../types/api";
 import type { StageColumn } from "../types";

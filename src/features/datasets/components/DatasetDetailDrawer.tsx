@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { Badge } from "../../../components/common/Badge";
-import { Button } from "../../../components/common/Button";
-import { Dialog } from "../../../components/common/Dialog";
-import { Download, FileCheck, Pencil, ShieldCheck, Upload } from "../../../components/common/icons";
-import { Input } from "../../../components/common/Input";
-import { InlineAlert } from "../../../components/common/InlineAlert";
-import { SelectField } from "../../../components/common/SelectField";
+import { Badge } from "../../../components/ui/Badge";
+import { Button } from "../../../components/ui/Button";
+import { Dialog } from "../../../components/ui/Dialog";
+import { Download, FileCheck, Pencil, ShieldCheck, Upload } from "../../../components/ui/icons";
+import { Input } from "../../../components/ui/Input";
+import { InlineAlert } from "../../../components/ui/InlineAlert";
+import { SelectField } from "../../../components/ui/SelectField";
 import { getModelTypeLabel } from "../../../lib/modelTaxonomy";
 import type {
   DatasetSampleCreateInput,

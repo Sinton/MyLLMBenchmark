@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2 } from "../../../components/common/icons";
+import { AlertCircle, CheckCircle2 } from "../../../components/ui/icons";
 import type { StartNotice } from "../types";
 
 type StartReadinessProps = {

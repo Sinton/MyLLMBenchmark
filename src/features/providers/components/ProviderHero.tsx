@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Badge, statusLabel, statusTone } from "../../../components/common/Badge";
-import { Button } from "../../../components/common/Button";
-import { Card } from "../../../components/common/Card";
-import { Dialog } from "../../../components/common/Dialog";
+import { Badge } from "../../../components/ui/Badge";
+import { Button } from "../../../components/ui/Button";
+import { Card } from "../../../components/ui/Card";
+import { Dialog } from "../../../components/ui/Dialog";
 import {
   Activity,
   AlertCircle,
@@ -17,7 +17,8 @@ import {
   Search,
   Settings2,
   Trash2,
-} from "../../../components/common/icons";
+} from "../../../components/ui/icons";
+import { statusLabel, statusTone } from "../../../domain/statusPresentation";
 import type { ProviderDiagnosticsResult, ProviderSummary } from "../../../types/api";
 import { formatDate, getInitials } from "../domain/providerView";
 

@@ -1,4 +1,4 @@
-import { ArrowRight, SlidersHorizontal } from "../../../components/common/icons";
+import { ArrowRight, SlidersHorizontal } from "../../../components/ui/icons";
 
 type AdvancedSettingsLauncherProps = {
   onOpen: () => void;

@@ -1,7 +1,7 @@
-﻿import type { Dispatch, SetStateAction } from "react";
-import { Input } from "../../../components/common/Input";
-import { Toggle } from "../../../components/common/Toggle";
-import { SelectField } from "../../../components/common/SelectField";
+import type { Dispatch, SetStateAction } from "react";
+import { Input } from "../../../components/ui/Input";
+import { Toggle } from "../../../components/ui/Toggle";
+import { SelectField } from "../../../components/ui/SelectField";
 import { getModelTypeLabel } from "../../../lib/modelTaxonomy";
 import type { WorkbenchForm } from "../types";
 

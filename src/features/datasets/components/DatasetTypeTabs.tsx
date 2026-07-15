@@ -1,5 +1,5 @@
-﻿import { Card } from "../../../components/common/Card";
-import { Tabs } from "../../../components/common/Tabs";
+import { Card } from "../../../components/ui/Card";
+import { Tabs } from "../../../components/ui/Tabs";
 import { datasetTypes, type DatasetTypeFilter } from "../constants";
 
 type DatasetTypeTabsProps = {

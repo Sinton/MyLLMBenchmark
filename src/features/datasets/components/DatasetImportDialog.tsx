@@ -1,9 +1,9 @@
-﻿import { useState } from "react";
-import { Button } from "../../../components/common/Button";
-import { Dialog } from "../../../components/common/Dialog";
-import { Input } from "../../../components/common/Input";
-import { InlineAlert } from "../../../components/common/InlineAlert";
-import { SelectField } from "../../../components/common/SelectField";
+import { useState } from "react";
+import { Button } from "../../../components/ui/Button";
+import { Dialog } from "../../../components/ui/Dialog";
+import { Input } from "../../../components/ui/Input";
+import { InlineAlert } from "../../../components/ui/InlineAlert";
+import { SelectField } from "../../../components/ui/SelectField";
 import type { DatasetImportInput } from "../../../types/api";
 import { datasetTypes } from "../constants";
 

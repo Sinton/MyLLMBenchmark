@@ -1,6 +1,6 @@
 import { useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
-import { Card } from "../../../components/common/Card";
-import { InlineAlert } from "../../../components/common/InlineAlert";
+import { Card } from "../../../components/ui/Card";
+import { InlineAlert } from "../../../components/ui/InlineAlert";
 import type {
   DatasetSummary,
   ModelSummary,

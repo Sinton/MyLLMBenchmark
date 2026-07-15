@@ -1,8 +1,8 @@
 import { RealtimeChart } from "../../../charts/RealtimeChart";
-import { Card } from "../../../components/common/Card";
-import { MetricCard } from "../../../components/common/MetricCard";
+import { Card } from "../../../components/ui/Card";
+import { MetricCard } from "../../../components/ui/MetricCard";
 import { MetricHelp } from "../../../components/common/MetricHelp";
-import { Tabs } from "../../../components/common/Tabs";
+import { Tabs } from "../../../components/ui/Tabs";
 import type { BenchmarkTaskSummary, MetricsTick } from "../../../types/api";
 import type { ChartMetric } from "../types";
 

@@ -1,9 +1,9 @@
 import { RealtimeChart } from "../../../charts/RealtimeChart";
-import { Card } from "../../../components/common/Card";
-import { Tabs } from "../../../components/common/Tabs";
+import { Card } from "../../../components/ui/Card";
+import { Tabs } from "../../../components/ui/Tabs";
 import type { ReportDetail } from "../../../types/api";
 import type { ChartMetric } from "../types";
-import type { TabItem } from "../../../components/common/Tabs";
+import type { TabItem } from "../../../components/ui/Tabs";
 
 type ReportTrendSectionProps = {
   chartMetric: ChartMetric;

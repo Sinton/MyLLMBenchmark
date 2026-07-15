@@ -1,5 +1,5 @@
-import { Button } from "../../../components/common/Button";
-import { Dialog } from "../../../components/common/Dialog";
+import { Button } from "../../../components/ui/Button";
+import { Dialog } from "../../../components/ui/Dialog";
 import type { DatasetSummary } from "../../../types/api";
 
 type DatasetDeleteDialogProps = {

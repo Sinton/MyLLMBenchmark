@@ -1,10 +1,10 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Dialog } from "../../../components/common/Dialog";
-import { Input } from "../../../components/common/Input";
-import { InlineAlert } from "../../../components/common/InlineAlert";
-import { SelectField } from "../../../components/common/SelectField";
-import { Tabs } from "../../../components/common/Tabs";
-import { Toggle } from "../../../components/common/Toggle";
+import { Dialog } from "../../../components/ui/Dialog";
+import { Input } from "../../../components/ui/Input";
+import { InlineAlert } from "../../../components/ui/InlineAlert";
+import { SelectField } from "../../../components/ui/SelectField";
+import { Tabs } from "../../../components/ui/Tabs";
+import { Toggle } from "../../../components/ui/Toggle";
 import { slaStopPolicyOptions } from "../constants";
 import type { WorkbenchForm } from "../types";
 import { WorkloadConfigSection } from "./WorkloadConfigSection";

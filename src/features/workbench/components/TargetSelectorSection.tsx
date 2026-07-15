@@ -1,5 +1,5 @@
-﻿import type { Dispatch, SetStateAction } from "react";
-import { SelectField } from "../../../components/common/SelectField";
+import type { Dispatch, SetStateAction } from "react";
+import { SelectField } from "../../../components/ui/SelectField";
 import {
   getModelCapabilities,
   getModelTypeLabel,

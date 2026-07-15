@@ -1,9 +1,9 @@
-import { Button } from "../../components/common/Button";
-import { Card } from "../../components/common/Card";
-import { Dialog } from "../../components/common/Dialog";
-import { EmptyState } from "../../components/common/EmptyState";
-import { Plus } from "../../components/common/icons";
-import { PageHeader } from "../../components/common/PageHeader";
+import { Button } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import { Dialog } from "../../components/ui/Dialog";
+import { EmptyState } from "../../components/ui/EmptyState";
+import { Plus } from "../../components/ui/icons";
+import { WorkspaceHeader } from "../../components/app-shell/WorkspaceHeader";
 import { ProviderHero } from "../../features/providers/components/ProviderHero";
 import { ProviderOnboarding } from "../../features/providers/components/ProviderOnboarding";
 import { ProviderPanels } from "../../features/providers/components/ProviderPanels";
@@ -15,10 +15,10 @@ export function Providers() {
 
   return (
     <div className="page">
-      <PageHeader
-        eyebrow="服务商管理"
+      <WorkspaceHeader
+        breadcrumb="服务商管理"
         title="模型服务商"
-        description="管理 OpenAI、OpenAI-Response、Anthropic、Gemini 和 Jina Rerank 等服务入口。当前试点阶段会在本地保存并展示 API Key 明文。"
+        subtitle="管理 OpenAI、OpenAI-Response、Anthropic、Gemini 和 Jina Rerank 等服务入口。当前试点阶段会在本地保存并展示 API Key 明文。"
         actions={
           providersView.providers.length > 0 ? (
             <Button

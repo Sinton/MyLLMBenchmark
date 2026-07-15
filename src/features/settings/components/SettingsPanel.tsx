@@ -1,6 +1,6 @@
-﻿import type { ReactNode } from "react";
-import { Badge } from "../../../components/common/Badge";
-import { Card } from "../../../components/common/Card";
+import type { ReactNode } from "react";
+import { Badge } from "../../../components/ui/Badge";
+import { Card } from "../../../components/ui/Card";
 
 type SettingsPanelProps = {
   icon: ReactNode;

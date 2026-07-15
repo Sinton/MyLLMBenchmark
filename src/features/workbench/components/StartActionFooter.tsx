@@ -1,5 +1,5 @@
-﻿import { Button } from "../../../components/common/Button";
-import { Play } from "../../../components/common/icons";
+import { Button } from "../../../components/ui/Button";
+import { Play } from "../../../components/ui/icons";
 
 type StartActionFooterProps = {
   canSubmitStart: boolean;

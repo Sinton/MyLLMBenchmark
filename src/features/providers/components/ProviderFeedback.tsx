@@ -5,7 +5,7 @@ import {
   Database,
   KeyRound,
   Link2,
-} from "../../../components/common/icons";
+} from "../../../components/ui/icons";
 import {
   getModelTypeDescription,
   getModelTypeLabel,

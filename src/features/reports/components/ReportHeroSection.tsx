@@ -1,5 +1,5 @@
-import { Badge } from "../../../components/common/Badge";
-import { CheckCircle2, Gauge, ShieldCheck } from "../../../components/common/icons";
+import { Badge } from "../../../components/ui/Badge";
+import { CheckCircle2, Gauge, ShieldCheck } from "../../../components/ui/icons";
 import type { ReportDetail } from "../../../types/api";
 import { getModelTypeLabel } from "../domain/reportDefinitions";
 import { InfoPill } from "./InfoPill";

@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { Badge, statusLabel, statusTone } from "../../../components/common/Badge";
-import { Card } from "../../../components/common/Card";
-import { InlineAlert } from "../../../components/common/InlineAlert";
-import { Input } from "../../../components/common/Input";
-import { Search } from "../../../components/common/icons";
+import { Badge } from "../../../components/ui/Badge";
+import { Card } from "../../../components/ui/Card";
+import { InlineAlert } from "../../../components/ui/InlineAlert";
+import { Input } from "../../../components/ui/Input";
+import { Search } from "../../../components/ui/icons";
+import { statusLabel, statusTone } from "../../../domain/statusPresentation";
 import type { ProviderSummary } from "../../../types/api";
 import { getInitials } from "../domain/providerView";
 

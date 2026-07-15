@@ -1,6 +1,6 @@
-﻿import { Badge } from "../../../components/common/Badge";
-import { Card } from "../../../components/common/Card";
-import { FileText } from "../../../components/common/icons";
+import { Badge } from "../../../components/ui/Badge";
+import { Card } from "../../../components/ui/Card";
+import { FileText } from "../../../components/ui/icons";
 import type { ReportSummary } from "../../../types/api";
 import { formatDate } from "../domain/reportDefinitions";
 

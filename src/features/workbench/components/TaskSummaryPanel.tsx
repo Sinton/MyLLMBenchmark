@@ -1,6 +1,6 @@
-import { Card } from "../../../components/common/Card";
-import { Disclosure } from "../../../components/common/Disclosure";
-import { statusLabel } from "../../../components/common/Badge";
+import { Card } from "../../../components/ui/Card";
+import { Disclosure } from "../../../components/ui/Disclosure";
+import { statusLabel } from "../../../domain/statusPresentation";
 import { getModelTypeLabel } from "../../../lib/modelTaxonomy";
 import type {
   BenchmarkTaskSummary,

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { getMetricHelp } from "../../../domain/metricGlossary";
-import { Info } from "../icons";
-import { Tooltip } from "../Tooltip";
+import { Info } from "../../ui/icons";
+import { Tooltip } from "../../ui/Tooltip";
 
 type MetricHelpProps = {
   children: ReactNode;

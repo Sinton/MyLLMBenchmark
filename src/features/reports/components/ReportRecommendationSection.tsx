@@ -1,5 +1,5 @@
-import { Card } from "../../../components/common/Card";
-import { AlertTriangle, BarChart3, ListChecks, TrendingUp } from "../../../components/common/icons";
+import { Card } from "../../../components/ui/Card";
+import { AlertTriangle, BarChart3, ListChecks, TrendingUp } from "../../../components/ui/icons";
 import type { ReportDetail } from "../../../types/api";
 import { RecommendationItem } from "./RecommendationItem";
 

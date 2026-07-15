@@ -1,14 +1,15 @@
 import { Link } from "react-router-dom";
-import { Badge, statusLabel, statusTone } from "../../components/common/Badge";
-import { Card } from "../../components/common/Card";
+import { Badge } from "../../components/ui/Badge";
+import { Card } from "../../components/ui/Card";
 import {
   ArrowRight,
   Building2,
   Database,
   FileText,
-} from "../../components/common/icons";
-import { InlineAlert } from "../../components/common/InlineAlert";
-import { MetricCard } from "../../components/common/MetricCard";
+} from "../../components/ui/icons";
+import { InlineAlert } from "../../components/ui/InlineAlert";
+import { MetricCard } from "../../components/ui/MetricCard";
+import { statusLabel, statusTone } from "../../domain/statusPresentation";
 import { useDashboardSummary } from "../../features/dashboard/hooks/useDashboardSummary";
 
 export function Dashboard() {

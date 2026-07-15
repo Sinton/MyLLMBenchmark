@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
-import { Button } from "../../../components/common/Button";
-import { DataTable, type DataTableColumn } from "../../../components/common/DataTable";
-import { EmptyState } from "../../../components/common/EmptyState";
-import { FileText, Pencil, Plus, Search, Trash2 } from "../../../components/common/icons";
-import { InlineAlert } from "../../../components/common/InlineAlert";
-import { Input } from "../../../components/common/Input";
-import { Pagination } from "../../../components/common/Pagination";
-import { Popconfirm } from "../../../components/common/Popconfirm";
-import { Textarea } from "../../../components/common/Textarea";
+import { Button } from "../../../components/ui/Button";
+import { DataTable, type DataTableColumn } from "../../../components/ui/DataTable";
+import { EmptyState } from "../../../components/ui/EmptyState";
+import { FileText, Pencil, Plus, Search, Trash2 } from "../../../components/ui/icons";
+import { InlineAlert } from "../../../components/ui/InlineAlert";
+import { Input } from "../../../components/ui/Input";
+import { Pagination } from "../../../components/ui/Pagination";
+import { Popconfirm } from "../../../components/ui/Popconfirm";
+import { Textarea } from "../../../components/ui/Textarea";
 import type {
   DatasetSampleCreateInput,
   DatasetSamplePreview,

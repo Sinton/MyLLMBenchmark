@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Input } from "../../../components/common/Input";
+import { Input } from "../../../components/ui/Input";
 import type { WorkbenchForm } from "../types";
 
 type FixedLoadConfigSectionProps = {

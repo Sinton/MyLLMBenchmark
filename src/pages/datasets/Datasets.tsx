@@ -1,8 +1,8 @@
-import { Button } from "../../components/common/Button";
-import { Card } from "../../components/common/Card";
-import { Download, Upload } from "../../components/common/icons";
-import { PageHeader } from "../../components/common/PageHeader";
-import { useToast } from "../../components/common/Toast";
+import { Button } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import { Download, Upload } from "../../components/ui/icons";
+import { WorkspaceHeader } from "../../components/app-shell/WorkspaceHeader";
+import { useToast } from "../../components/ui/Toast";
 import { DatasetDeleteDialog } from "../../features/datasets/components/DatasetDeleteDialog";
 import { DatasetDetailDrawer } from "../../features/datasets/components/DatasetDetailDrawer";
 import { DatasetImportDialog } from "../../features/datasets/components/DatasetImportDialog";
@@ -16,10 +16,10 @@ export function Datasets() {
 
   return (
     <div className="page">
-      <PageHeader
-        eyebrow="样本管理"
+      <WorkspaceHeader
+        breadcrumb="样本管理"
         title="测试数据集"
-        description="查看、编辑和审计压测样本，让容量结论建立在可解释的业务 Prompt 上。"
+        subtitle="查看、编辑和审计压测样本，让容量结论建立在可解释的业务 Prompt 上。"
         actions={
           <>
             <Button

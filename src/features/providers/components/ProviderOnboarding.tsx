@@ -1,8 +1,8 @@
-﻿import type { FormEvent } from "react";
-import { Button } from "../../../components/common/Button";
-import { Input } from "../../../components/common/Input";
-import { Plus } from "../../../components/common/icons";
-import { SelectField } from "../../../components/common/SelectField";
+import type { FormEvent } from "react";
+import { Button } from "../../../components/ui/Button";
+import { Input } from "../../../components/ui/Input";
+import { Plus } from "../../../components/ui/icons";
+import { SelectField } from "../../../components/ui/SelectField";
 import type { ProviderInterfaceType } from "../../../types/api";
 import { providerTypeOptions } from "../domain/providerView";
 import { SecretInput } from "./SecretInput";

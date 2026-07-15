@@ -1,6 +1,6 @@
-﻿import type { Dispatch, SetStateAction } from "react";
-import { SelectField } from "../../../components/common/SelectField";
-import { Input } from "../../../components/common/Input";
+import type { Dispatch, SetStateAction } from "react";
+import { SelectField } from "../../../components/ui/SelectField";
+import { Input } from "../../../components/ui/Input";
 import { stepStrategyOptions } from "../constants";
 import type { WorkbenchForm } from "../types";
 

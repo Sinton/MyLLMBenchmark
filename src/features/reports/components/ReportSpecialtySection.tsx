@@ -1,5 +1,5 @@
-import { Card } from "../../../components/common/Card";
-import { Sparkles } from "../../../components/common/icons";
+import { Card } from "../../../components/ui/Card";
+import { Sparkles } from "../../../components/ui/icons";
 import type { ReportDetail } from "../../../types/api";
 import { InfoPill } from "./InfoPill";
 import { ReportKpi } from "./ReportKpi";

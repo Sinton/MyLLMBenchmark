@@ -1,6 +1,4 @@
-﻿import type { ReactNode } from "react";
-
-export type BadgeTone =
+export type StatusTone =
   | "success"
   | "warning"
   | "danger"
@@ -8,16 +6,7 @@ export type BadgeTone =
   | "running"
   | "neutral";
 
-type BadgeProps = {
-  tone?: BadgeTone;
-  children: ReactNode;
-};
-
-export function Badge({ tone = "neutral", children }: BadgeProps) {
-  return <span className={`badge badge-${tone}`}>{children}</span>;
-}
-
-export function statusTone(status: string): BadgeTone {
+export function statusTone(status: string): StatusTone {
   switch (status) {
     case "online":
     case "completed":
@@ -52,4 +41,3 @@ export function statusLabel(status: string) {
   };
   return labels[status] ?? status;
 }
-

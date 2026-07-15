@@ -1,5 +1,5 @@
-﻿import { Card } from "../../../components/common/Card";
-import { Wand2 } from "../../../components/common/icons";
+import { Card } from "../../../components/ui/Card";
+import { Wand2 } from "../../../components/ui/icons";
 import type {
   BenchmarkTaskSummary,
   MetricsTick,

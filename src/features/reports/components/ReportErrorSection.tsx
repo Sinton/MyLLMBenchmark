@@ -1,5 +1,5 @@
-import { Card } from "../../../components/common/Card";
-import { ProgressBar } from "../../../components/common/ProgressBar";
+import { Card } from "../../../components/ui/Card";
+import { ProgressBar } from "../../../components/ui/ProgressBar";
 import type { ReportDetail } from "../../../types/api";
 
 type ReportErrorSectionProps = {

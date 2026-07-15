@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Button } from "../../../components/common/Button";
-import { Dialog } from "../../../components/common/Dialog";
-import { Copy } from "../../../components/common/icons";
-import { InlineAlert } from "../../../components/common/InlineAlert";
-import { SelectField } from "../../../components/common/SelectField";
+import { Button } from "../../../components/ui/Button";
+import { Dialog } from "../../../components/ui/Dialog";
+import { Copy } from "../../../components/ui/icons";
+import { InlineAlert } from "../../../components/ui/InlineAlert";
+import { SelectField } from "../../../components/ui/SelectField";
 import type { ReportExportResult, ReportSummary } from "../../../types/api";
 
 type ReportExportDialogProps = {
