@@ -31,18 +31,12 @@
   place-items: center;
 }
 
-.activity-brand span {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border: 1px solid rgba(145, 89, 60, 0.14);
-  border-radius: 14px;
-  background: var(--primary);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 850;
-  box-shadow: 0 8px 18px rgba(145, 89, 60, 0.18);
+.activity-brand img {
+  display: block;
+  width: 40px;
+  height: 40px;
+  filter: drop-shadow(0 8px 12px rgba(145, 89, 60, 0.18));
+  pointer-events: none;
 }
 
 .activity-nav {

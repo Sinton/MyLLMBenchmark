@@ -34,8 +34,18 @@ export function DesktopShell({
     <div className="desktop-shell">
       <WindowTitleBar />
       <aside className="activity-rail" aria-label="主导航">
-        <div className="activity-brand" title="MyLLMBenchmark">
-          <span>LB</span>
+        <div
+          aria-label="MyLLMBenchmark"
+          className="activity-brand"
+          role="img"
+          title="MyLLMBenchmark"
+        >
+          <img
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            src="/logo.png"
+          />
         </div>
         <nav className="activity-nav">
           {navItems.map((item) => (

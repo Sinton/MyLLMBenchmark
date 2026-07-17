@@ -35,17 +35,11 @@
   gap: 8px;
 }
 
-.window-titlebar-brand span {
-  display: grid;
+.window-titlebar-brand img {
+  display: block;
   width: 22px;
   height: 22px;
-  place-items: center;
-  border: 1px solid rgba(145, 89, 60, 0.18);
-  border-radius: 8px;
-  background: rgba(145, 89, 60, 0.12);
-  color: var(--primary);
-  font-size: 10px;
-  font-weight: 850;
+  pointer-events: none;
 }
 
 .window-titlebar-brand strong {

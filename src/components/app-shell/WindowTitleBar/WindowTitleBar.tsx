@@ -104,9 +104,15 @@ export function WindowTitleBar() {
             void handleDragStart();
           }
         }}
-      >
+        >
         <div className="window-titlebar-brand" data-tauri-drag-region>
-          <span data-tauri-drag-region>LB</span>
+          <img
+            alt=""
+            aria-hidden="true"
+            data-tauri-drag-region
+            draggable={false}
+            src="/logo.png"
+          />
           <strong data-tauri-drag-region>MyLLMBenchmark</strong>
         </div>
       </div>
