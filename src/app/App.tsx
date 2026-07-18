@@ -1,18 +1,18 @@
 import { lazy, Suspense } from "react";
-import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { queryKeys } from "../api/queryKeys";
-import { Button } from "../components/ui/Button";
-import { DesktopShell, type DesktopNavItem } from "../components/app-shell/DesktopShell";
+import {
+  DesktopShell,
+  type DesktopNavItem,
+} from "../components/app-shell/DesktopShell";
 import {
   Activity,
   Building2,
   Database,
   FileText,
   LayoutDashboard,
-  Plus,
-  Rocket,
   Settings as SettingsIcon,
 } from "../components/ui/icons";
 import { LoadingBlock } from "../components/ui/LoadingBlock";
@@ -57,41 +57,7 @@ const navItems: DesktopNavItem[] = [
   { to: "/settings", label: "系统设置", shortLabel: "设置", icon: SettingsIcon },
 ];
 
-const moduleMeta = [
-  {
-    path: "/dashboard",
-    title: "启动中心",
-    subtitle: "本地模型压测工作台概览",
-  },
-  {
-    path: "/providers",
-    title: "模型服务商",
-    subtitle: "连接、检测和管理模型入口",
-  },
-  {
-    path: "/datasets",
-    title: "测试数据集",
-    subtitle: "维护 Prompt 样本和负载数据",
-  },
-  {
-    path: "/workbench",
-    title: "压测工作台",
-    subtitle: "配置任务、观察实时指标、生成报告",
-  },
-  {
-    path: "/reports",
-    title: "测试报告",
-    subtitle: "阅读容量结论和阶段证据链",
-  },
-  {
-    path: "/settings",
-    title: "系统设置",
-    subtitle: "管理本地数据源和压测引擎",
-  },
-];
-
 export function App() {
-  const location = useLocation();
   const activeTask = useWorkbenchStore((state) => state.activeTask);
   const latestTick = useWorkbenchStore((state) => state.latestTick);
   const configQuery = useQuery({
@@ -99,9 +65,6 @@ export function App() {
     queryFn: api.getAppConfig,
     staleTime: 60_000,
   });
-  const activeModule =
-    moduleMeta.find((item) => location.pathname.startsWith(item.path)) ??
-    moduleMeta[0];
 
   return (
     <DesktopShell
@@ -134,24 +97,10 @@ export function App() {
           <StatusBarItem
             label="实时"
             tone={latestTick ? "success" : "neutral"}
-            value={latestTick ? `第 ${latestTick.elapsed_seconds} 轮` : "待命"}
+            value={latestTick ? `第 ${latestTick.elapsed_seconds} 秒` : "待命"}
           />
         </>
       }
-      toolbarActions={
-        <>
-          <Link to="/providers">
-            <Button icon={<Plus size={15} />}>服务商</Button>
-          </Link>
-          <Link to="/workbench">
-            <Button icon={<Rocket size={15} />} variant="primary">
-              开始压测
-            </Button>
-          </Link>
-        </>
-      }
-      toolbarSubtitle={activeModule.subtitle}
-      toolbarTitle={activeModule.title}
     >
       <Suspense fallback={<LoadingBlock text="正在打开工作区..." />}>
         <Routes>

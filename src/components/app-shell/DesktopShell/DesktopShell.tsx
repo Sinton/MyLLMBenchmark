@@ -1,6 +1,5 @@
 import type { ComponentType, ReactNode } from "react";
 import { ActivityRailItem } from "../ActivityRailItem";
-import { CommandToolbar } from "../CommandToolbar";
 import { StatusBar } from "../StatusBar";
 import { WindowTitleBar } from "../WindowTitleBar";
 
@@ -13,9 +12,6 @@ export type DesktopNavItem = {
 
 type DesktopShellProps = {
   navItems: DesktopNavItem[];
-  toolbarTitle: string;
-  toolbarSubtitle?: string;
-  toolbarActions?: ReactNode;
   statusLeft?: ReactNode;
   statusRight?: ReactNode;
   children: ReactNode;
@@ -23,9 +19,6 @@ type DesktopShellProps = {
 
 export function DesktopShell({
   navItems,
-  toolbarTitle,
-  toolbarSubtitle,
-  toolbarActions,
   statusLeft,
   statusRight,
   children,
@@ -55,11 +48,6 @@ export function DesktopShell({
       </aside>
 
       <section className="desktop-main">
-        <CommandToolbar
-          actions={toolbarActions}
-          subtitle={toolbarSubtitle}
-          title={toolbarTitle}
-        />
         <main className="workspace">{children}</main>
         <StatusBar left={statusLeft} right={statusRight} />
       </section>

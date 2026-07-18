@@ -53,7 +53,7 @@
   grid-row: 2;
   min-width: 0;
   min-height: 0;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto;
   background: rgba(249, 245, 242, 0.78);
 }
 
