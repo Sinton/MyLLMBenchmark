@@ -1,10 +1,12 @@
 import { ArrowRight, SlidersHorizontal } from "../../../components/ui/icons";
 
 type AdvancedSettingsLauncherProps = {
+  summary?: string;
   onOpen: () => void;
 };
 
 export function AdvancedSettingsLauncher({
+  summary = "负载 / 保护 / 证据采集",
   onOpen,
 }: AdvancedSettingsLauncherProps) {
   return (
@@ -19,7 +21,7 @@ export function AdvancedSettingsLauncher({
         </span>
         <span className="advanced-settings-entry-copy">
           <strong>高级设置</strong>
-          <span>负载参数、运行保护与证据采集</span>
+          <span>{summary}</span>
         </span>
         <ArrowRight
           aria-hidden="true"
