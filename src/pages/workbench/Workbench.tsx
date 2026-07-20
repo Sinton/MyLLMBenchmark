@@ -42,6 +42,15 @@ export function Workbench() {
         />
 
         <div className="workbench-center">
+          <TaskSummaryPanel
+            dataset={workbench.selectedDataset}
+            form={workbench.form}
+            historyTask={workbench.isHistoryView ? workbench.activeTask : null}
+            isStaircase={workbench.isStaircase}
+            model={workbench.selectedModel}
+            provider={workbench.selectedProvider}
+            stageSequence={workbench.stageSequence}
+          />
           <RealtimeTrendPanel
             activeTask={workbench.activeTask}
             chartMetric={workbench.chartMetric}
@@ -59,17 +68,6 @@ export function Workbench() {
         </div>
 
         <div className="workbench-side">
-          <TaskSummaryPanel
-            dataset={workbench.selectedDataset}
-            estimatedSeconds={workbench.estimatedSeconds}
-            form={workbench.form}
-            historyTask={workbench.isHistoryView ? workbench.activeTask : null}
-            isStaircase={workbench.isStaircase}
-            model={workbench.selectedModel}
-            modelType={workbench.selectedModelType}
-            provider={workbench.selectedProvider}
-            stageSequence={workbench.stageSequence}
-          />
           <RuntimeStatsPanel
             activeTask={workbench.activeTask}
             currentStage={workbench.currentStage}

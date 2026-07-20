@@ -1,5 +1,6 @@
 import { Card } from "../../../components/ui/Card";
 import { Wand2 } from "../../../components/ui/icons";
+import { statusLabel } from "../../../domain/statusPresentation";
 import type {
   BenchmarkTaskSummary,
   MetricsTick,
@@ -22,11 +23,19 @@ export function RuntimeStatsPanel({
 }: RuntimeStatsPanelProps) {
   return (
     <>
-      <Card title="阶段统计" eyebrow="运行状态">
+      <Card title="运行状态" eyebrow="状态检查器">
+        <div className="side-stat">
+          <span>当前任务</span>
+          <strong>{activeTask?.name ?? "未开始"}</strong>
+        </div>
+        <div className="side-stat">
+          <span>任务状态</span>
+          <strong>{activeTask ? statusLabel(activeTask.status) : "空闲"}</strong>
+        </div>
         <div className="side-stat">
           <span>当前阶段</span>
           <strong>
-            {currentStage?.stage_index && currentStage?.stage_total
+            {currentStage?.stage_index != null && currentStage?.stage_total
               ? `${currentStage.stage_index}/${currentStage.stage_total}`
               : "-"}
           </strong>
@@ -41,12 +50,22 @@ export function RuntimeStatsPanel({
           </strong>
         </div>
         <div className="side-stat">
+          <span>完成请求</span>
+          <strong>{latestTick?.request_count ?? "-"}</strong>
+        </div>
+        <div className="side-stat">
+          <span>成功率</span>
+          <strong>
+            {latestTick ? `${latestTick.success_rate.toFixed(2)}%` : "-"}
+          </strong>
+        </div>
+        <div className="side-stat">
           <span>错误数</span>
           <strong>{latestTick?.errors ?? 0}</strong>
         </div>
         <div className="side-stat">
-          <span>任务</span>
-          <strong>{activeTask?.name ?? "未开始"}</strong>
+          <span>报告状态</span>
+          <strong>{generatedReport ? "已生成" : "未生成"}</strong>
         </div>
       </Card>
 
