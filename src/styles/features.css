@@ -32,24 +32,3 @@
 .export-result .button {
   justify-self: start;
 }
-
-.settings-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 18px;
-}
-
-.settings-fields > .input-field:first-child:nth-last-child(3),
-.settings-fields > .input-field:first-child:nth-last-child(2) {
-  grid-column: auto;
-}
-
-.settings-fields .toggle-row,
-.settings-fields .button {
-  align-self: end;
-}
-
-.settings-grid {
-  align-items: start;
-}
