@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { ReportDetail } from "../../../types/api";
 import {
   getReportChartTabs,
@@ -26,12 +27,25 @@ export function ReportDetailView({
   chartMetric,
   onChartMetricChange,
 }: ReportDetailViewProps) {
+  const requestLogsRef = useRef<HTMLDivElement>(null);
+  const [requestStageFilter, setRequestStageFilter] = useState<number | undefined>();
   const kpis = getReportKpis(detail);
   const tabs = getReportChartTabs(detail.model_type);
   const effectiveChartMetric = tabs.some((tab) => tab.key === chartMetric)
     ? chartMetric
     : tabs[0].key;
   const stageColumns = getStageColumns(detail.model_type);
+
+  useEffect(() => {
+    setRequestStageFilter(undefined);
+  }, [detail.summary.task_id]);
+
+  const viewStageRequests = (stageIndex: number) => {
+    setRequestStageFilter(stageIndex);
+    requestAnimationFrame(() => {
+      requestLogsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
 
   return (
     <div className="report-detail">
@@ -45,9 +59,21 @@ export function ReportDetailView({
         onChartMetricChange={onChartMetricChange}
         tabs={tabs}
       />
-      <ReportStageTableSection detail={detail} stageColumns={stageColumns} />
+      <ReportStageTableSection
+        detail={detail}
+        stageColumns={stageColumns}
+        onViewRequests={
+          detail.request_log_meta.total_records > 0 ? viewStageRequests : undefined
+        }
+      />
       <ReportErrorSection detail={detail} />
-      <ReportRequestLogsSection detail={detail} />
+      <div className="report-request-logs-anchor" ref={requestLogsRef}>
+        <ReportRequestLogsSection
+          detail={detail}
+          stageFilter={requestStageFilter}
+          onStageFilterChange={setRequestStageFilter}
+        />
+      </div>
       <ReportRecommendationSection detail={detail} />
     </div>
   );

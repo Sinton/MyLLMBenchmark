@@ -32,3 +32,70 @@
 .table-wrap td.is-right {
   text-align: right;
 }
+
+.table-wrap .table-expand-column,
+.table-wrap .table-expand-cell {
+  width: 38px;
+  min-width: 38px;
+  padding: 0 8px;
+  text-align: center;
+}
+
+.table-expand-button {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.table-expand-button:hover,
+.table-expand-button:focus-visible {
+  background: var(--primary-soft);
+  color: var(--primary);
+  outline: none;
+}
+
+.table-expand-button svg {
+  transform: rotate(-90deg);
+  transition: transform 160ms ease;
+}
+
+.table-row-expanded .table-expand-button svg {
+  transform: rotate(0deg);
+}
+
+.table-row-expandable {
+  cursor: pointer;
+}
+
+.table-row-expandable > td {
+  transition: background 160ms ease;
+}
+
+.table-row-expandable:hover > td,
+.table-row-expanded > td {
+  background: rgba(145, 89, 60, 0.06);
+}
+
+.table-row-expanded > td {
+  border-bottom-color: transparent;
+}
+
+.table-wrap .table-expanded-row > td {
+  padding: 0;
+  background: var(--surface-muted);
+}
+
+.table-expanded-content {
+  min-width: 0;
+  border-top: 1px solid var(--border);
+  padding: 12px;
+}

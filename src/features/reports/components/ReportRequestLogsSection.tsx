@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../../api/client";
 import { queryKeys } from "../../../api/queryKeys";
@@ -6,7 +6,6 @@ import { Badge } from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
 import { Card } from "../../../components/ui/Card";
 import { DataTable, type DataTableColumn } from "../../../components/ui/DataTable";
-import { Dialog } from "../../../components/ui/Dialog";
 import { Input } from "../../../components/ui/Input";
 import { MetricHelp } from "../../../components/common/MetricHelp";
 import { Pagination } from "../../../components/ui/Pagination";
@@ -15,26 +14,38 @@ import type {
   BenchmarkRequestLogSummary,
   ReportDetail,
 } from "../../../types/api";
+import { RequestLogExpandedRow } from "./RequestLogExpandedRow";
 
 type ReportRequestLogsSectionProps = {
   detail: ReportDetail;
+  stageFilter?: number;
+  onStageFilterChange: (stageIndex?: number) => void;
 };
 
-export function ReportRequestLogsSection({ detail }: ReportRequestLogsSectionProps) {
+export function ReportRequestLogsSection({
+  detail,
+  stageFilter,
+  onStageFilterChange,
+}: ReportRequestLogsSectionProps) {
   const taskId = detail.summary.task_id;
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [status, setStatus] = useState<"all" | "success" | "failed">("all");
   const [keyword, setKeyword] = useState("");
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const requestLogMeta = detail.request_log_meta;
+
+  useEffect(() => {
+    setPage(1);
+    setExpandedRequestId(null);
+  }, [stageFilter, taskId]);
 
   const logsQuery = useQuery({
     queryKey: queryKeys.benchmarkRequestLogs(
       taskId,
       page,
       pageSize,
-      undefined,
+      stageFilter,
       status,
       keyword,
     ),
@@ -43,21 +54,16 @@ export function ReportRequestLogsSection({ detail }: ReportRequestLogsSectionPro
         task_id: taskId,
         page,
         page_size: pageSize,
+        stage_index: stageFilter,
         status: status === "all" ? undefined : status,
         keyword: keyword.trim() || undefined,
       }),
   });
 
-  const detailQuery = useQuery({
-    queryKey: queryKeys.benchmarkRequestLogDetail(selectedRequestId ?? ""),
-    queryFn: () => api.getBenchmarkRequestLogDetail(selectedRequestId ?? ""),
-    enabled: Boolean(selectedRequestId),
-  });
-
   const pageData = logsQuery.data;
   const columns: Array<DataTableColumn<BenchmarkRequestLogSummary>> = [
     { key: "stage", title: "阶段", render: (row) => `#${row.stage_index}` },
-    { key: "request", title: "请求", render: (row) => row.request_index },
+    { key: "request", title: "请求", render: (row) => `#${row.request_index}` },
     {
       key: "status",
       title: "状态",
@@ -79,24 +85,24 @@ export function ReportRequestLogsSection({ detail }: ReportRequestLogsSectionPro
     },
     {
       key: "tokens",
-      title: <MetricHelp helpKey="token_s">Token</MetricHelp>,
+      title: "Token（入/出/总）",
       render: (row) => `${row.input_tokens}/${row.output_tokens}/${row.total_tokens}`,
     },
     {
       key: "prompt",
       title: "Prompt 摘要",
-      render: (row) => row.prompt_preview || "-",
-    },
-    {
-      key: "action",
-      title: "操作",
       render: (row) => (
-        <Button variant="ghost" onClick={() => setSelectedRequestId(row.id)}>
-          查看
-        </Button>
+        <span className="request-log-preview" title={row.prompt_preview ?? undefined}>
+          {row.prompt_preview || "-"}
+        </span>
       ),
     },
   ];
+
+  const resetResults = () => {
+    setPage(1);
+    setExpandedRequestId(null);
+  };
 
   return (
     <Card title="请求明细">
@@ -112,7 +118,7 @@ export function ReportRequestLogsSection({ detail }: ReportRequestLogsSectionPro
         </span>
       </div>
       <p className="report-section-copy">
-        仅在启动压测时开启“保存请求明细”后才会记录。默认不保存 Prompt 和响应正文；开启正文保存后，可在详情抽屉中查看单次请求证据。
+        点击请求行展开输入、输出和指标。完整正文仅在启动压测前开启“保存 Prompt / 响应正文”后可用。
       </p>
       <div className="request-log-toolbar">
         <Input
@@ -121,7 +127,21 @@ export function ReportRequestLogsSection({ detail }: ReportRequestLogsSectionPro
           value={keyword}
           onChange={(event) => {
             setKeyword(event.target.value);
-            setPage(1);
+            resetResults();
+          }}
+        />
+        <SelectField
+          options={[
+            { label: "全部阶段", value: "all" },
+            ...detail.stages.map((stage) => ({
+              label: `阶段 #${stage.stage_index}`,
+              value: String(stage.stage_index),
+            })),
+          ]}
+          value={stageFilter == null ? "all" : String(stageFilter)}
+          onChange={(value) => {
+            onStageFilterChange(value === "all" ? undefined : Number(value));
+            resetResults();
           }}
         />
         <SelectField
@@ -133,7 +153,7 @@ export function ReportRequestLogsSection({ detail }: ReportRequestLogsSectionPro
           value={status}
           onChange={(nextStatus) => {
             setStatus(nextStatus);
-            setPage(1);
+            resetResults();
           }}
         />
       </div>
@@ -142,14 +162,36 @@ export function ReportRequestLogsSection({ detail }: ReportRequestLogsSectionPro
         columns={columns}
         empty={
           <div className="report-empty-note">
-            <strong>{logsQuery.isLoading ? "正在读取请求明细" : "未找到请求明细"}</strong>
+            <strong>
+              {logsQuery.isLoading
+                ? "正在读取请求明细"
+                : logsQuery.isError
+                  ? "请求明细读取失败"
+                  : "未找到请求明细"}
+            </strong>
             <span>
-              {requestLogMeta.enabled
-                ? "当前筛选条件下没有匹配记录。"
-                : "本次任务没有开启请求明细采集，或当前数据源没有可用明细。"}
+              {logsQuery.isError
+                ? logsQuery.error instanceof Error
+                  ? logsQuery.error.message
+                  : "无法读取持久化请求日志。"
+                : requestLogMeta.enabled
+                  ? "当前筛选条件下没有匹配记录。"
+                  : "本次任务没有开启请求明细采集，或当前数据源没有可用明细。"}
             </span>
+            {logsQuery.isError && (
+              <Button variant="ghost" onClick={() => logsQuery.refetch()}>
+                重试
+              </Button>
+            )}
           </div>
         }
+        expandable={{
+          expandedRowKey: expandedRequestId,
+          expandedRowRender: (row) => <RequestLogExpandedRow requestId={row.id} />,
+          expandOnRowClick: true,
+          onExpandedRowChange: (key) =>
+            setExpandedRequestId(key == null ? null : String(key)),
+        }}
         getRowKey={(row) => row.id}
         rows={pageData?.items ?? []}
       />
@@ -160,71 +202,16 @@ export function ReportRequestLogsSection({ detail }: ReportRequestLogsSectionPro
           page={page}
           pageSize={pageSize}
           total={pageData?.total ?? 0}
-          onPageChange={setPage}
+          onPageChange={(nextPage) => {
+            setPage(nextPage);
+            setExpandedRequestId(null);
+          }}
           onPageSizeChange={(nextPageSize) => {
             setPageSize(nextPageSize);
-            setPage(1);
+            resetResults();
           }}
         />
       )}
-      <Dialog
-        open={Boolean(selectedRequestId)}
-        title="请求详情"
-        variant="drawer"
-        width="620px"
-        onClose={() => setSelectedRequestId(null)}
-      >
-        {detailQuery.data ? (
-          <div className="request-log-detail">
-            <div className="request-log-detail-grid">
-              <span>状态</span>
-              <strong>{detailQuery.data.status === "success" ? "成功" : "失败"}</strong>
-              <span>耗时</span>
-              <strong>{detailQuery.data.latency_ms}ms</strong>
-              <span>TTFT</span>
-              <strong>{detailQuery.data.ttft_ms ? `${detailQuery.data.ttft_ms}ms` : "-"}</strong>
-              <span>Token</span>
-              <strong>
-                {detailQuery.data.input_tokens}/{detailQuery.data.output_tokens}/
-                {detailQuery.data.total_tokens}
-              </strong>
-            </div>
-            <LogBlock title="Prompt" value={detailQuery.data.prompt ?? detailQuery.data.prompt_preview} />
-            <LogBlock
-              title="响应"
-              value={detailQuery.data.response_text ?? detailQuery.data.response_preview}
-            />
-            <LogBlock title="错误" value={detailQuery.data.raw_error ?? detailQuery.data.error_kind} />
-            {Boolean(detailQuery.data.raw_usage) && (
-              <LogBlock
-                title="Usage"
-                value={JSON.stringify(detailQuery.data.raw_usage, null, 2)}
-              />
-            )}
-            {!detailQuery.data.body_available && (
-              <div className="report-empty-note">
-                <strong>未保存正文</strong>
-                <span>本次压测未开启请求/响应正文保存，只能查看摘要和指标。</span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="report-empty-note">
-            <strong>正在读取请求详情</strong>
-            <span>请稍候。</span>
-          </div>
-        )}
-      </Dialog>
     </Card>
-  );
-}
-
-function LogBlock({ title, value }: { title: string; value?: string | null }) {
-  if (!value) return null;
-  return (
-    <section className="request-log-block">
-      <h4>{title}</h4>
-      <pre>{value}</pre>
-    </section>
   );
 }

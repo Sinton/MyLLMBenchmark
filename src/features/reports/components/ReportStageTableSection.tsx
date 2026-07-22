@@ -1,10 +1,12 @@
 import { Badge } from "../../../components/ui/Badge";
+import { Button } from "../../../components/ui/Button";
 import { Card } from "../../../components/ui/Card";
 import {
   DataTable,
   type DataTableColumn,
 } from "../../../components/ui/DataTable";
 import { MetricHelp } from "../../../components/common/MetricHelp";
+import { ListChecks } from "../../../components/ui/icons";
 import type { ReportDetail } from "../../../types/api";
 import type { StageColumn } from "../types";
 
@@ -13,11 +15,13 @@ type ReportStage = ReportDetail["stages"][number];
 type ReportStageTableSectionProps = {
   detail: ReportDetail;
   stageColumns: StageColumn[];
+  onViewRequests?: (stageIndex: number) => void;
 };
 
 export function ReportStageTableSection({
   detail,
   stageColumns,
+  onViewRequests,
 }: ReportStageTableSectionProps) {
   const hasStopReason = detail.stages.some((stage) => Boolean(stage.stop_reason));
   const statusLabel = (stage: ReportStage) =>
@@ -55,6 +59,26 @@ export function ReportStageTableSection({
         <Badge tone={statusTone(stage)}>{statusLabel(stage)}</Badge>
       ),
     },
+    ...(onViewRequests
+      ? [
+          {
+            key: "requests_action",
+            title: "请求证据",
+            render: (stage: ReportStage) => (
+              <Button
+                className="report-stage-requests-button"
+                disabled={stage.request_count <= 0}
+                icon={<ListChecks size={14} />}
+                title={`查看阶段 #${stage.stage_index} 的请求明细`}
+                variant="ghost"
+                onClick={() => onViewRequests(stage.stage_index)}
+              >
+                请求
+              </Button>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
