@@ -1,29 +1,37 @@
+import { useEffect, useState } from "react";
 import { Badge } from "../../../components/ui/Badge";
-import { Button } from "../../../components/ui/Button";
 import { Card } from "../../../components/ui/Card";
 import {
   DataTable,
+  type DataTableRowKey,
   type DataTableColumn,
 } from "../../../components/ui/DataTable";
 import { MetricHelp } from "../../../components/common/MetricHelp";
-import { ListChecks } from "../../../components/ui/icons";
 import type { ReportDetail } from "../../../types/api";
 import type { StageColumn } from "../types";
+import { ReportStageRequestPanel } from "./ReportStageRequestPanel";
 
 type ReportStage = ReportDetail["stages"][number];
 
 type ReportStageTableSectionProps = {
   detail: ReportDetail;
   stageColumns: StageColumn[];
-  onViewRequests?: (stageIndex: number) => void;
 };
 
 export function ReportStageTableSection({
   detail,
   stageColumns,
-  onViewRequests,
 }: ReportStageTableSectionProps) {
+  const [expandedStageIndex, setExpandedStageIndex] = useState<number | null>(null);
   const hasStopReason = detail.stages.some((stage) => Boolean(stage.stop_reason));
+  const hasRequestEvidence = detail.request_log_meta.total_records > 0;
+  const canExpandStage = (stage: ReportStage) =>
+    hasRequestEvidence && stage.request_count > 0;
+
+  useEffect(() => {
+    setExpandedStageIndex(null);
+  }, [detail.summary.task_id]);
+
   const statusLabel = (stage: ReportStage) =>
     stage.status === "stable" ? "稳定" : stage.status === "watch" ? "观察" : "失败";
   const statusTone = (stage: ReportStage) =>
@@ -59,38 +67,50 @@ export function ReportStageTableSection({
         <Badge tone={statusTone(stage)}>{statusLabel(stage)}</Badge>
       ),
     },
-    ...(onViewRequests
-      ? [
-          {
-            key: "requests_action",
-            title: "请求证据",
-            render: (stage: ReportStage) => (
-              <Button
-                className="report-stage-requests-button"
-                disabled={stage.request_count <= 0}
-                icon={<ListChecks size={14} />}
-                title={`查看阶段 #${stage.stage_index} 的请求明细`}
-                variant="ghost"
-                onClick={() => onViewRequests(stage.stage_index)}
-              >
-                请求
-              </Button>
-            ),
-          },
-        ]
-      : []),
   ];
 
   return (
     <Card title="阶梯阶段明细">
       <EvidenceSummary detail={detail} />
+      {!hasRequestEvidence && <RequestEvidenceNote detail={detail} />}
       <DataTable
         className="report-stage-table"
         columns={columns}
+        expandable={
+          hasRequestEvidence
+            ? {
+                expandedRowKey: expandedStageIndex,
+                expandedRowRender: (stage) => (
+                  <ReportStageRequestPanel detail={detail} stage={stage} />
+                ),
+                expandOnRowClick: true,
+                onExpandedRowChange: (key: DataTableRowKey | null) => {
+                  setExpandedStageIndex(key == null ? null : Number(key));
+                },
+                rowExpandable: canExpandStage,
+              }
+            : undefined
+        }
         getRowKey={(stage) => stage.stage_index}
         rows={detail.stages}
       />
     </Card>
+  );
+}
+
+function RequestEvidenceNote({ detail }: { detail: ReportDetail }) {
+  return (
+    <div className="report-request-evidence-note">
+      <strong>
+        {detail.request_log_meta.enabled
+          ? "本报告没有可展开的请求证据"
+          : "本次压测未采集请求明细"}
+      </strong>
+      <span>
+        请求/响应正文只有在压测开始前开启“保存请求/响应明细”后才会写入，
+        历史缺失数据无法补录。
+      </span>
+    </div>
   );
 }
 

@@ -83,7 +83,9 @@
   position: static;
   z-index: 30;
   width: 100%;
-  overflow: hidden;
+  max-height: min(360px, calc(100vh - 24px));
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);

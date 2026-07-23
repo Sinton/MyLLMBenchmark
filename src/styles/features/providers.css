@@ -264,9 +264,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  border-top: 1px solid var(--border);
-  margin-top: 4px;
-  padding-top: 16px;
+  margin-top: 2px;
 }
 
 .provider-empty-card {

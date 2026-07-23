@@ -1,10 +1,13 @@
 import { Button } from "../Button";
 import { SelectField } from "../SelectField";
 
-const pageSizeOptions = [20, 50, 100, 200].map((size) => ({
-  label: `${size} 条 / 页`,
-  value: String(size),
-}));
+const DEFAULT_PAGE_SIZE_OPTIONS = [20, 50, 100, 200];
+
+const toPageSizeOptions = (sizes: number[]) =>
+  sizes.map((size) => ({
+    label: `${size} 条 / 页`,
+    value: String(size),
+  }));
 
 type PaginationProps = {
   page: number;
@@ -14,6 +17,7 @@ type PaginationProps = {
   onPageSizeChange: (pageSize: number) => void;
   disabled?: boolean;
   itemLabel?: string;
+  pageSizeOptions?: number[];
 };
 
 export function Pagination({
@@ -24,11 +28,13 @@ export function Pagination({
   onPageSizeChange,
   disabled = false,
   itemLabel = "样本",
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
 }: PaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safePage = Math.min(Math.max(page, 1), totalPages);
   const start = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
   const end = Math.min(total, safePage * pageSize);
+  const pageSizeSelectOptions = toPageSizeOptions(pageSizeOptions);
 
   return (
     <div className="pagination" aria-label="分页">
@@ -60,7 +66,7 @@ export function Pagination({
         </Button>
         <SelectField
           disabled={disabled}
-          options={pageSizeOptions}
+          options={pageSizeSelectOptions}
           value={String(pageSize)}
           onChange={(value) => onPageSizeChange(Number(value))}
         />
