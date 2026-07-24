@@ -73,6 +73,10 @@ impl BenchmarkRepository for MockDataStore {
         MockDataStore::get_task_summary(self, task_id).await
     }
 
+    async fn list_running_tasks(&self) -> anyhow::Result<Vec<BenchmarkTaskSummary>> {
+        MockDataStore::list_running_tasks(self).await
+    }
+
     async fn list_ticks(&self, task_id: &str) -> anyhow::Result<Vec<MetricsTick>> {
         MockDataStore::list_ticks(self, task_id).await
     }
@@ -159,6 +163,10 @@ impl BenchmarkRepository for Database {
 
     async fn get_task_summary(&self, task_id: &str) -> anyhow::Result<BenchmarkTaskSummary> {
         Database::get_task_summary(self, task_id).await
+    }
+
+    async fn list_running_tasks(&self) -> anyhow::Result<Vec<BenchmarkTaskSummary>> {
+        Database::list_running_tasks(self).await
     }
 
     async fn list_ticks(&self, task_id: &str) -> anyhow::Result<Vec<MetricsTick>> {
@@ -295,6 +303,13 @@ impl AppDataSource {
         match self {
             Self::Mock(source) => BenchmarkRepository::get_task_summary(source, task_id).await,
             Self::Sqlite(source) => BenchmarkRepository::get_task_summary(source, task_id).await,
+        }
+    }
+
+    pub async fn list_running_tasks(&self) -> anyhow::Result<Vec<BenchmarkTaskSummary>> {
+        match self {
+            Self::Mock(source) => BenchmarkRepository::list_running_tasks(source).await,
+            Self::Sqlite(source) => BenchmarkRepository::list_running_tasks(source).await,
         }
     }
 

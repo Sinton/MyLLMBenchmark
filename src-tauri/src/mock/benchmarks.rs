@@ -310,6 +310,16 @@ impl MockDataStore {
             .ok_or_else(|| AppError::not_found("task").into())
     }
 
+    pub async fn list_running_tasks(&self) -> anyhow::Result<Vec<BenchmarkTaskSummary>> {
+        let data = self.inner.read().await;
+        Ok(data
+            .tasks
+            .iter()
+            .filter(|task| task.summary.status == "running")
+            .map(|task| task.summary.clone())
+            .collect())
+    }
+
     pub async fn list_ticks(&self, task_id: &str) -> anyhow::Result<Vec<MetricsTick>> {
         let data = self.inner.read().await;
         if !data.tasks.iter().any(|task| task.summary.id == task_id) {

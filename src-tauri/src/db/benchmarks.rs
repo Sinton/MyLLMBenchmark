@@ -407,6 +407,27 @@ impl Database {
             .ok_or_else(|| AppError::not_found("task").into())
     }
 
+    pub async fn list_running_tasks(&self) -> anyhow::Result<Vec<BenchmarkTaskSummary>> {
+        let rows = sqlx::query(
+            "SELECT t.id, t.name, t.status, t.concurrency, t.success_rate, t.p95_latency_ms,
+                    t.goodput_qps, t.created_at,
+                    p.name AS provider_name,
+                    COALESCE(m.name, '未选择模型') AS model_name,
+                    COALESCE(m.model_type, 'text_generation') AS model_type,
+                    d.name AS dataset_name
+             FROM benchmark_tasks t
+             JOIN providers p ON p.id = t.provider_id
+             JOIN datasets d ON d.id = t.dataset_id
+             LEFT JOIN models m ON m.id = t.model_id
+             WHERE t.status = 'running'
+             ORDER BY t.created_at ASC;",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows.into_iter().map(task_from_row).collect())
+    }
+
     pub async fn list_recent_tasks(&self, limit: i64) -> anyhow::Result<Vec<BenchmarkTaskSummary>> {
         let rows = sqlx::query(
             "SELECT t.id, t.name, t.status, t.concurrency, t.success_rate, t.p95_latency_ms,

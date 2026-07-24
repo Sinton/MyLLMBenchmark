@@ -1,7 +1,8 @@
-use crate::config::{AppConfig, ConfigStore, ConfigUpdateResult};
+﻿use crate::config::{AppConfig, ConfigStore, ConfigUpdateResult};
 use crate::data::AppDataSource;
 use crate::db::Database;
 use crate::domain::benchmark_sample::StageSample;
+use crate::error::AppError;
 use crate::mock::MockDataStore;
 use crate::models::{
     BenchmarkErrorRecord, BenchmarkRequestLogDetail, BenchmarkRequestLogPage,
@@ -14,11 +15,10 @@ use crate::models::{
     ModelSummary, ProviderConnectionConfig, ProviderDiagnosticsResult, ProviderSummary,
     ReportDetail, ReportSummary, UpdateProviderInput,
 };
+use crate::storage::{RequestLogBodyLine, RequestLogBodyStore};
 use crate::tasks::TaskManager;
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::io::AsyncWriteExt;
 use tokio::sync::{watch, RwLock};
 
 #[derive(Clone)]
@@ -26,7 +26,7 @@ pub struct AppState {
     config: Arc<RwLock<AppConfig>>,
     config_store: ConfigStore,
     data: Arc<RwLock<AppDataSource>>,
-    data_dir: PathBuf,
+    request_log_bodies: RequestLogBodyStore,
     tasks: TaskManager,
 }
 
@@ -35,13 +35,15 @@ impl AppState {
         let config_store = ConfigStore::new(config_dir);
         let config = config_store.load_or_create()?;
         let data = create_data_source(&config, &data_dir).await?;
-        Ok(Self {
+        let state = Self {
             config: Arc::new(RwLock::new(config)),
             config_store,
             data: Arc::new(RwLock::new(data)),
-            data_dir,
+            request_log_bodies: RequestLogBodyStore::new(data_dir),
             tasks: TaskManager::default(),
-        })
+        };
+        state.recover_orphaned_running_tasks().await?;
+        Ok(state)
     }
 
     pub async fn current_config(&self) -> anyhow::Result<AppConfig> {
@@ -50,11 +52,25 @@ impl AppState {
 
     pub async fn save_config(&self, config: AppConfig) -> anyhow::Result<ConfigUpdateResult> {
         let current = self.config.read().await.clone();
+        let switching_data_mode = current.data_mode != config.data_mode;
+        let switching_engine = current.benchmark_engine != config.benchmark_engine;
+
+        if (switching_data_mode || switching_engine) && self.has_running_tasks().await {
+            let running = self.running_task_ids().await;
+            return Err(AppError::validation(format!(
+                "当前仍有 {} 个压测任务在运行（{}），请先停止后再切换数据源或压测引擎。",
+                running.len(),
+                running.join(", ")
+            ))
+            .into());
+        }
+
         self.config_store.save(&config)?;
 
-        if current.data_mode != config.data_mode {
-            let data = create_data_source(&config, &self.data_dir).await?;
+        if switching_data_mode {
+            let data = create_data_source(&config, self.request_log_bodies.data_dir()).await?;
             *self.data.write().await = data;
+            self.recover_orphaned_running_tasks().await?;
         }
 
         *self.config.write().await = config.clone();
@@ -309,8 +325,19 @@ impl AppState {
     ) -> anyhow::Result<()> {
         let data = self.data_source().await;
         if matches!(&data, AppDataSource::Sqlite(_)) && request_log_has_body(&log) {
-            self.append_request_log_body(&log).await?;
-            log.body_ref = Some(request_log_body_ref(&log.summary.task_id));
+            self.request_log_bodies
+                .append_body(
+                    &log.summary.task_id,
+                    &RequestLogBodyLine {
+                        id: log.summary.id.clone(),
+                        prompt: log.prompt.clone(),
+                        response_text: log.response_text.clone(),
+                        raw_error: log.raw_error.clone(),
+                        raw_usage: log.raw_usage.clone(),
+                    },
+                )
+                .await?;
+            log.body_ref = Some(RequestLogBodyStore::body_ref(&log.summary.task_id));
         }
         data.insert_request_log(&log).await
     }
@@ -333,7 +360,8 @@ impl AppState {
             && matches!(&data, AppDataSource::Sqlite(_))
         {
             if let Some(body) = self
-                .read_request_log_body(&detail.summary.task_id, &detail.summary.id)
+                .request_log_bodies
+                .read_body(&detail.summary.task_id, &detail.summary.id)
                 .await?
             {
                 detail.prompt = body.prompt;
@@ -353,12 +381,7 @@ impl AppState {
             .await
             .delete_request_logs(task_id)
             .await?;
-        let path = self.request_log_body_path(task_id);
-        match tokio::fs::remove_file(path).await {
-            Ok(_) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error.into()),
-        }
+        self.request_log_bodies.delete_task_bodies(task_id).await?;
         Ok(result)
     }
 
@@ -417,62 +440,38 @@ impl AppState {
         self.tasks.remove(task_id).await;
     }
 
-    async fn append_request_log_body(&self, log: &BenchmarkRequestLogRecord) -> anyhow::Result<()> {
-        let dir = self.data_dir.join("request_logs");
-        tokio::fs::create_dir_all(&dir).await?;
-        let mut file = tokio::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(self.request_log_body_path(&log.summary.task_id))
+    pub async fn has_running_tasks(&self) -> bool {
+        self.tasks.has_running_tasks().await
+    }
+
+    pub async fn running_task_ids(&self) -> Vec<String> {
+        self.tasks.running_task_ids().await
+    }
+
+    async fn recover_orphaned_running_tasks(&self) -> anyhow::Result<()> {
+        let data = self.data_source().await;
+        let running = data.list_running_tasks().await?;
+        for task in running {
+            // After process restart, in-memory task registry is empty, so any
+            // persisted "running" task is orphaned and must be closed.
+            data.insert_benchmark_error(&BenchmarkErrorRecord {
+                task_id: task.id.clone(),
+                error_kind: "orphaned".to_string(),
+                message: "应用重启后清理未完成任务".to_string(),
+                count: 1,
+            })
             .await?;
-        let line = serde_json::to_string(&RequestLogBodyLine {
-            id: log.summary.id.clone(),
-            prompt: log.prompt.clone(),
-            response_text: log.response_text.clone(),
-            raw_error: log.raw_error.clone(),
-            raw_usage: log.raw_usage.clone(),
-        })?;
-        file.write_all(line.as_bytes()).await?;
-        file.write_all(b"\n").await?;
+            data.update_task_finished(
+                &task.id,
+                "failed",
+                task.success_rate,
+                task.p95_latency_ms,
+                task.goodput_qps,
+            )
+            .await?;
+        }
         Ok(())
     }
-
-    async fn read_request_log_body(
-        &self,
-        task_id: &str,
-        request_id: &str,
-    ) -> anyhow::Result<Option<RequestLogBodyLine>> {
-        let path = self.request_log_body_path(task_id);
-        let content = match tokio::fs::read_to_string(path).await {
-            Ok(content) => content,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-            Err(error) => return Err(error.into()),
-        };
-        for line in content.lines() {
-            let Ok(body) = serde_json::from_str::<RequestLogBodyLine>(line) else {
-                continue;
-            };
-            if body.id == request_id {
-                return Ok(Some(body));
-            }
-        }
-        Ok(None)
-    }
-
-    fn request_log_body_path(&self, task_id: &str) -> PathBuf {
-        self.data_dir
-            .join("request_logs")
-            .join(format!("{task_id}.jsonl"))
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct RequestLogBodyLine {
-    id: String,
-    prompt: Option<String>,
-    response_text: Option<String>,
-    raw_error: Option<String>,
-    raw_usage: Option<serde_json::Value>,
 }
 
 fn request_log_has_body(log: &BenchmarkRequestLogRecord) -> bool {
@@ -482,13 +481,9 @@ fn request_log_has_body(log: &BenchmarkRequestLogRecord) -> bool {
         || log.raw_usage.is_some()
 }
 
-fn request_log_body_ref(task_id: &str) -> String {
-    format!("request_logs/{task_id}.jsonl")
-}
-
 async fn create_data_source(
     config: &AppConfig,
-    data_dir: &PathBuf,
+    data_dir: &std::path::Path,
 ) -> anyhow::Result<AppDataSource> {
     if config.uses_mock_data() {
         Ok(AppDataSource::Mock(MockDataStore::new()))
@@ -501,13 +496,18 @@ async fn create_data_source(
 mod tests {
     use super::AppState;
     use crate::config::{AppConfig, BenchmarkEngineMode, DataMode};
-    use crate::models::CreateProviderInput;
+    use crate::models::{BenchmarkStartInput, CreateProviderInput, DatasetImportInput};
+    use base64::prelude::*;
+    use tokio::sync::watch;
     use uuid::Uuid;
+
+    fn temp_root(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("my-llm-benchmark-state-{name}-{}", Uuid::new_v4()))
+    }
 
     #[tokio::test]
     async fn config_update_switches_runtime_data_source_to_sqlite() {
-        let root =
-            std::env::temp_dir().join(format!("my-llm-benchmark-state-switch-{}", Uuid::new_v4()));
+        let root = temp_root("switch");
         let config_dir = root.join("config");
         let data_dir = root.join("data");
         let state = AppState::initialize(config_dir.clone(), data_dir.clone())
@@ -549,6 +549,98 @@ mod tests {
             .unwrap()
             .iter()
             .any(|item| item.id == provider.id));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[tokio::test]
+    async fn initialize_marks_orphaned_running_tasks_as_failed() {
+        let root = temp_root("recover");
+        let config_dir = root.join("config");
+        let data_dir = root.join("data");
+        let state = AppState::initialize(config_dir.clone(), data_dir.clone())
+            .await
+            .unwrap();
+        state
+            .save_config(AppConfig {
+                data_mode: DataMode::Sqlite,
+                benchmark_engine: BenchmarkEngineMode::Mock,
+            })
+            .await
+            .unwrap();
+
+        let provider = state
+            .create_provider(CreateProviderInput {
+                name: "Recover Provider".to_string(),
+                base_url: "http://127.0.0.1:8000/v1".to_string(),
+                api_key: Some("key".to_string()),
+                interface_type: "OpenAI".to_string(),
+            })
+            .await
+            .unwrap();
+        let dataset = state
+            .import_dataset(DatasetImportInput {
+                name: "Recover Dataset".to_string(),
+                dataset_type: "Chat".to_string(),
+                format: "JSONL".to_string(),
+                file_name: "chat.jsonl".to_string(),
+                content_base64: BASE64_STANDARD.encode("{\"prompt\":\"hello\"}"),
+            })
+            .await
+            .unwrap();
+        let task = state
+            .create_task(&BenchmarkStartInput {
+                provider_id: provider.id,
+                model_id: None,
+                dataset_id: dataset.id,
+                mode: "fixed".to_string(),
+                concurrency: 1,
+                duration_seconds: 5,
+                start_concurrency: None,
+                end_concurrency: None,
+                step_strategy: None,
+                step_value: None,
+                stage_sample_rounds: Some(1),
+                stage_duration_seconds: None,
+                warmup_rounds: Some(0),
+                warmup_seconds: None,
+                request_timeout_seconds: Some(30),
+                sla_p95_ms: Some(5000),
+                min_success_rate: Some(99.0),
+                sla_stop_policy: None,
+                workload_config: None,
+                request_log_config: None,
+            })
+            .await
+            .unwrap();
+        assert_eq!(task.status, "running");
+
+        let reloaded = AppState::initialize(config_dir, data_dir).await.unwrap();
+        let recovered = reloaded.get_task_summary(&task.id).await.unwrap();
+        assert_eq!(recovered.status, "failed");
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[tokio::test]
+    async fn save_config_blocks_engine_switch_while_tasks_are_running() {
+        let root = temp_root("block-switch");
+        let state = AppState::initialize(root.join("config"), root.join("data"))
+            .await
+            .unwrap();
+        let (tx, _rx) = watch::channel(false);
+        state.register_task("task-running".to_string(), tx).await;
+
+        let error = state
+            .save_config(AppConfig {
+                data_mode: DataMode::Mock,
+                benchmark_engine: BenchmarkEngineMode::OpenaiCompatible,
+            })
+            .await
+            .unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("仍有"));
+        assert!(message.contains("压测任务在运行"));
 
         let _ = std::fs::remove_dir_all(root);
     }

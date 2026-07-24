@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+﻿use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{watch, Mutex};
 
@@ -23,5 +23,17 @@ impl TaskManager {
 
     pub async fn remove(&self, task_id: &str) {
         self.running.lock().await.remove(task_id);
+    }
+
+    pub async fn has_running_tasks(&self) -> bool {
+        !self.running.lock().await.is_empty()
+    }
+
+    pub async fn running_task_ids(&self) -> Vec<String> {
+        self.running.lock().await.keys().cloned().collect()
+    }
+
+    pub async fn running_count(&self) -> usize {
+        self.running.lock().await.len()
     }
 }

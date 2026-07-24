@@ -138,6 +138,7 @@ pub(crate) trait BenchmarkRepository {
     ) -> anyhow::Result<BenchmarkRequestLogDetail>;
     async fn delete_request_logs(&self, task_id: &str) -> anyhow::Result<DeleteResult>;
     async fn get_task_summary(&self, task_id: &str) -> anyhow::Result<BenchmarkTaskSummary>;
+    async fn list_running_tasks(&self) -> anyhow::Result<Vec<BenchmarkTaskSummary>>;
     async fn list_ticks(&self, task_id: &str) -> anyhow::Result<Vec<MetricsTick>>;
     async fn update_task_engine_mode(&self, task_id: &str, engine_mode: &str)
         -> anyhow::Result<()>;
