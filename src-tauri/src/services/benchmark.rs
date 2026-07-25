@@ -1,3 +1,4 @@
+use crate::benchmark::engines::openai::RealProviderProtocol;
 use crate::benchmark::runner::{spawn_mock_benchmark, spawn_openai_compatible_benchmark};
 use crate::config::BenchmarkEngineMode;
 use crate::domain::model_type::ModelType;
@@ -114,15 +115,6 @@ async fn prepare_openai_compatible_context(
     if provider.api_key_plaintext.trim().is_empty() {
         return Err(AppError::validation("真实压测需要配置 API Key。"));
     }
-    if matches!(
-        provider.interface_type.as_str(),
-        "OpenAI-Response" | "Anthropic" | "Gemini"
-    ) {
-        return Err(AppError::validation(format!(
-            "{} 当前版本未启用真实压测引擎，请选择 OpenAI Compatible 或 Jina Rerank 服务商。",
-            provider.interface_type
-        )));
-    }
     let selected_model = resolve_selected_model(state, input).await?;
     let normalized_type = ModelType::normalize(&selected_model.model_type);
     validate_provider_model_protocol(&provider, normalized_type)?;
@@ -185,9 +177,9 @@ async fn resolve_selected_model(
         .and_then(|model_id| models.iter().find(|model| model.id == *model_id))
         .or_else(|| models.first());
 
-    selected.cloned().ok_or_else(|| {
-        AppError::validation("真实 OpenAI Compatible 压测需要先连接服务商并扫描出一个可用模型。")
-    })
+    selected
+        .cloned()
+        .ok_or_else(|| AppError::validation("真实压测需要先连接服务商并扫描出一个可用模型。"))
 }
 
 struct RealBenchmarkContext {
@@ -223,6 +215,8 @@ fn validate_provider_model_protocol(
     provider: &ProviderConnectionConfig,
     model_type: ModelType,
 ) -> AppResult<()> {
+    let protocol = RealProviderProtocol::from_interface_type(&provider.interface_type)
+        .unwrap_or(RealProviderProtocol::OpenAICompatible);
     if provider.interface_type == "Jina Rerank" && model_type != ModelType::Rerank {
         return Err(AppError::validation(
             "Jina Rerank 服务商只能启动 Rerank 模型压测。",
@@ -231,6 +225,21 @@ fn validate_provider_model_protocol(
     if provider.interface_type != "Jina Rerank" && model_type == ModelType::Rerank {
         return Err(AppError::validation(
             "Rerank 真实压测当前仅支持 Jina Rerank 接口类型。",
+        ));
+    }
+    if matches!(
+        protocol,
+        RealProviderProtocol::Anthropic | RealProviderProtocol::Gemini
+    ) && matches!(model_type, ModelType::Embedding | ModelType::Rerank)
+    {
+        return Err(AppError::validation(format!(
+            "{} 当前真实压测仅支持文本生成和 Vision 模型。",
+            provider.interface_type
+        )));
+    }
+    if protocol == RealProviderProtocol::OpenAIResponses && model_type == ModelType::Rerank {
+        return Err(AppError::validation(
+            "OpenAI Responses 真实压测不支持 Rerank，请选择 OpenAI Compatible / Jina Rerank。",
         ));
     }
     Ok(())

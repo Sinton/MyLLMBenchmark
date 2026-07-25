@@ -1,9 +1,12 @@
+mod anthropic;
 mod chat;
 pub mod diagnostics;
 mod embedding;
+mod gemini;
 mod metrics;
 mod request_logs;
 mod rerank;
+mod responses;
 mod vision;
 
 use crate::models::{DiscoveredModel, ProviderConnectionConfig};
@@ -30,6 +33,44 @@ pub struct OpenAICompatibleClient {
     client: Client,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RealProviderProtocol {
+    OpenAICompatible,
+    OpenAIResponses,
+    Anthropic,
+    Gemini,
+}
+
+impl RealProviderProtocol {
+    pub fn from_interface_type(value: &str) -> Option<Self> {
+        match value {
+            "OpenAI-Response" => Some(Self::OpenAIResponses),
+            "Anthropic" => Some(Self::Anthropic),
+            "Gemini" => Some(Self::Gemini),
+            "OpenAI" | "OpenAI Compatible" | "Jina Rerank" => Some(Self::OpenAICompatible),
+            _ => Some(Self::OpenAICompatible),
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::OpenAICompatible => "OpenAI Compatible",
+            Self::OpenAIResponses => "OpenAI Responses",
+            Self::Anthropic => "Anthropic",
+            Self::Gemini => "Gemini",
+        }
+    }
+
+    pub fn engine_mode(self) -> &'static str {
+        match self {
+            Self::OpenAICompatible => "openai_compatible",
+            Self::OpenAIResponses => "openai_responses",
+            Self::Anthropic => "anthropic",
+            Self::Gemini => "gemini",
+        }
+    }
+}
+
 impl OpenAICompatibleClient {
     pub fn new() -> anyhow::Result<Self> {
         Ok(Self {
@@ -41,9 +82,17 @@ impl OpenAICompatibleClient {
         &self,
         config: &ProviderConnectionConfig,
     ) -> anyhow::Result<Vec<DiscoveredModel>> {
+        let protocol = RealProviderProtocol::from_interface_type(&config.interface_type)
+            .unwrap_or(RealProviderProtocol::OpenAICompatible);
+        if protocol == RealProviderProtocol::Gemini {
+            return self.list_gemini_models(config).await;
+        }
         let url = api_url(&config.base_url, "models");
-        let response = self
-            .with_auth(self.client.get(url), config)
+        let mut request = self.with_protocol_auth(self.client.get(url), config, protocol);
+        if protocol == RealProviderProtocol::Anthropic {
+            request = request.header("anthropic-version", "2023-06-01");
+        }
+        let response = request
             .timeout(Duration::from_secs(20))
             .send()
             .await
@@ -55,6 +104,41 @@ impl OpenAICompatibleClient {
             .data
             .into_iter()
             .map(|model| classify_model(&model.id))
+            .collect())
+    }
+
+    async fn list_gemini_models(
+        &self,
+        config: &ProviderConnectionConfig,
+    ) -> anyhow::Result<Vec<DiscoveredModel>> {
+        let url = api_url(&config.base_url, "models");
+        let response = self
+            .with_protocol_auth(
+                self.client
+                    .get(url)
+                    .header(reqwest::header::USER_AGENT, "MyLLMBenchmark"),
+                config,
+                RealProviderProtocol::Gemini,
+            )
+            .timeout(Duration::from_secs(20))
+            .send()
+            .await
+            .map_err(map_reqwest_error)?;
+
+        ensure_success(response.status(), "models list")?;
+        let payload = response.json::<serde_json::Value>().await?;
+        Ok(payload
+            .get("models")
+            .and_then(|value| value.as_array())
+            .into_iter()
+            .flatten()
+            .filter_map(|model| {
+                model
+                    .get("name")
+                    .and_then(|value| value.as_str())
+                    .map(|name| name.trim_start_matches("models/").to_string())
+            })
+            .map(|name| classify_model(&name))
             .collect())
     }
 
@@ -78,6 +162,56 @@ impl OpenAICompatibleClient {
                 request_timeout_seconds,
             )
             .await
+        }
+    }
+
+    async fn text_generation(
+        &self,
+        config: &ProviderConnectionConfig,
+        protocol: RealProviderProtocol,
+        model: &str,
+        prompt: &str,
+        workload: &WorkloadConfig,
+        request_timeout_seconds: i64,
+    ) -> RequestOutcome {
+        match protocol {
+            RealProviderProtocol::OpenAICompatible => {
+                self.chat_completion(config, model, prompt, workload, request_timeout_seconds)
+                    .await
+            }
+            RealProviderProtocol::OpenAIResponses => {
+                self.openai_response(
+                    config,
+                    model,
+                    prompt,
+                    workload,
+                    request_timeout_seconds,
+                    None,
+                )
+                .await
+            }
+            RealProviderProtocol::Anthropic => {
+                self.anthropic_message(
+                    config,
+                    model,
+                    prompt,
+                    workload,
+                    request_timeout_seconds,
+                    None,
+                )
+                .await
+            }
+            RealProviderProtocol::Gemini => {
+                self.gemini_generate_content(
+                    config,
+                    model,
+                    prompt,
+                    workload,
+                    request_timeout_seconds,
+                    None,
+                )
+                .await
+            }
         }
     }
 
@@ -384,9 +518,227 @@ impl OpenAICompatibleClient {
         .with_body(Some(prompt.to_string()), Some(output), None)
     }
 
+    async fn openai_response(
+        &self,
+        config: &ProviderConnectionConfig,
+        model: &str,
+        prompt: &str,
+        workload: &WorkloadConfig,
+        request_timeout_seconds: i64,
+        vision_sample: Option<&VisionSample>,
+    ) -> RequestOutcome {
+        let started = Instant::now();
+        let body = vision_sample
+            .map(|sample| responses::vision_response_body(model, sample, workload))
+            .unwrap_or_else(|| responses::response_body(model, prompt, workload));
+        let response = match self
+            .with_protocol_auth(
+                self.client.post(api_url(&config.base_url, "responses")),
+                config,
+                RealProviderProtocol::OpenAIResponses,
+            )
+            .timeout(request_timeout(request_timeout_seconds))
+            .json(&body)
+            .send()
+            .await
+        {
+            Ok(response) => response,
+            Err(error) => {
+                return RequestOutcome::from_reqwest_error(error, started.elapsed()).with_body(
+                    Some(prompt.to_string()),
+                    None,
+                    None,
+                )
+            }
+        };
+        let status = response.status();
+        if !status.is_success() {
+            return RequestOutcome::from_status(status, started.elapsed()).with_body(
+                Some(prompt.to_string()),
+                None,
+                None,
+            );
+        }
+        let payload = match response.json::<serde_json::Value>().await {
+            Ok(payload) => payload,
+            Err(error) => {
+                return RequestOutcome::failure("parse", &error.to_string(), started.elapsed())
+                    .with_body(Some(prompt.to_string()), None, None)
+            }
+        };
+        let output = responses::extract_output_text(&payload);
+        let usage =
+            usage_from_value(&payload).unwrap_or_else(|| TokenUsage::estimated(prompt, &output));
+        RequestOutcome::success_with_units(
+            started.elapsed(),
+            started.elapsed(),
+            usage,
+            RequestUnits {
+                image_count: vision_sample
+                    .map(|sample| sample.image_urls.len() as i64)
+                    .unwrap_or(0),
+                ..RequestUnits::default()
+            },
+        )
+        .with_body(
+            Some(prompt.to_string()),
+            Some(output),
+            raw_usage_from_value(&payload),
+        )
+    }
+
+    async fn anthropic_message(
+        &self,
+        config: &ProviderConnectionConfig,
+        model: &str,
+        prompt: &str,
+        workload: &WorkloadConfig,
+        request_timeout_seconds: i64,
+        vision_sample: Option<&VisionSample>,
+    ) -> RequestOutcome {
+        let started = Instant::now();
+        let body = vision_sample
+            .map(|sample| anthropic::vision_messages_body(model, sample, workload))
+            .unwrap_or_else(|| anthropic::messages_body(model, prompt, workload));
+        let response = match self
+            .with_protocol_auth(
+                self.client.post(api_url(&config.base_url, "messages")),
+                config,
+                RealProviderProtocol::Anthropic,
+            )
+            .header("anthropic-version", "2023-06-01")
+            .timeout(request_timeout(request_timeout_seconds))
+            .json(&body)
+            .send()
+            .await
+        {
+            Ok(response) => response,
+            Err(error) => {
+                return RequestOutcome::from_reqwest_error(error, started.elapsed()).with_body(
+                    Some(prompt.to_string()),
+                    None,
+                    None,
+                )
+            }
+        };
+        let status = response.status();
+        if !status.is_success() {
+            return RequestOutcome::from_status(status, started.elapsed()).with_body(
+                Some(prompt.to_string()),
+                None,
+                None,
+            );
+        }
+        let payload = match response.json::<serde_json::Value>().await {
+            Ok(payload) => payload,
+            Err(error) => {
+                return RequestOutcome::failure("parse", &error.to_string(), started.elapsed())
+                    .with_body(Some(prompt.to_string()), None, None)
+            }
+        };
+        let output = anthropic::extract_text(&payload);
+        let usage =
+            usage_from_value(&payload).unwrap_or_else(|| TokenUsage::estimated(prompt, &output));
+        RequestOutcome::success_with_units(
+            started.elapsed(),
+            started.elapsed(),
+            usage,
+            RequestUnits {
+                image_count: vision_sample
+                    .map(|sample| sample.image_urls.len() as i64)
+                    .unwrap_or(0),
+                ..RequestUnits::default()
+            },
+        )
+        .with_body(
+            Some(prompt.to_string()),
+            Some(output),
+            raw_usage_from_value(&payload),
+        )
+    }
+
+    async fn gemini_generate_content(
+        &self,
+        config: &ProviderConnectionConfig,
+        model: &str,
+        prompt: &str,
+        workload: &WorkloadConfig,
+        request_timeout_seconds: i64,
+        vision_sample: Option<&VisionSample>,
+    ) -> RequestOutcome {
+        let started = Instant::now();
+        let body = vision_sample
+            .map(|sample| gemini::vision_generate_content_body(sample, workload))
+            .unwrap_or_else(|| gemini::generate_content_body(prompt, workload));
+        let path = format!(
+            "models/{}:generateContent",
+            model.trim_start_matches("models/")
+        );
+        let response = match self
+            .with_protocol_auth(
+                self.client.post(api_url(&config.base_url, &path)),
+                config,
+                RealProviderProtocol::Gemini,
+            )
+            .timeout(request_timeout(request_timeout_seconds))
+            .json(&body)
+            .send()
+            .await
+        {
+            Ok(response) => response,
+            Err(error) => {
+                return RequestOutcome::from_reqwest_error(error, started.elapsed()).with_body(
+                    Some(prompt.to_string()),
+                    None,
+                    None,
+                )
+            }
+        };
+        let status = response.status();
+        if !status.is_success() {
+            return RequestOutcome::from_status(status, started.elapsed()).with_body(
+                Some(prompt.to_string()),
+                None,
+                None,
+            );
+        }
+        let payload = match response.json::<serde_json::Value>().await {
+            Ok(payload) => payload,
+            Err(error) => {
+                return RequestOutcome::failure("parse", &error.to_string(), started.elapsed())
+                    .with_body(Some(prompt.to_string()), None, None)
+            }
+        };
+        let output = gemini::extract_text(&payload);
+        let usage = gemini::usage_from_value(&payload)
+            .map(|(input_tokens, output_tokens, total_tokens)| TokenUsage {
+                input_tokens,
+                output_tokens,
+                total_tokens,
+            })
+            .unwrap_or_else(|| TokenUsage::estimated(prompt, &output));
+        RequestOutcome::success_with_units(
+            started.elapsed(),
+            started.elapsed(),
+            usage,
+            RequestUnits {
+                image_count: vision_sample
+                    .map(|sample| sample.image_urls.len() as i64)
+                    .unwrap_or(0),
+                ..RequestUnits::default()
+            },
+        )
+        .with_body(
+            Some(prompt.to_string()),
+            Some(output),
+            payload.get("usageMetadata").cloned(),
+        )
+    }
+
     async fn vision_completion(
         &self,
         config: &ProviderConnectionConfig,
+        protocol: RealProviderProtocol,
         model: &str,
         sample: &DatasetSample,
         workload: &WorkloadConfig,
@@ -395,6 +747,45 @@ impl OpenAICompatibleClient {
         let started = Instant::now();
         let vision_sample = parse_vision_sample(&sample.prompt, workload.image_count);
         let prompt_for_log = sample.prompt.clone();
+        match protocol {
+            RealProviderProtocol::OpenAICompatible => {}
+            RealProviderProtocol::OpenAIResponses => {
+                return self
+                    .openai_response(
+                        config,
+                        model,
+                        &prompt_for_log,
+                        workload,
+                        request_timeout_seconds,
+                        Some(&vision_sample),
+                    )
+                    .await;
+            }
+            RealProviderProtocol::Anthropic => {
+                return self
+                    .anthropic_message(
+                        config,
+                        model,
+                        &prompt_for_log,
+                        workload,
+                        request_timeout_seconds,
+                        Some(&vision_sample),
+                    )
+                    .await;
+            }
+            RealProviderProtocol::Gemini => {
+                return self
+                    .gemini_generate_content(
+                        config,
+                        model,
+                        &prompt_for_log,
+                        workload,
+                        request_timeout_seconds,
+                        Some(&vision_sample),
+                    )
+                    .await;
+            }
+        }
         let body = vision::vision_completion_body(model, &vision_sample, workload);
         let response = match self
             .with_auth(
@@ -463,6 +854,7 @@ pub struct OpenAICompatibleBenchmarkRuntime {
     publisher: BenchmarkEventPublisher,
     persistence: BenchmarkPersistence,
     client: OpenAICompatibleClient,
+    protocol: RealProviderProtocol,
 }
 
 impl OpenAICompatibleBenchmarkRuntime {
@@ -475,6 +867,8 @@ impl OpenAICompatibleBenchmarkRuntime {
         publisher: BenchmarkEventPublisher,
         persistence: BenchmarkPersistence,
     ) -> anyhow::Result<Self> {
+        let protocol = RealProviderProtocol::from_interface_type(&provider.interface_type)
+            .unwrap_or(RealProviderProtocol::OpenAICompatible);
         Ok(Self {
             task,
             input,
@@ -484,6 +878,7 @@ impl OpenAICompatibleBenchmarkRuntime {
             publisher,
             persistence,
             client: OpenAICompatibleClient::new()?,
+            protocol,
         })
     }
 
@@ -523,7 +918,7 @@ impl OpenAICompatibleBenchmarkRuntime {
         let task_id = self.task.id.clone();
         let model_type = ModelType::normalize(&self.task.model_type);
         self.persistence
-            .mark_engine_mode(&task_id, "openai_compatible")
+            .mark_engine_mode(&task_id, self.protocol.engine_mode())
             .await?;
         let plan = BenchmarkPlan::from_input(&self.input);
         let workload =
@@ -536,7 +931,8 @@ impl OpenAICompatibleBenchmarkRuntime {
             task_id: task_id.clone(),
             stage: "warmup".to_string(),
             message: format!(
-                "真实 OpenAI Compatible 压测开始：共 {} 个阶段，并发序列 {}",
+                "真实 {} 压测开始：共 {} 个阶段，并发序列 {}",
+                self.protocol.label(),
                 plan.stages.len(),
                 plan.stages
                     .iter()
@@ -711,45 +1107,63 @@ impl OpenAICompatibleBenchmarkRuntime {
             let sample = self.samples[sample_index].clone();
             let client = self.client.clone();
             let provider = self.provider.clone();
+            let protocol = self.protocol;
             let model = self.task.model_name.clone();
             let workload = workload.clone();
             let samples = self.samples.clone();
             async move {
                 let outcome = match model_type {
                     ModelType::Embedding => {
-                        let inputs = collect_embedding_inputs(
-                            &samples,
-                            sample_index,
-                            workload
-                                .text_count_per_request
-                                .max(workload.batch_size)
-                                .max(1) as usize,
-                        );
-                        client
-                            .embedding(&provider, &model, inputs, request_timeout_seconds)
-                            .await
+                        if protocol == RealProviderProtocol::OpenAICompatible {
+                            let inputs = collect_embedding_inputs(
+                                &samples,
+                                sample_index,
+                                workload
+                                    .text_count_per_request
+                                    .max(workload.batch_size)
+                                    .max(1) as usize,
+                            );
+                            client
+                                .embedding(&provider, &model, inputs, request_timeout_seconds)
+                                .await
+                        } else {
+                            RequestOutcome::failure(
+                                "unsupported",
+                                &format!("{} 当前不支持 Embedding 压测", protocol.label()),
+                                Duration::ZERO,
+                            )
+                        }
                     }
                     ModelType::Rerank => {
-                        let (query, documents) = collect_rerank_inputs(
-                            &samples,
-                            sample_index,
-                            workload.documents_per_query.max(1) as usize,
-                        );
-                        client
-                            .rerank(
-                                &provider,
-                                &model,
-                                query,
-                                documents,
-                                &workload,
-                                request_timeout_seconds,
+                        if protocol == RealProviderProtocol::OpenAICompatible {
+                            let (query, documents) = collect_rerank_inputs(
+                                &samples,
+                                sample_index,
+                                workload.documents_per_query.max(1) as usize,
+                            );
+                            client
+                                .rerank(
+                                    &provider,
+                                    &model,
+                                    query,
+                                    documents,
+                                    &workload,
+                                    request_timeout_seconds,
+                                )
+                                .await
+                        } else {
+                            RequestOutcome::failure(
+                                "unsupported",
+                                &format!("{} 当前不支持 Rerank 压测", protocol.label()),
+                                Duration::ZERO,
                             )
-                            .await
+                        }
                     }
                     ModelType::Multimodal => {
                         client
                             .vision_completion(
                                 &provider,
+                                protocol,
                                 &model,
                                 &sample,
                                 &workload,
@@ -759,8 +1173,9 @@ impl OpenAICompatibleBenchmarkRuntime {
                     }
                     ModelType::TextGeneration => {
                         client
-                            .chat_completion(
+                            .text_generation(
                                 &provider,
+                                protocol,
                                 &model,
                                 &sample.prompt,
                                 &workload,
@@ -929,9 +1344,22 @@ impl OpenAICompatibleClient {
         request: reqwest::RequestBuilder,
         config: &ProviderConnectionConfig,
     ) -> reqwest::RequestBuilder {
+        self.with_protocol_auth(request, config, RealProviderProtocol::OpenAICompatible)
+    }
+
+    fn with_protocol_auth(
+        &self,
+        request: reqwest::RequestBuilder,
+        config: &ProviderConnectionConfig,
+        protocol: RealProviderProtocol,
+    ) -> reqwest::RequestBuilder {
         let key = config.api_key_plaintext.trim();
         if key.is_empty() {
             request
+        } else if protocol == RealProviderProtocol::Anthropic {
+            request.header("x-api-key", key)
+        } else if protocol == RealProviderProtocol::Gemini {
+            request.query(&[("key", key)])
         } else {
             request.bearer_auth(key)
         }
@@ -1261,8 +1689,8 @@ struct ModelItem {
 #[cfg(test)]
 mod tests {
     use super::{
-        api_url, classify_model, parse_vision_sample, OpenAICompatibleClient, RequestOutcome,
-        RequestUnits, TokenUsage,
+        anthropic, api_url, classify_model, gemini, parse_vision_sample, responses,
+        OpenAICompatibleClient, RealProviderProtocol, RequestOutcome, RequestUnits, TokenUsage,
     };
     use crate::config::BenchmarkEngineMode;
     use crate::domain::{model_type::ModelType, workload::WorkloadConfig};
@@ -1299,6 +1727,57 @@ mod tests {
         assert_eq!(classify_model("bce-reranker").model_type, "reranker");
         assert_eq!(classify_model("qwen-vl").model_type, "multimodal");
         assert_eq!(classify_model("deepseek-r1").model_type, "text_generation");
+    }
+
+    #[test]
+    fn maps_real_provider_protocols_from_interface_type() {
+        assert_eq!(
+            RealProviderProtocol::from_interface_type("OpenAI-Response"),
+            Some(RealProviderProtocol::OpenAIResponses)
+        );
+        assert_eq!(
+            RealProviderProtocol::from_interface_type("Anthropic"),
+            Some(RealProviderProtocol::Anthropic)
+        );
+        assert_eq!(
+            RealProviderProtocol::from_interface_type("Gemini"),
+            Some(RealProviderProtocol::Gemini)
+        );
+        assert_eq!(
+            RealProviderProtocol::from_interface_type("OpenAI"),
+            Some(RealProviderProtocol::OpenAICompatible)
+        );
+    }
+
+    #[test]
+    fn extracts_text_from_real_protocol_payloads() {
+        let responses_payload = serde_json::json!({
+            "output": [{
+                "content": [{"type": "output_text", "text": "Responses OK"}]
+            }]
+        });
+        let anthropic_payload = serde_json::json!({
+            "content": [{"type": "text", "text": "Anthropic OK"}],
+            "usage": {"input_tokens": 10, "output_tokens": 2}
+        });
+        let gemini_payload = serde_json::json!({
+            "candidates": [{
+                "content": {"parts": [{"text": "Gemini OK"}]}
+            }],
+            "usageMetadata": {
+                "promptTokenCount": 12,
+                "candidatesTokenCount": 3,
+                "totalTokenCount": 15
+            }
+        });
+
+        assert_eq!(
+            responses::extract_output_text(&responses_payload),
+            "Responses OK"
+        );
+        assert_eq!(anthropic::extract_text(&anthropic_payload), "Anthropic OK");
+        assert_eq!(gemini::extract_text(&gemini_payload), "Gemini OK");
+        assert_eq!(gemini::usage_from_value(&gemini_payload), Some((12, 3, 15)));
     }
 
     #[test]

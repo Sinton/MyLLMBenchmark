@@ -10,8 +10,9 @@ use reqwest::StatusCode;
 use tokio::time::Instant;
 
 use super::{
-    api_url, chat, classify_model, duration_ms, embedding, map_reqwest_error, parse_vision_sample,
-    request_timeout, rerank, vision, ModelsResponse, OpenAICompatibleClient,
+    anthropic, api_url, chat, classify_model, duration_ms, embedding, gemini, map_reqwest_error,
+    parse_vision_sample, request_timeout, rerank, responses, vision, ModelsResponse,
+    OpenAICompatibleClient, RealProviderProtocol,
 };
 
 impl OpenAICompatibleClient {
@@ -30,12 +31,11 @@ impl OpenAICompatibleClient {
         }
         .to_string();
 
-        if is_unsupported_interface(&config.interface_type) {
-            return unsupported_result(config, checked_at, engine_mode_label);
-        }
+        let protocol = RealProviderProtocol::from_interface_type(&config.interface_type)
+            .unwrap_or(RealProviderProtocol::OpenAICompatible);
 
         let mut endpoints = Vec::new();
-        let (models_endpoint, discovered_models) = self.probe_models(config).await;
+        let (models_endpoint, discovered_models) = self.probe_models(config, protocol).await;
         endpoints.push(models_endpoint);
 
         let selected = select_model(input, stored_models, &discovered_models);
@@ -43,36 +43,54 @@ impl OpenAICompatibleClient {
             let workload = WorkloadConfig::for_model_type(model_type.as_str());
             match model_type {
                 ModelType::Embedding => {
-                    endpoints.push(
-                        self.probe_json_post(
-                            config,
+                    if protocol == RealProviderProtocol::OpenAICompatible {
+                        endpoints.push(
+                            self.probe_json_post(
+                                config,
+                                protocol,
+                                "Embedding 最小请求",
+                                "embeddings",
+                                embedding::embeddings_body(
+                                    &model_name,
+                                    sample_prompts(samples, 2, embedding::diagnostic_inputs()),
+                                ),
+                                30,
+                            )
+                            .await,
+                        );
+                    } else {
+                        endpoints.push(unsupported_model_type_endpoint(
+                            protocol,
                             "Embedding 最小请求",
-                            "embeddings",
-                            embedding::embeddings_body(
-                                &model_name,
-                                sample_prompts(samples, 2, embedding::diagnostic_inputs()),
-                            ),
-                            30,
-                        )
-                        .await,
-                    );
+                            model_type,
+                        ));
+                    }
                 }
                 ModelType::Rerank => {
-                    endpoints.push(
-                        self.probe_json_post(
-                            config,
+                    if protocol == RealProviderProtocol::OpenAICompatible {
+                        endpoints.push(
+                            self.probe_json_post(
+                                config,
+                                protocol,
+                                "Rerank 最小请求",
+                                "rerank",
+                                rerank::rerank_body(
+                                    &model_name,
+                                    sample_prompt(samples).unwrap_or_else(rerank::diagnostic_query),
+                                    sample_prompts(samples, 3, rerank::diagnostic_documents()),
+                                    &workload,
+                                ),
+                                30,
+                            )
+                            .await,
+                        );
+                    } else {
+                        endpoints.push(unsupported_model_type_endpoint(
+                            protocol,
                             "Rerank 最小请求",
-                            "rerank",
-                            rerank::rerank_body(
-                                &model_name,
-                                sample_prompt(samples).unwrap_or_else(rerank::diagnostic_query),
-                                sample_prompts(samples, 3, rerank::diagnostic_documents()),
-                                &workload,
-                            ),
-                            30,
-                        )
-                        .await,
-                    );
+                            model_type,
+                        ));
+                    }
                 }
                 ModelType::Multimodal => {
                     if let Some(sample) = samples
@@ -83,9 +101,10 @@ impl OpenAICompatibleClient {
                         endpoints.push(
                             self.probe_json_post(
                                 config,
+                                protocol,
                                 "Vision 最小请求",
-                                "chat/completions",
-                                vision::vision_completion_body(&model_name, &sample, &workload),
+                                vision_probe_path(protocol, &model_name),
+                                vision_probe_body(protocol, &model_name, &sample, &workload),
                                 45,
                             )
                             .await,
@@ -109,16 +128,16 @@ impl OpenAICompatibleClient {
                     endpoints.push(
                         self.probe_json_post(
                             config,
-                            "Chat 最小请求",
-                            "chat/completions",
-                            chat::completion_body(
+                            protocol,
+                            text_probe_name(protocol),
+                            text_probe_path(protocol, &model_name),
+                            text_probe_body(
+                                protocol,
                                 &model_name,
-                                sample_prompt(samples)
-                                    .unwrap_or_else(|| chat::diagnostic_prompt().to_string())
-                                    .as_str(),
+                                sample_prompt(samples).unwrap_or_else(|| {
+                                    diagnostic_prompt_for_protocol(protocol).to_string()
+                                }),
                                 &workload,
-                                false,
-                                0.2,
                             ),
                             45,
                         )
@@ -154,14 +173,18 @@ impl OpenAICompatibleClient {
     async fn probe_models(
         &self,
         config: &ProviderConnectionConfig,
+        protocol: RealProviderProtocol,
     ) -> (DiagnosticEndpoint, Vec<DiscoveredModel>) {
         let started = Instant::now();
-        let response = match self
-            .with_auth(self.client.get(api_url(&config.base_url, "models")), config)
-            .timeout(request_timeout(20))
-            .send()
-            .await
-        {
+        let mut request = self.with_protocol_auth(
+            self.client.get(api_url(&config.base_url, "models")),
+            config,
+            protocol,
+        );
+        if protocol == RealProviderProtocol::Anthropic {
+            request = request.header("anthropic-version", "2023-06-01");
+        }
+        let response = match request.timeout(request_timeout(20)).send().await {
             Ok(response) => response,
             Err(error) => {
                 let mapped = map_reqwest_error(error);
@@ -187,6 +210,52 @@ impl OpenAICompatibleClient {
                 endpoint_from_status("模型列表", "GET", "/models", status, latency_ms),
                 Vec::new(),
             );
+        }
+
+        if protocol == RealProviderProtocol::Gemini {
+            return match response.json::<serde_json::Value>().await {
+                Ok(payload) => {
+                    let models = payload
+                        .get("models")
+                        .and_then(|value| value.as_array())
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|model| {
+                            model
+                                .get("name")
+                                .and_then(|value| value.as_str())
+                                .map(|name| name.trim_start_matches("models/").to_string())
+                        })
+                        .map(|name| classify_model(&name))
+                        .collect::<Vec<_>>();
+                    (
+                        DiagnosticEndpoint {
+                            name: "模型列表".to_string(),
+                            method: "GET".to_string(),
+                            path: "/models".to_string(),
+                            ok: true,
+                            latency_ms,
+                            http_status: Some(status.as_u16() as i64),
+                            message: format!("读取成功，发现 {} 个 Gemini 模型。", models.len()),
+                            error_kind: None,
+                        },
+                        models,
+                    )
+                }
+                Err(error) => (
+                    DiagnosticEndpoint {
+                        name: "模型列表".to_string(),
+                        method: "GET".to_string(),
+                        path: "/models".to_string(),
+                        ok: false,
+                        latency_ms,
+                        http_status: Some(status.as_u16() as i64),
+                        message: format!("响应解析失败：{error}"),
+                        error_kind: Some("parse".to_string()),
+                    },
+                    Vec::new(),
+                ),
+            };
         }
 
         match response.json::<ModelsResponse>().await {
@@ -229,14 +298,23 @@ impl OpenAICompatibleClient {
     async fn probe_json_post(
         &self,
         config: &ProviderConnectionConfig,
+        protocol: RealProviderProtocol,
         name: &str,
-        path: &str,
+        path: impl AsRef<str>,
         body: serde_json::Value,
         timeout_seconds: i64,
     ) -> DiagnosticEndpoint {
         let started = Instant::now();
-        let response = match self
-            .with_auth(self.client.post(api_url(&config.base_url, path)), config)
+        let path = path.as_ref();
+        let mut request = self.with_protocol_auth(
+            self.client.post(api_url(&config.base_url, path)),
+            config,
+            protocol,
+        );
+        if protocol == RealProviderProtocol::Anthropic {
+            request = request.header("anthropic-version", "2023-06-01");
+        }
+        let response = match request
             .timeout(request_timeout(timeout_seconds))
             .json(&body)
             .send()
@@ -300,38 +378,99 @@ impl OpenAICompatibleClient {
     }
 }
 
-fn unsupported_result(
-    config: &ProviderConnectionConfig,
-    checked_at: String,
-    engine_mode: String,
-) -> ProviderDiagnosticsResult {
-    ProviderDiagnosticsResult {
-        provider_id: config.id.clone(),
-        status: "unsupported".to_string(),
-        checked_at,
-        engine_mode,
-        endpoints: vec![DiagnosticEndpoint {
-            name: "真实引擎支持状态".to_string(),
-            method: "LOCAL".to_string(),
-            path: config.interface_type.clone(),
-            ok: false,
-            latency_ms: None,
-            http_status: None,
-            message: format!(
-                "{} 当前版本未启用真实压测引擎；不会按 OpenAI 协议误发请求。",
-                config.interface_type
-            ),
-            error_kind: Some("unsupported".to_string()),
-        }],
-        recommendations: vec![
-            "当前版本真实压测优先支持 OpenAI Compatible 与 Jina Rerank。".to_string(),
-            "该服务商可继续作为配置记录，真实引擎适配放在后续版本。".to_string(),
-        ],
+fn text_probe_name(protocol: RealProviderProtocol) -> &'static str {
+    match protocol {
+        RealProviderProtocol::OpenAICompatible => "Chat 最小请求",
+        RealProviderProtocol::OpenAIResponses => "Responses 最小请求",
+        RealProviderProtocol::Anthropic => "Anthropic Messages 最小请求",
+        RealProviderProtocol::Gemini => "Gemini GenerateContent 最小请求",
     }
 }
 
-fn is_unsupported_interface(interface_type: &str) -> bool {
-    matches!(interface_type, "OpenAI-Response" | "Anthropic" | "Gemini")
+fn text_probe_path(protocol: RealProviderProtocol, model_name: &str) -> String {
+    match protocol {
+        RealProviderProtocol::OpenAICompatible => "chat/completions".to_string(),
+        RealProviderProtocol::OpenAIResponses => "responses".to_string(),
+        RealProviderProtocol::Anthropic => "messages".to_string(),
+        RealProviderProtocol::Gemini => {
+            format!(
+                "models/{}:generateContent",
+                model_name.trim_start_matches("models/")
+            )
+        }
+    }
+}
+
+fn vision_probe_path(protocol: RealProviderProtocol, model_name: &str) -> String {
+    text_probe_path(protocol, model_name)
+}
+
+fn text_probe_body(
+    protocol: RealProviderProtocol,
+    model_name: &str,
+    prompt: String,
+    workload: &WorkloadConfig,
+) -> serde_json::Value {
+    match protocol {
+        RealProviderProtocol::OpenAICompatible => {
+            chat::completion_body(model_name, &prompt, workload, false, 0.2)
+        }
+        RealProviderProtocol::OpenAIResponses => {
+            responses::response_body(model_name, &prompt, workload)
+        }
+        RealProviderProtocol::Anthropic => anthropic::messages_body(model_name, &prompt, workload),
+        RealProviderProtocol::Gemini => gemini::generate_content_body(&prompt, workload),
+    }
+}
+
+fn vision_probe_body(
+    protocol: RealProviderProtocol,
+    model_name: &str,
+    sample: &super::VisionSample,
+    workload: &WorkloadConfig,
+) -> serde_json::Value {
+    match protocol {
+        RealProviderProtocol::OpenAICompatible => {
+            vision::vision_completion_body(model_name, sample, workload)
+        }
+        RealProviderProtocol::OpenAIResponses => {
+            responses::vision_response_body(model_name, sample, workload)
+        }
+        RealProviderProtocol::Anthropic => {
+            anthropic::vision_messages_body(model_name, sample, workload)
+        }
+        RealProviderProtocol::Gemini => gemini::vision_generate_content_body(sample, workload),
+    }
+}
+
+fn diagnostic_prompt_for_protocol(protocol: RealProviderProtocol) -> &'static str {
+    match protocol {
+        RealProviderProtocol::OpenAICompatible => chat::diagnostic_prompt(),
+        RealProviderProtocol::OpenAIResponses => responses::diagnostic_prompt(),
+        RealProviderProtocol::Anthropic => anthropic::diagnostic_prompt(),
+        RealProviderProtocol::Gemini => gemini::diagnostic_prompt(),
+    }
+}
+
+fn unsupported_model_type_endpoint(
+    protocol: RealProviderProtocol,
+    name: &str,
+    model_type: ModelType,
+) -> DiagnosticEndpoint {
+    DiagnosticEndpoint {
+        name: name.to_string(),
+        method: "LOCAL".to_string(),
+        path: protocol.label().to_string(),
+        ok: false,
+        latency_ms: None,
+        http_status: None,
+        message: format!(
+            "{} 当前真实压测不支持 {} 模型。",
+            protocol.label(),
+            model_type.as_str()
+        ),
+        error_kind: Some("unsupported_model_type".to_string()),
+    }
 }
 
 fn select_model(
