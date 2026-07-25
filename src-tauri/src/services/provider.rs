@@ -1,5 +1,5 @@
 use super::provider_demo;
-use crate::benchmark::engines::openai::OpenAICompatibleClient;
+use crate::benchmark::engines::real::RealProviderClient;
 use crate::config::BenchmarkEngineMode;
 use crate::error::AppResult;
 use crate::models::{
@@ -50,7 +50,7 @@ pub async fn test_provider_connection(
 
     let checked_at = Utc::now().to_rfc3339();
     let config = state.provider_connection_config(provider_id).await?;
-    let client = OpenAICompatibleClient::new()?;
+    let client = RealProviderClient::new()?;
     match client.list_models(&config).await {
         Ok(models) => {
             state
@@ -115,7 +115,7 @@ pub async fn scan_provider_models(
 
     let scanned_at = Utc::now().to_rfc3339();
     let config = state.provider_connection_config(provider_id).await?;
-    let client = OpenAICompatibleClient::new()?;
+    let client = RealProviderClient::new()?;
     let discovered = client.list_models(&config).await?;
     let models = state
         .replace_provider_models(provider_id, discovered, &scanned_at)
@@ -154,7 +154,7 @@ pub async fn diagnose_provider(
     } else {
         Vec::new()
     };
-    let client = OpenAICompatibleClient::new()?;
+    let client = RealProviderClient::new()?;
     let result = client
         .diagnose_provider(
             &config,

@@ -28,7 +28,7 @@ pub fn spawn_mock_benchmark(
     });
 }
 
-pub fn spawn_openai_compatible_benchmark(
+pub fn spawn_real_benchmark(
     app: AppHandle,
     state: AppState,
     task: BenchmarkTaskSummary,
@@ -41,7 +41,7 @@ pub fn spawn_openai_compatible_benchmark(
         let publisher = BenchmarkEventPublisher::new(app);
         let persistence = BenchmarkPersistence::new(state);
         let task_id = task.id.clone();
-        match crate::benchmark::engines::openai::OpenAICompatibleBenchmarkRuntime::new(
+        match crate::benchmark::engines::real::RealBenchmarkRuntime::new(
             task,
             input,
             provider,

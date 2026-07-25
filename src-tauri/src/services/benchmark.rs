@@ -1,5 +1,5 @@
-use crate::benchmark::engines::openai::RealProviderProtocol;
-use crate::benchmark::runner::{spawn_mock_benchmark, spawn_openai_compatible_benchmark};
+use crate::benchmark::engines::real::RealProviderProtocol;
+use crate::benchmark::runner::{spawn_mock_benchmark, spawn_real_benchmark};
 use crate::config::BenchmarkEngineMode;
 use crate::domain::model_type::ModelType;
 use crate::domain::workload::WorkloadConfig;
@@ -50,7 +50,7 @@ pub async fn start_benchmark(
         }
         BenchmarkEngineMode::OpenaiCompatible => {
             let context = real_context.expect("real context is prepared");
-            spawn_openai_compatible_benchmark(
+            spawn_real_benchmark(
                 app,
                 state.clone(),
                 task.clone(),

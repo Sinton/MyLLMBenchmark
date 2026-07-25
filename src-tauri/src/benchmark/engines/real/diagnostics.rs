@@ -1,3 +1,7 @@
+use super::providers::{
+    anthropic, embedding_openai as embedding, gemini, jina_rerank as rerank,
+    openai_compatible as chat, openai_responses as responses, vision_openai as vision,
+};
 use crate::{
     config::BenchmarkEngineMode,
     domain::{model_type::ModelType, workload::WorkloadConfig},
@@ -10,12 +14,11 @@ use reqwest::StatusCode;
 use tokio::time::Instant;
 
 use super::{
-    anthropic, api_url, chat, classify_model, duration_ms, embedding, gemini, map_reqwest_error,
-    parse_vision_sample, request_timeout, rerank, responses, vision, ModelsResponse,
-    OpenAICompatibleClient, RealProviderProtocol,
+    api_url, classify_model, duration_ms, map_reqwest_error, parse_vision_sample, request_timeout,
+    ModelsResponse, RealProviderClient, RealProviderProtocol,
 };
 
-impl OpenAICompatibleClient {
+impl RealProviderClient {
     pub async fn diagnose_provider(
         &self,
         config: &ProviderConnectionConfig,

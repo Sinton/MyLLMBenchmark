@@ -1,13 +1,7 @@
-mod anthropic;
-mod chat;
 pub mod diagnostics;
-mod embedding;
-mod gemini;
 mod metrics;
+mod providers;
 mod request_logs;
-mod rerank;
-mod responses;
-mod vision;
 
 use crate::models::{DiscoveredModel, ProviderConnectionConfig};
 use crate::{
@@ -21,6 +15,10 @@ use crate::{
     },
 };
 use futures_util::{future::join_all, StreamExt};
+use providers::{
+    anthropic, embedding_openai as embedding, gemini, jina_rerank as rerank,
+    openai_compatible as chat, openai_responses as responses, vision_openai as vision,
+};
 use reqwest::{Client, StatusCode};
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -29,7 +27,7 @@ use tokio::sync::watch;
 use tokio::time::Instant;
 
 #[derive(Clone)]
-pub struct OpenAICompatibleClient {
+pub struct RealProviderClient {
     client: Client,
 }
 
@@ -71,7 +69,7 @@ impl RealProviderProtocol {
     }
 }
 
-impl OpenAICompatibleClient {
+impl RealProviderClient {
     pub fn new() -> anyhow::Result<Self> {
         Ok(Self {
             client: Client::builder().build()?,
@@ -845,7 +843,7 @@ impl OpenAICompatibleClient {
     }
 }
 
-pub struct OpenAICompatibleBenchmarkRuntime {
+pub struct RealBenchmarkRuntime {
     task: BenchmarkTaskSummary,
     input: BenchmarkStartInput,
     provider: ProviderConnectionConfig,
@@ -853,11 +851,11 @@ pub struct OpenAICompatibleBenchmarkRuntime {
     stop_rx: watch::Receiver<bool>,
     publisher: BenchmarkEventPublisher,
     persistence: BenchmarkPersistence,
-    client: OpenAICompatibleClient,
+    client: RealProviderClient,
     protocol: RealProviderProtocol,
 }
 
-impl OpenAICompatibleBenchmarkRuntime {
+impl RealBenchmarkRuntime {
     pub fn new(
         task: BenchmarkTaskSummary,
         input: BenchmarkStartInput,
@@ -877,7 +875,7 @@ impl OpenAICompatibleBenchmarkRuntime {
             stop_rx,
             publisher,
             persistence,
-            client: OpenAICompatibleClient::new()?,
+            client: RealProviderClient::new()?,
             protocol,
         })
     }
@@ -1338,7 +1336,7 @@ pub fn classify_model(model_name: &str) -> DiscoveredModel {
     }
 }
 
-impl OpenAICompatibleClient {
+impl RealProviderClient {
     fn with_auth(
         &self,
         request: reqwest::RequestBuilder,
@@ -1690,7 +1688,7 @@ struct ModelItem {
 mod tests {
     use super::{
         anthropic, api_url, classify_model, gemini, parse_vision_sample, responses,
-        OpenAICompatibleClient, RealProviderProtocol, RequestOutcome, RequestUnits, TokenUsage,
+        RealProviderClient, RealProviderProtocol, RequestOutcome, RequestUnits, TokenUsage,
     };
     use crate::config::BenchmarkEngineMode;
     use crate::domain::{model_type::ModelType, workload::WorkloadConfig};
@@ -1919,7 +1917,7 @@ mod tests {
             api_key_plaintext: "sk-secret-for-test".to_string(),
             interface_type: "OpenAI".to_string(),
         };
-        let client = OpenAICompatibleClient::new().unwrap();
+        let client = RealProviderClient::new().unwrap();
 
         let result = client
             .diagnose_provider(
