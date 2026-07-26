@@ -1,4 +1,5 @@
-use super::{preview_text, RequestOutcome};
+use super::helpers::preview_text;
+use super::outcome::RequestOutcome;
 use crate::benchmark::persistence::BenchmarkPersistence;
 use crate::models::{BenchmarkRequestLogRecord, BenchmarkRequestLogSummary, RequestLogConfig};
 use uuid::Uuid;

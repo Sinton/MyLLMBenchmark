@@ -3,6 +3,7 @@ use crate::models::ReportDetail;
 use super::html::build_trend_svg;
 use super::utils::{
     format_metric_value, join_numbers, request_log_appendix_text, request_log_meta_text,
+    ttft_source_text,
 };
 
 pub(crate) struct ReportDocument {
@@ -49,6 +50,10 @@ impl ReportDocument {
                     detail.request_log_meta.total_records,
                     detail.request_log_meta.body_records,
                 ),
+            ),
+            (
+                "TTFT 口径".to_string(),
+                ttft_source_text(&detail.ttft_source).to_string(),
             ),
             (
                 "推荐生产并发".to_string(),
@@ -107,6 +112,10 @@ impl ReportDocument {
                             detail.request_log_meta.body_records,
                         ),
                     ],
+                    vec![
+                        "TTFT 口径".to_string(),
+                        ttft_source_text(&detail.ttft_source).to_string(),
+                    ],
                     vec!["计划阶梯".to_string(), join_numbers(&detail.planned_stages)],
                     vec![
                         "实际阶梯".to_string(),
@@ -153,10 +162,11 @@ impl ReportDocument {
             DocumentSection {
                 title: "趋势摘要".to_string(),
                 paragraphs: vec![format!(
-                    "共记录 {} 个实时指标点，末次稳定 QPS {:.2}，TTFT {}ms，输出/专项吞吐 {:.2}。",
+                    "共记录 {} 个实时指标点，末次稳定 QPS {:.2}，TTFT {}ms（{}），输出/专项吞吐 {:.2}。",
                     detail.trends.len(),
                     detail.stable_qps,
                     detail.ttft_ms,
+                    ttft_source_text(&detail.ttft_source),
                     detail.tps
                 )],
                 rows: trend_rows(detail),
@@ -222,6 +232,10 @@ impl ReportDocument {
                     vec!["Report ID".to_string(), detail.summary.id.clone()],
                     vec!["Task ID".to_string(), detail.summary.task_id.clone()],
                     vec!["数据来源".to_string(), source_label.to_string()],
+                    vec![
+                        "TTFT 口径".to_string(),
+                        ttft_source_text(&detail.ttft_source).to_string(),
+                    ],
                     vec![
                         "请求明细索引".to_string(),
                         format!("{} 条", detail.request_log_meta.total_records),

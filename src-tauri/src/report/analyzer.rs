@@ -1,3 +1,4 @@
+use crate::domain::model_type::ModelType;
 use crate::models::{
     DatasetValidationResult, MetricsTick, ProviderDiagnosticsResult, ReportDetail,
     ReportErrorBucket, ReportRequestLogMeta, ReportStageSummary, ReportSummary,
@@ -67,6 +68,7 @@ pub fn build_report_detail(
         .map(|tick| tick.ttft_ms)
         .or_else(|| stable_stage.map(|stage| stage.ttft_ms))
         .unwrap_or(0);
+    let ttft_source = ttft_source_for(&source, &context.model_type, &context.workload_config);
     let tps = latest_tick
         .map(|tick| tick.tps)
         .or_else(|| stable_stage.map(|stage| stage.tps))
@@ -154,6 +156,7 @@ pub fn build_report_detail(
         capacity_conclusion,
         stable_qps,
         ttft_ms,
+        ttft_source,
         tps,
         token_throughput,
         input_tokens,
@@ -168,6 +171,24 @@ pub fn build_report_detail(
         diagnostics_snapshot: context.diagnostics_snapshot,
         dataset_quality: context.dataset_quality,
         request_log_meta: context.request_log_meta,
+    }
+}
+
+fn ttft_source_for(source: &str, model_type: &str, workload_config: &serde_json::Value) -> String {
+    if !ModelType::normalize(model_type).has_ttft() {
+        return "not_applicable".to_string();
+    }
+    if source == "estimated" {
+        return "historical_estimated".to_string();
+    }
+    if workload_config
+        .get("streaming")
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false)
+    {
+        "streaming_real".to_string()
+    } else {
+        "non_streaming_approximation".to_string()
     }
 }
 

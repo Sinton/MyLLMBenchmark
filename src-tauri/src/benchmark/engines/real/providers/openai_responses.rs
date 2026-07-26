@@ -1,6 +1,6 @@
 use crate::domain::workload::WorkloadConfig;
 
-use super::super::VisionSample;
+use super::super::helpers::VisionSample;
 
 pub(crate) fn response_body(
     model: &str,
@@ -13,6 +13,16 @@ pub(crate) fn response_body(
         "max_output_tokens": workload.max_output_tokens.max(1),
         "temperature": 0.7
     })
+}
+
+pub(crate) fn streaming_response_body(
+    model: &str,
+    prompt: &str,
+    workload: &WorkloadConfig,
+) -> serde_json::Value {
+    let mut body = response_body(model, prompt, workload);
+    body["stream"] = serde_json::json!(true);
+    body
 }
 
 pub(crate) fn vision_response_body(
@@ -36,6 +46,16 @@ pub(crate) fn vision_response_body(
         "max_output_tokens": workload.max_output_tokens.max(1),
         "temperature": 0.2
     })
+}
+
+pub(crate) fn streaming_vision_response_body(
+    model: &str,
+    sample: &VisionSample,
+    workload: &WorkloadConfig,
+) -> serde_json::Value {
+    let mut body = vision_response_body(model, sample, workload);
+    body["stream"] = serde_json::json!(true);
+    body
 }
 
 pub(crate) fn extract_output_text(payload: &serde_json::Value) -> String {

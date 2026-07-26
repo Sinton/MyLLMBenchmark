@@ -1,6 +1,6 @@
 use crate::domain::workload::WorkloadConfig;
 
-use super::super::VisionSample;
+use super::super::helpers::VisionSample;
 
 pub(crate) fn vision_completion_body(
     model: &str,

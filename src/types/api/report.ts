@@ -93,6 +93,12 @@ export type ReportDetail = {
   capacity_conclusion: string;
   stable_qps: number;
   ttft_ms: number;
+  ttft_source:
+    | "streaming_real"
+    | "non_streaming_approximation"
+    | "historical_estimated"
+    | "not_applicable"
+    | string;
   tps: number;
   token_throughput: number;
   input_tokens: number;

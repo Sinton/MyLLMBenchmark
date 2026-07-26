@@ -1,6 +1,6 @@
 use crate::domain::workload::WorkloadConfig;
 
-use super::super::VisionSample;
+use super::super::helpers::VisionSample;
 
 pub(crate) fn messages_body(
     model: &str,
@@ -13,6 +13,16 @@ pub(crate) fn messages_body(
         "temperature": 0.7,
         "messages": [{"role": "user", "content": prompt}]
     })
+}
+
+pub(crate) fn streaming_messages_body(
+    model: &str,
+    prompt: &str,
+    workload: &WorkloadConfig,
+) -> serde_json::Value {
+    let mut body = messages_body(model, prompt, workload);
+    body["stream"] = serde_json::json!(true);
+    body
 }
 
 pub(crate) fn vision_messages_body(
@@ -39,6 +49,16 @@ pub(crate) fn vision_messages_body(
         "temperature": 0.2,
         "messages": [{"role": "user", "content": content}]
     })
+}
+
+pub(crate) fn streaming_vision_messages_body(
+    model: &str,
+    sample: &VisionSample,
+    workload: &WorkloadConfig,
+) -> serde_json::Value {
+    let mut body = vision_messages_body(model, sample, workload);
+    body["stream"] = serde_json::json!(true);
+    body
 }
 
 pub(crate) fn extract_text(payload: &serde_json::Value) -> String {

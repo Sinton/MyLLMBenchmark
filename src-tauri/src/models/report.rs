@@ -98,6 +98,7 @@ pub struct ReportDetail {
     pub capacity_conclusion: String,
     pub stable_qps: f64,
     pub ttft_ms: i64,
+    pub ttft_source: String,
     pub tps: f64,
     pub token_throughput: i64,
     pub input_tokens: i64,

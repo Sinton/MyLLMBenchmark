@@ -1,6 +1,6 @@
 use crate::domain::workload::WorkloadConfig;
 
-use super::super::VisionSample;
+use super::super::helpers::VisionSample;
 
 pub(crate) fn generate_content_body(prompt: &str, workload: &WorkloadConfig) -> serde_json::Value {
     serde_json::json!({

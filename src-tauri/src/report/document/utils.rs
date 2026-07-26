@@ -46,6 +46,16 @@ pub(crate) fn request_log_appendix_text(detail: &ReportDetail) -> String {
     )
 }
 
+pub(crate) fn ttft_source_text(source: &str) -> &'static str {
+    match source {
+        "streaming_real" => "真实流式首 token 延迟",
+        "non_streaming_approximation" => "非流式完整响应耗时近似",
+        "historical_estimated" => "历史兼容估算",
+        "not_applicable" => "不适用",
+        _ => "未标注",
+    }
+}
+
 pub(crate) fn escape_html(value: &str) -> String {
     value
         .replace('&', "&amp;")

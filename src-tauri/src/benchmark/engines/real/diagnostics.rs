@@ -13,10 +13,11 @@ use crate::{
 use reqwest::StatusCode;
 use tokio::time::Instant;
 
-use super::{
-    api_url, classify_model, duration_ms, map_reqwest_error, parse_vision_sample, request_timeout,
-    ModelsResponse, RealProviderClient, RealProviderProtocol,
+use super::client::RealProviderClient;
+use super::helpers::{
+    api_url, classify_model, duration_ms, parse_vision_sample, request_timeout, VisionSample,
 };
+use super::protocol::{map_reqwest_error, ModelsResponse, RealProviderProtocol};
 
 impl RealProviderClient {
     pub async fn diagnose_provider(
@@ -429,7 +430,7 @@ fn text_probe_body(
 fn vision_probe_body(
     protocol: RealProviderProtocol,
     model_name: &str,
-    sample: &super::VisionSample,
+    sample: &VisionSample,
     workload: &WorkloadConfig,
 ) -> serde_json::Value {
     match protocol {

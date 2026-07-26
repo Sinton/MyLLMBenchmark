@@ -1,4 +1,4 @@
-use super::RequestOutcome;
+use super::outcome::RequestOutcome;
 use crate::domain::{model_type::ModelType, workload::WorkloadConfig};
 use crate::models::MetricsTick;
 

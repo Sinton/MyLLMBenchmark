@@ -47,7 +47,7 @@ export function getReportKpis(detail: ReportDetail) {
     return [
       ...common,
       { label: "Image/s", helpKey: "image_s", value: latestTrend(detail) ? Math.round((latestTrend(detail)?.qps ?? 0) * Math.max(1, latestTrend(detail)?.image_count ?? 1)) : "-", unit: "张/s", hint: "图片输入吞吐" },
-      { label: "TTFT", helpKey: "ttft", value: detail.ttft_ms || "-", unit: detail.ttft_ms ? "ms" : "", hint: "首 token / 首段响应" },
+      { label: "TTFT", helpKey: "ttft", value: detail.ttft_ms || "-", unit: detail.ttft_ms ? "ms" : "", hint: ttftSourceHint(detail) },
       { label: "Token Throughput", helpKey: "token_s", value: detail.token_throughput, unit: "token/s", hint: "图文输入与输出吞吐" },
       { label: "运行时长", value: detail.duration_seconds || detail.trends.length, unit: "s", hint: detail.mode },
     ];
@@ -55,7 +55,7 @@ export function getReportKpis(detail: ReportDetail) {
 
   return [
     ...common,
-    { label: "TTFT", helpKey: "ttft", value: detail.ttft_ms || "-", unit: detail.ttft_ms ? "ms" : "", hint: "首 token / 首段响应" },
+    { label: "TTFT", helpKey: "ttft", value: detail.ttft_ms || "-", unit: detail.ttft_ms ? "ms" : "", hint: ttftSourceHint(detail) },
     { label: "Output TPS", helpKey: "out_tps", value: detail.tps || "-", unit: detail.tps ? "token/s" : "", hint: "输出 token 速度" },
     { label: "Token Throughput", helpKey: "token_s", value: detail.token_throughput, unit: "token/s", hint: "输入与输出合计吞吐" },
     { label: "运行时长", value: detail.duration_seconds || detail.trends.length, unit: "s", hint: detail.mode },
@@ -136,4 +136,14 @@ function latestStage(detail: ReportDetail) {
 
 function latestTrend(detail: ReportDetail) {
   return detail.trends.at(-1);
+}
+
+function ttftSourceHint(detail: ReportDetail) {
+  const labels: Record<string, string> = {
+    streaming_real: "真实流式首 token 延迟",
+    non_streaming_approximation: "非流式完整响应耗时近似",
+    historical_estimated: "历史兼容估算",
+    not_applicable: "不适用",
+  };
+  return labels[detail.ttft_source] ?? "首 token / 首段响应";
 }
