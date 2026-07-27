@@ -8,6 +8,7 @@ import { Input } from "../../../components/ui/Input";
 import { Pagination } from "../../../components/ui/Pagination";
 import { Popconfirm } from "../../../components/ui/Popconfirm";
 import { Textarea } from "../../../components/ui/Textarea";
+import { Tooltip } from "../../../components/ui/Tooltip";
 import type {
   DatasetSampleCreateInput,
   DatasetSamplePreview,
@@ -122,6 +123,8 @@ export function DatasetSampleList({
     {
       key: "select",
       title: "选择",
+      align: "center",
+      width: 44,
       render: (sample) => (
         <input
           aria-label={`选择第 ${sample.sample_index + 1} 条样本`}
@@ -134,6 +137,8 @@ export function DatasetSampleList({
     {
       key: "index",
       title: "序号",
+      align: "center",
+      width: 64,
       render: (sample) => (
         <strong className="dataset-sample-index">#{sample.sample_index + 1}</strong>
       ),
@@ -181,33 +186,47 @@ export function DatasetSampleList({
       key: "tokens",
       title: "估算 Token",
       align: "right",
+      width: 104,
       render: (sample) => sample.estimated_tokens.toLocaleString("zh-CN"),
     },
     {
       key: "actions",
       title: "操作",
+      align: "center",
+      fixed: "right",
+      width: 96,
       render: (sample) => (
         <div className="dataset-sample-row-actions">
-          <Button
-            icon={<Pencil size={14} />}
-            variant="ghost"
-            onClick={() => startEdit(sample)}
+          <Tooltip
+            content="编辑样本"
+            placement="top"
+            triggerFocusable={false}
           >
-            编辑
-          </Button>
+            <Button
+              aria-label={`编辑第 ${sample.sample_index + 1} 条样本`}
+              icon={<Pencil aria-hidden="true" size={14} />}
+              variant="ghost"
+              onClick={() => startEdit(sample)}
+            />
+          </Tooltip>
           <Popconfirm
             title="删除这条样本？"
             description="删除后会重新计算数据集统计。"
             confirmText="删除"
             onConfirm={() => onDelete(sample.id)}
           >
-            <Button
-              disabled={deleting}
-              icon={<Trash2 size={14} />}
-              variant="ghost"
+            <Tooltip
+              content="删除样本"
+              placement="top"
+              triggerFocusable={false}
             >
-              删除
-            </Button>
+              <Button
+                aria-label={`删除第 ${sample.sample_index + 1} 条样本`}
+                disabled={deleting}
+                icon={<Trash2 aria-hidden="true" size={14} />}
+                variant="ghost"
+              />
+            </Tooltip>
           </Popconfirm>
         </div>
       ),
@@ -268,6 +287,7 @@ export function DatasetSampleList({
         }
         getRowKey={(sample) => sample.id}
         rows={loading ? [] : samples}
+        scrollX={760}
       />
 
       <Pagination

@@ -4,10 +4,19 @@
   border-radius: var(--radius-md);
 }
 
+.table-wrap-scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
 .table-wrap table {
   width: 100%;
   border-collapse: collapse;
   background: #fff;
+}
+
+.table-wrap table.table-layout-fixed {
+  table-layout: fixed;
 }
 
 .table-wrap th,
@@ -31,6 +40,36 @@
 .table-wrap th.is-right,
 .table-wrap td.is-right {
   text-align: right;
+}
+
+.table-wrap th.is-center,
+.table-wrap td.is-center {
+  text-align: center;
+}
+
+.table-wrap th.is-fixed-left,
+.table-wrap th.is-fixed-right,
+.table-wrap td.is-fixed-left,
+.table-wrap td.is-fixed-right {
+  position: sticky;
+  z-index: 2;
+  background: #fff;
+}
+
+.table-wrap th.is-fixed-left,
+.table-wrap th.is-fixed-right {
+  z-index: 3;
+  background: var(--surface-muted);
+}
+
+.table-wrap th.is-fixed-left.is-fixed-edge,
+.table-wrap td.is-fixed-left.is-fixed-edge {
+  box-shadow: 1px 0 0 var(--border);
+}
+
+.table-wrap th.is-fixed-right.is-fixed-edge,
+.table-wrap td.is-fixed-right.is-fixed-edge {
+  box-shadow: -1px 0 0 var(--border);
 }
 
 .table-wrap .table-expand-column,

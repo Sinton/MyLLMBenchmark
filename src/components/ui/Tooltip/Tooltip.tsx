@@ -10,6 +10,7 @@ type TooltipProps = {
   placement?: TooltipPlacement;
   disabled?: boolean;
   ariaLabel?: string;
+  triggerFocusable?: boolean;
 };
 
 type TooltipPosition = {
@@ -23,6 +24,7 @@ export function Tooltip({
   placement = "top",
   disabled = false,
   ariaLabel,
+  triggerFocusable = true,
 }: TooltipProps) {
   const tooltipId = useId();
   const [open, setOpen] = useState(false);
@@ -97,7 +99,7 @@ export function Tooltip({
         onMouseEnter={show}
         onMouseLeave={hide}
         ref={triggerRef}
-        tabIndex={0}
+        tabIndex={triggerFocusable ? 0 : -1}
       >
         {children}
       </span>

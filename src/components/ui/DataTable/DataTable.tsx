@@ -1,14 +1,32 @@
-import { Fragment, useId, type MouseEvent, type ReactNode } from "react";
+import {
+  Fragment,
+  useId,
+  type CSSProperties,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { ChevronDown } from "../icons";
 
 export type DataTableRowKey = string | number;
 
-export type DataTableColumn<T> = {
+type DataTableColumnBase<T> = {
   key: string;
   title: ReactNode;
   render: (row: T) => ReactNode;
-  align?: "left" | "right";
+  align?: "left" | "center" | "right";
 };
+
+type DataTableColumnSizing =
+  | {
+      fixed: "left" | "right";
+      width: number;
+    }
+  | {
+      fixed?: undefined;
+      width?: number;
+    };
+
+export type DataTableColumn<T> = DataTableColumnBase<T> & DataTableColumnSizing;
 
 export type DataTableExpandable<T> = {
   expandedRowKey: DataTableRowKey | null;
@@ -25,6 +43,7 @@ type DataTableProps<T> = {
   className?: string;
   empty?: ReactNode;
   expandable?: DataTableExpandable<T>;
+  scrollX?: number;
 };
 
 export function DataTable<T>({
@@ -34,6 +53,7 @@ export function DataTable<T>({
   className = "",
   empty,
   expandable,
+  scrollX,
 }: DataTableProps<T>) {
   const tableId = useId().replaceAll(":", "");
 
@@ -41,18 +61,39 @@ export function DataTable<T>({
     return <>{empty}</>;
   }
 
+  const columnLayout = buildColumnLayout(columns);
+  const hasSizedColumns = columns.some((column) => column.width !== undefined);
+  const wrapperClassName = [
+    "table-wrap",
+    scrollX !== undefined ? "table-wrap-scroll-x" : "",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const tableClassName = hasSizedColumns ? "table-layout-fixed" : undefined;
+  const tableStyle = scrollX === undefined ? undefined : { minWidth: scrollX };
+
   return (
-    <div className={`table-wrap ${className}`.trim()}>
-      <table>
+    <div className={wrapperClassName}>
+      <table className={tableClassName} style={tableStyle}>
+        {hasSizedColumns && (
+          <colgroup>
+            {expandable && <col style={{ width: 38 }} />}
+            {columns.map((column) => (
+              <col key={column.key} style={buildColumnWidthStyle(column)} />
+            ))}
+          </colgroup>
+        )}
         <thead>
           <tr>
             {expandable && (
               <th aria-label="展开详情" className="table-expand-column" />
             )}
-            {columns.map((column) => (
+            {columns.map((column, columnIndex) => (
               <th
-                className={column.align === "right" ? "is-right" : ""}
+                className={buildColumnClassName(column, columnIndex, columnLayout)}
                 key={column.key}
+                style={buildColumnCellStyle(column, columnLayout[columnIndex])}
               >
                 {column.title}
               </th>
@@ -109,10 +150,18 @@ export function DataTable<T>({
                       )}
                     </td>
                   )}
-                  {columns.map((column) => (
+                  {columns.map((column, columnIndex) => (
                     <td
-                      className={column.align === "right" ? "is-right" : ""}
+                      className={buildColumnClassName(
+                        column,
+                        columnIndex,
+                        columnLayout,
+                      )}
                       key={column.key}
+                      style={buildColumnCellStyle(
+                        column,
+                        columnLayout[columnIndex],
+                      )}
                     >
                       {column.render(row)}
                     </td>
@@ -138,6 +187,75 @@ export function DataTable<T>({
 
 function normalizeId(key: DataTableRowKey) {
   return String(key).replace(/[^a-zA-Z0-9_-]/g, "-");
+}
+
+type ColumnLayout = {
+  fixedOffset?: number;
+  isFixedEdge: boolean;
+};
+
+function buildColumnLayout<T>(columns: Array<DataTableColumn<T>>): ColumnLayout[] {
+  const layout = columns.map<ColumnLayout>(() => ({ isFixedEdge: false }));
+  let leftOffset = 0;
+  let leftEdgeIndex = -1;
+
+  columns.forEach((column, index) => {
+    if (column.fixed !== "left") return;
+    layout[index].fixedOffset = leftOffset;
+    leftOffset += column.width;
+    leftEdgeIndex = index;
+  });
+
+  let rightOffset = 0;
+  let rightEdgeIndex = -1;
+  for (let index = columns.length - 1; index >= 0; index -= 1) {
+    const column = columns[index];
+    if (column.fixed !== "right") continue;
+    layout[index].fixedOffset = rightOffset;
+    rightOffset += column.width;
+    rightEdgeIndex = index;
+  }
+
+  if (leftEdgeIndex >= 0) layout[leftEdgeIndex].isFixedEdge = true;
+  if (rightEdgeIndex >= 0) layout[rightEdgeIndex].isFixedEdge = true;
+  return layout;
+}
+
+function buildColumnClassName<T>(
+  column: DataTableColumn<T>,
+  columnIndex: number,
+  layout: ColumnLayout[],
+) {
+  return [
+    column.align === "center" ? "is-center" : "",
+    column.align === "right" ? "is-right" : "",
+    column.fixed ? `is-fixed-${column.fixed}` : "",
+    column.fixed && layout[columnIndex].isFixedEdge ? "is-fixed-edge" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function buildColumnWidthStyle<T>(
+  column: DataTableColumn<T>,
+): CSSProperties | undefined {
+  return column.width === undefined ? undefined : { width: column.width };
+}
+
+function buildColumnCellStyle<T>(
+  column: DataTableColumn<T>,
+  layout: ColumnLayout,
+): CSSProperties | undefined {
+  if (!column.fixed) return undefined;
+
+  const sizing = {
+    width: column.width,
+    minWidth: column.width,
+    maxWidth: column.width,
+  };
+  return column.fixed === "left"
+    ? { ...sizing, left: layout.fixedOffset }
+    : { ...sizing, right: layout.fixedOffset };
 }
 
 function isInteractiveTarget(event: MouseEvent<HTMLTableRowElement>) {
