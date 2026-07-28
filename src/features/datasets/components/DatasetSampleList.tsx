@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "../../../components/ui/Button";
+import { Checkbox } from "../../../components/ui/Checkbox";
 import { DataTable, type DataTableColumn } from "../../../components/ui/DataTable";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { FileText, Pencil, Plus, Search, Trash2 } from "../../../components/ui/icons";
@@ -14,6 +15,7 @@ import type {
   DatasetSamplePreview,
   DatasetSampleUpdateInput,
 } from "../../../types/api";
+import { DatasetSampleExpandedRow } from "./DatasetSampleExpandedRow";
 
 type DatasetSampleListProps = {
   creating?: boolean;
@@ -63,13 +65,16 @@ export function DatasetSampleList({
   const [editingPrompt, setEditingPrompt] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [expandedSampleId, setExpandedSampleId] = useState<string | null>(null);
 
   useEffect(() => {
     setSelectedIds([]);
+    setExpandedSampleId(null);
   }, [page, pageSize, search, samples]);
 
   const allCurrentSelected =
     samples.length > 0 && samples.every((sample) => selectedIds.includes(sample.id));
+  const someCurrentSelected = selectedIds.length > 0 && !allCurrentSelected;
   const toggleAll = () => {
     setSelectedIds(allCurrentSelected ? [] : samples.map((sample) => sample.id));
   };
@@ -122,14 +127,21 @@ export function DatasetSampleList({
   const columns: Array<DataTableColumn<DatasetSamplePreview>> = [
     {
       key: "select",
-      title: "选择",
+      title: (
+        <Checkbox
+          aria-label={allCurrentSelected ? "取消选择当前页全部样本" : "选择当前页全部样本"}
+          checked={allCurrentSelected}
+          disabled={loading || samples.length === 0}
+          indeterminate={someCurrentSelected}
+          onChange={toggleAll}
+        />
+      ),
       align: "center",
       width: 44,
       render: (sample) => (
-        <input
+        <Checkbox
           aria-label={`选择第 ${sample.sample_index + 1} 条样本`}
           checked={selectedIds.includes(sample.id)}
-          type="checkbox"
           onChange={() => toggleOne(sample.id)}
         />
       ),
@@ -186,7 +198,7 @@ export function DatasetSampleList({
       key: "tokens",
       title: "估算 Token",
       align: "right",
-      width: 104,
+      width: 112,
       render: (sample) => sample.estimated_tokens.toLocaleString("zh-CN"),
     },
     {
@@ -204,6 +216,7 @@ export function DatasetSampleList({
           >
             <Button
               aria-label={`编辑第 ${sample.sample_index + 1} 条样本`}
+              className="dataset-sample-edit-button"
               icon={<Pencil aria-hidden="true" size={14} />}
               variant="ghost"
               onClick={() => startEdit(sample)}
@@ -222,6 +235,7 @@ export function DatasetSampleList({
             >
               <Button
                 aria-label={`删除第 ${sample.sample_index + 1} 条样本`}
+                className="dataset-sample-delete-button"
                 disabled={deleting}
                 icon={<Trash2 aria-hidden="true" size={14} />}
                 variant="ghost"
@@ -242,26 +256,25 @@ export function DatasetSampleList({
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
         />
-        <div className="dataset-sample-count">
-          <span>
-            {loading
-              ? "正在读取样本..."
-              : `${total.toLocaleString("zh-CN")} 条匹配样本`}
-          </span>
-          {fetching && !loading && <span>正在刷新当前页</span>}
+        <div className="dataset-sample-toolbar-meta">
+          <div className="dataset-sample-count">
+            <span>
+              {loading
+                ? "正在读取样本..."
+                : `${total.toLocaleString("zh-CN")} 条匹配样本`}
+            </span>
+            {fetching && !loading && <span>正在刷新当前页</span>}
+          </div>
+          <Button
+            disabled={selectedIds.length === 0 || batchDeleting}
+            icon={<Trash2 size={14} />}
+            loading={batchDeleting}
+            variant="danger"
+            onClick={submitBatchDelete}
+          >
+            删除选中 {selectedIds.length > 0 ? selectedIds.length : ""}
+          </Button>
         </div>
-        <Button disabled={samples.length === 0} variant="ghost" onClick={toggleAll}>
-          {allCurrentSelected ? "取消全选" : "全选本页"}
-        </Button>
-        <Button
-          disabled={selectedIds.length === 0 || batchDeleting}
-          icon={<Trash2 size={14} />}
-          loading={batchDeleting}
-          variant="danger"
-          onClick={submitBatchDelete}
-        >
-          删除选中 {selectedIds.length > 0 ? selectedIds.length : ""}
-        </Button>
       </div>
 
       {formError && (
@@ -285,9 +298,18 @@ export function DatasetSampleList({
             title={loading ? "正在读取样本" : "暂无样本"}
           />
         }
+        expandable={{
+          expandedRowKey: expandedSampleId,
+          expandedRowRender: (sample) => (
+            <DatasetSampleExpandedRow sample={sample} />
+          ),
+          expandOnRowClick: true,
+          onExpandedRowChange: (key) =>
+            setExpandedSampleId(key == null ? null : String(key)),
+        }}
         getRowKey={(sample) => sample.id}
         rows={loading ? [] : samples}
-        scrollX={760}
+        scrollX={720}
       />
 
       <Pagination
