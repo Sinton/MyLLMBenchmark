@@ -208,9 +208,13 @@
 
 .dataset-tool-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: 148px minmax(280px, 1fr) auto;
   gap: 12px;
   align-items: end;
+}
+
+.dataset-import-file-picker {
+  grid-column: 1 / -1;
 }
 
 .dataset-tool-actions {

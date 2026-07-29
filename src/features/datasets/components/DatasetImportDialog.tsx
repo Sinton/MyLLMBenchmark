@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "../../../components/ui/Button";
 import { Dialog } from "../../../components/ui/Dialog";
+import { FilePicker } from "../../../components/ui/FilePicker";
 import { Input } from "../../../components/ui/Input";
 import { InlineAlert } from "../../../components/ui/InlineAlert";
 import { SelectField } from "../../../components/ui/SelectField";
@@ -104,11 +105,14 @@ export function DatasetImportDialog({
           ]}
           value={format}
         />
-        <Input
+        <FilePicker
           accept=".jsonl,.csv,.txt,.xlsx"
+          className="dataset-import-file-picker"
+          disabled={submitting}
+          file={file}
+          hint="支持 JSONL、CSV、TXT、XLSX，最大 10MB"
           label="数据集文件"
-          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-          type="file"
+          onFileChange={setFile}
         />
       </div>
       {error && <InlineAlert tone="danger" title="导入失败">{error}</InlineAlert>}

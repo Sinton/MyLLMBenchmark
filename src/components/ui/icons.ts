@@ -17,6 +17,7 @@ export {
   EyeOff,
   FileCheck,
   FileText,
+  FolderOpen,
   Gauge,
   Info,
   KeyRound,

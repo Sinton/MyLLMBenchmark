@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
 import { Dialog } from "../../../components/ui/Dialog";
+import { FilePicker } from "../../../components/ui/FilePicker";
 import { Download, FileCheck, Pencil, ShieldCheck, Upload } from "../../../components/ui/icons";
 import { Input } from "../../../components/ui/Input";
 import { InlineAlert } from "../../../components/ui/InlineAlert";
@@ -211,11 +212,13 @@ export function DatasetDetailDrawer({
               ]}
               value={appendFormat}
             />
-            <Input
+            <FilePicker
               accept=".jsonl,.csv,.txt,.xlsx"
+              disabled={appendSamplesPending}
+              file={appendFile}
               label="追加样本文件"
-              type="file"
-              onChange={(event) => setAppendFile(event.target.files?.[0] ?? null)}
+              onFileChange={setAppendFile}
+              placeholder="选择待追加文件（最大 10MB）"
             />
             <Button
               icon={<Upload size={15} />}
