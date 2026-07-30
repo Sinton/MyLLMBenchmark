@@ -1,10 +1,22 @@
 use super::{now, Database};
 use crate::domain::dataset_import::estimate_tokens;
-use crate::domain::demo_samples::build_chat_prompts;
+use crate::domain::demo_samples::{
+    build_chat_prompts, build_embedding_prompts, build_rerank_prompts, build_vision_prompts,
+};
 use sqlx::Row;
 use uuid::Uuid;
 
 const SEEDED_CHAT_DATASET_NAME: &str = "文本生成标准问答样本";
+const SEEDED_EMBEDDING_DATASET_NAME: &str = "向量嵌入知识库段落";
+const SEEDED_RERANK_DATASET_NAME: &str = "重排序候选文档组";
+const SEEDED_VISION_DATASET_NAME: &str = "视觉多模态图文识别样本";
+
+struct SeededDatasetDefinition {
+    name: &'static str,
+    legacy_names: &'static [&'static str],
+    dataset_type: &'static str,
+    build_prompts: fn() -> Vec<String>,
+}
 
 impl Database {
     pub(super) async fn seed_defaults(&self) -> anyhow::Result<()> {
@@ -14,87 +26,87 @@ impl Database {
 
         if dataset_count == 0 {
             let now = now();
-            let chat_dataset_id = Uuid::new_v4().to_string();
-            let chat_prompts = build_chat_prompts();
-            sqlx::query(
-                "INSERT INTO datasets (id, name, dataset_type, sample_count, average_tokens, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?);",
-            )
-            .bind(&chat_dataset_id)
-            .bind(SEEDED_CHAT_DATASET_NAME)
-            .bind("Chat")
-            .bind(chat_prompts.len() as i64)
-            .bind(average_tokens(&chat_prompts))
-            .bind(&now)
-            .execute(&self.pool)
-            .await?;
-            self.insert_dataset_prompts(&chat_dataset_id, &chat_prompts, &now)
-                .await?;
-
-            for (name, dataset_type, sample_count, average_tokens) in [
-                ("向量嵌入知识库段落", "Embedding", 2048, 180),
-                ("重排序候选文档组", "Reranker", 512, 760),
-                ("视觉多模态图文识别样本", "Vision", 96, 120),
-            ] {
-                sqlx::query(
-                    "INSERT INTO datasets (id, name, dataset_type, sample_count, average_tokens, updated_at)
-                     VALUES (?, ?, ?, ?, ?, ?);",
-                )
-                .bind(Uuid::new_v4().to_string())
-                .bind(name)
-                .bind(dataset_type)
-                .bind(sample_count)
-                .bind(average_tokens)
-                .bind(&now)
-                .execute(&self.pool)
-                .await?;
+            for definition in seeded_dataset_definitions() {
+                self.insert_seeded_dataset(&definition, &now).await?;
+            }
+        } else {
+            for definition in seeded_dataset_definitions() {
+                self.backfill_seeded_dataset_samples(&definition).await?;
             }
         }
-
-        self.backfill_seeded_chat_samples().await?;
 
         Ok(())
     }
 
-    async fn backfill_seeded_chat_samples(&self) -> anyhow::Result<()> {
-        let Some(row) = sqlx::query(
-            "SELECT id
-             FROM datasets
-             WHERE name = ? AND dataset_type = 'Chat' AND deleted_at IS NULL
-             LIMIT 1;",
+    async fn insert_seeded_dataset(
+        &self,
+        definition: &SeededDatasetDefinition,
+        created_at: &str,
+    ) -> anyhow::Result<()> {
+        let dataset_id = Uuid::new_v4().to_string();
+        let prompts = (definition.build_prompts)();
+        sqlx::query(
+            "INSERT INTO datasets (id, name, dataset_type, sample_count, average_tokens, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?);",
         )
-        .bind(SEEDED_CHAT_DATASET_NAME)
-        .fetch_optional(&self.pool)
-        .await?
-        else {
-            return Ok(());
-        };
+        .bind(&dataset_id)
+        .bind(definition.name)
+        .bind(definition.dataset_type)
+        .bind(prompts.len() as i64)
+        .bind(average_tokens(&prompts))
+        .bind(created_at)
+        .execute(&self.pool)
+        .await?;
+        self.insert_dataset_prompts(&dataset_id, &prompts, created_at)
+            .await
+    }
 
-        let dataset_id: String = row.get("id");
-        let sample_count: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM dataset_samples WHERE dataset_id = ?;")
+    async fn backfill_seeded_dataset_samples(
+        &self,
+        definition: &SeededDatasetDefinition,
+    ) -> anyhow::Result<()> {
+        for name in std::iter::once(definition.name).chain(definition.legacy_names.iter().copied())
+        {
+            let rows = sqlx::query(
+                "SELECT id, sample_count
+                 FROM datasets
+                 WHERE name = ? AND dataset_type = ? AND deleted_at IS NULL;",
+            )
+            .bind(name)
+            .bind(definition.dataset_type)
+            .fetch_all(&self.pool)
+            .await?;
+
+            for row in rows {
+                let dataset_id: String = row.get("id");
+                let declared_sample_count: i64 = row.get("sample_count");
+                let actual_sample_count: i64 = sqlx::query_scalar(
+                    "SELECT COUNT(*) FROM dataset_samples WHERE dataset_id = ?;",
+                )
                 .bind(&dataset_id)
                 .fetch_one(&self.pool)
                 .await?;
-        if sample_count > 0 {
-            return Ok(());
-        }
+                if actual_sample_count > 0 || declared_sample_count <= 0 {
+                    continue;
+                }
 
-        let now = now();
-        let prompts = build_chat_prompts();
-        self.insert_dataset_prompts(&dataset_id, &prompts, &now)
-            .await?;
-        sqlx::query(
-            "UPDATE datasets
-             SET sample_count = ?, average_tokens = ?, updated_at = ?
-             WHERE id = ?;",
-        )
-        .bind(prompts.len() as i64)
-        .bind(average_tokens(&prompts))
-        .bind(&now)
-        .bind(&dataset_id)
-        .execute(&self.pool)
-        .await?;
+                let now = now();
+                let prompts = (definition.build_prompts)();
+                self.insert_dataset_prompts(&dataset_id, &prompts, &now)
+                    .await?;
+                sqlx::query(
+                    "UPDATE datasets
+                     SET sample_count = ?, average_tokens = ?, updated_at = ?
+                     WHERE id = ?;",
+                )
+                .bind(prompts.len() as i64)
+                .bind(average_tokens(&prompts))
+                .bind(&now)
+                .bind(&dataset_id)
+                .execute(&self.pool)
+                .await?;
+            }
+        }
 
         Ok(())
     }
@@ -122,6 +134,35 @@ impl Database {
         }
         Ok(())
     }
+}
+
+fn seeded_dataset_definitions() -> [SeededDatasetDefinition; 4] {
+    [
+        SeededDatasetDefinition {
+            name: SEEDED_CHAT_DATASET_NAME,
+            legacy_names: &["Chat 标准问答样本"],
+            dataset_type: "Chat",
+            build_prompts: build_chat_prompts,
+        },
+        SeededDatasetDefinition {
+            name: SEEDED_EMBEDDING_DATASET_NAME,
+            legacy_names: &["Embedding 知识库段落"],
+            dataset_type: "Embedding",
+            build_prompts: build_embedding_prompts,
+        },
+        SeededDatasetDefinition {
+            name: SEEDED_RERANK_DATASET_NAME,
+            legacy_names: &["Reranker 候选文档组"],
+            dataset_type: "Reranker",
+            build_prompts: build_rerank_prompts,
+        },
+        SeededDatasetDefinition {
+            name: SEEDED_VISION_DATASET_NAME,
+            legacy_names: &["Vision 图文识别样本"],
+            dataset_type: "Vision",
+            build_prompts: build_vision_prompts,
+        },
+    ]
 }
 
 fn average_tokens(prompts: &[String]) -> i64 {

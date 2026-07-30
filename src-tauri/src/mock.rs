@@ -398,4 +398,27 @@ mod tests {
             .iter()
             .all(|sample| sample.prompt.contains("容量")));
     }
+
+    #[tokio::test]
+    async fn seeded_mock_dataset_summaries_match_materialized_samples() {
+        let store = MockDataStore::new();
+
+        for dataset in store.list_datasets().await.unwrap() {
+            let samples = store.list_dataset_samples(&dataset.id).await.unwrap();
+            assert!(
+                !samples.is_empty(),
+                "{} should contain samples",
+                dataset.name
+            );
+            assert_eq!(dataset.sample_count, samples.len() as i64);
+        }
+
+        let embedding = store
+            .list_dataset_samples("mock-dataset-embedding")
+            .await
+            .unwrap();
+        assert!(embedding
+            .iter()
+            .all(|sample| sample.prompt.contains("知识库")));
+    }
 }

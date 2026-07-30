@@ -170,6 +170,60 @@ async fn sqlite_seed_backfills_chat_samples_for_existing_database() {
 }
 
 #[tokio::test]
+async fn sqlite_seed_backfills_model_specific_samples_and_repairs_counts() {
+    let data_dir = temp_data_dir("model-specific-seed-backfill");
+    let db = Database::initialize(&data_dir).await.unwrap();
+
+    for (dataset_type, legacy_count) in [("Embedding", 2048_i64), ("Reranker", 512), ("Vision", 96)]
+    {
+        let dataset = db
+            .list_datasets()
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|item| item.dataset_type == dataset_type)
+            .unwrap();
+        sqlx::query("DELETE FROM dataset_samples WHERE dataset_id = ?;")
+            .bind(&dataset.id)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE datasets SET sample_count = ? WHERE id = ?;")
+            .bind(legacy_count)
+            .bind(&dataset.id)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+    }
+    drop(db);
+
+    let db = Database::initialize(&data_dir).await.unwrap();
+    for dataset in db
+        .list_datasets()
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|item| {
+            matches!(
+                item.dataset_type.as_str(),
+                "Embedding" | "Reranker" | "Vision"
+            )
+        })
+    {
+        let samples = db.list_dataset_samples(&dataset.id).await.unwrap();
+        assert!(
+            !samples.is_empty(),
+            "{} should contain samples",
+            dataset.name
+        );
+        assert_eq!(dataset.sample_count, samples.len() as i64);
+    }
+
+    drop(db);
+    let _ = std::fs::remove_dir_all(data_dir);
+}
+
+#[tokio::test]
 async fn sqlite_initialization_does_not_seed_demo_provider() {
     let data_dir = temp_data_dir("no-demo-provider");
     let db = Database::initialize(&data_dir).await.unwrap();
