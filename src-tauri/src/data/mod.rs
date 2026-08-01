@@ -10,7 +10,8 @@ use crate::models::{
     DatasetSamplePageInput, DatasetSamplePreview, DatasetSampleUpdateInput, DatasetSummary,
     DatasetUpdateInput, DatasetValidationResult, DeleteResult, DiscoveredModel, MetricsTick,
     ModelSummary, ProviderConnectionConfig, ProviderDiagnosticsResult, ProviderSummary,
-    ReportDetail, ReportSummary, UpdateProviderInput,
+    ReportDetail, ReportSummary, SiteProbeHistoryPage, SiteProbeHistoryPageInput,
+    SiteProbeRunDetail, SiteProbeRunRecord, SiteProbeRunSummary, UpdateProviderInput,
 };
 
 mod benchmarks;
@@ -18,6 +19,7 @@ mod dashboard;
 mod datasets;
 mod providers;
 mod reports;
+mod site_probe;
 
 #[derive(Clone)]
 pub enum AppDataSource {
@@ -155,4 +157,18 @@ pub(crate) trait ReportRepository {
     async fn generate_report(&self, task_id: &str) -> anyhow::Result<ReportSummary>;
     async fn list_reports(&self) -> anyhow::Result<Vec<ReportSummary>>;
     async fn get_report_detail(&self, report_id: &str) -> anyhow::Result<ReportDetail>;
+}
+
+#[allow(async_fn_in_trait)]
+pub(crate) trait SiteProbeRepository {
+    async fn insert_site_probe_run(
+        &self,
+        record: SiteProbeRunRecord,
+    ) -> anyhow::Result<SiteProbeRunSummary>;
+    async fn list_site_probe_runs_page(
+        &self,
+        input: SiteProbeHistoryPageInput,
+    ) -> anyhow::Result<SiteProbeHistoryPage>;
+    async fn get_site_probe_run_detail(&self, run_id: &str) -> anyhow::Result<SiteProbeRunDetail>;
+    async fn delete_site_probe_run(&self, run_id: &str) -> anyhow::Result<DeleteResult>;
 }

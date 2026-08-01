@@ -11,6 +11,7 @@ mod streaming;
 
 pub use client::RealProviderClient;
 pub use helpers::{api_url, classify_model};
+pub(crate) use outcome::RequestOutcome;
 pub use protocol::RealProviderProtocol;
 pub use runtime::RealBenchmarkRuntime;
 

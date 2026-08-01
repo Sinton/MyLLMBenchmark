@@ -9,6 +9,7 @@ mod datasets;
 mod providers;
 mod reports;
 mod seed;
+mod site_probe;
 mod types;
 
 use seed::seed_mock_data;

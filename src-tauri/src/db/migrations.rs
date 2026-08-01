@@ -5,6 +5,7 @@ const INITIAL_SCHEMA_VERSION: i64 = 1;
 const EVIDENCE_SCHEMA_VERSION: i64 = 2;
 const RELEASE_PREP_SCHEMA_VERSION: i64 = 3;
 const REQUEST_LOG_SCHEMA_VERSION: i64 = 4;
+const SITE_PROBE_SCHEMA_VERSION: i64 = 5;
 
 impl Database {
     pub(super) async fn configure(&self) -> anyhow::Result<()> {
@@ -33,6 +34,9 @@ impl Database {
             .await?;
         self.migrate_request_log_schema().await?;
         self.record_migration(REQUEST_LOG_SCHEMA_VERSION, "request_log_schema")
+            .await?;
+        self.migrate_site_probe_schema().await?;
+        self.record_migration(SITE_PROBE_SCHEMA_VERSION, "site_probe_schema")
             .await?;
         Ok(())
     }
@@ -360,6 +364,10 @@ impl Database {
         self.ensure_request_log_table().await
     }
 
+    async fn migrate_site_probe_schema(&self) -> anyhow::Result<()> {
+        self.ensure_site_probe_table().await
+    }
+
     async fn ensure_task_evidence_columns(&self) -> anyhow::Result<()> {
         for (column, definition) in [
             ("stage_sample_rounds", "INTEGER NOT NULL DEFAULT 0"),
@@ -460,6 +468,39 @@ impl Database {
         sqlx::query(
             "CREATE INDEX IF NOT EXISTS idx_benchmark_request_logs_task
              ON benchmark_request_logs(task_id, stage_index, request_index);",
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn ensure_site_probe_table(&self) -> anyhow::Result<()> {
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS site_probe_runs (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                base_url TEXT NOT NULL,
+                interface_type TEXT NOT NULL,
+                model TEXT NOT NULL,
+                status TEXT NOT NULL,
+                latency_ms INTEGER NOT NULL DEFAULT 0,
+                ttft_ms INTEGER NOT NULL DEFAULT 0,
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                total_tokens INTEGER NOT NULL DEFAULT 0,
+                error_kind TEXT,
+                error_message TEXT,
+                prompt_preview TEXT,
+                response_preview TEXT,
+                body_ref TEXT,
+                created_at TEXT NOT NULL
+            );",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_site_probe_runs_created_at
+             ON site_probe_runs(created_at DESC);",
         )
         .execute(&self.pool)
         .await?;

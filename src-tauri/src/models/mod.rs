@@ -5,6 +5,7 @@ pub mod dataset;
 pub mod events;
 pub mod provider;
 pub mod report;
+pub mod site_probe;
 
 pub use benchmark::*;
 pub use dashboard::*;
@@ -12,3 +13,4 @@ pub use dataset::*;
 pub use events::*;
 pub use provider::*;
 pub use report::*;
+pub use site_probe::*;

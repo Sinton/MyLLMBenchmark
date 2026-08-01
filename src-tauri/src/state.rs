@@ -13,9 +13,10 @@ use crate::models::{
     DatasetSamplePageInput, DatasetSamplePreview, DatasetSampleUpdateInput, DatasetSummary,
     DatasetUpdateInput, DatasetValidationResult, DeleteResult, DiscoveredModel, MetricsTick,
     ModelSummary, ProviderConnectionConfig, ProviderDiagnosticsResult, ProviderSummary,
-    ReportDetail, ReportSummary, UpdateProviderInput,
+    ReportDetail, ReportSummary, SiteProbeHistoryPage, SiteProbeHistoryPageInput,
+    SiteProbeRunDetail, SiteProbeRunRecord, SiteProbeRunSummary, UpdateProviderInput,
 };
-use crate::storage::{RequestLogBodyLine, RequestLogBodyStore};
+use crate::storage::{RequestLogBodyLine, RequestLogBodyStore, SiteProbeBodyLine, SiteProbeBodyStore};
 use crate::tasks::TaskManager;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -27,6 +28,7 @@ pub struct AppState {
     config_store: ConfigStore,
     data: Arc<RwLock<AppDataSource>>,
     request_log_bodies: RequestLogBodyStore,
+    site_probe_bodies: SiteProbeBodyStore,
     tasks: TaskManager,
 }
 
@@ -39,7 +41,8 @@ impl AppState {
             config: Arc::new(RwLock::new(config)),
             config_store,
             data: Arc::new(RwLock::new(data)),
-            request_log_bodies: RequestLogBodyStore::new(data_dir),
+            request_log_bodies: RequestLogBodyStore::new(data_dir.clone()),
+            site_probe_bodies: SiteProbeBodyStore::new(data_dir),
             tasks: TaskManager::default(),
         };
         state.recover_orphaned_running_tasks().await?;
@@ -385,6 +388,67 @@ impl AppState {
         Ok(result)
     }
 
+    pub async fn insert_site_probe_run(
+        &self,
+        mut record: SiteProbeRunRecord,
+    ) -> anyhow::Result<SiteProbeRunSummary> {
+        let data = self.data_source().await;
+        if matches!(&data, AppDataSource::Sqlite(_)) && site_probe_has_body(&record) {
+            self.site_probe_bodies
+                .write_body(
+                    &record.summary.id,
+                    &SiteProbeBodyLine {
+                        id: record.summary.id.clone(),
+                        prompt: record.prompt.clone(),
+                        response_text: record.response_text.clone(),
+                        request_payload: record.request_payload.clone(),
+                        raw_error: record.raw_error.clone(),
+                        raw_usage: record.raw_usage.clone(),
+                    },
+                )
+                .await?;
+            record.body_ref = Some(SiteProbeBodyStore::body_ref(&record.summary.id));
+            record.summary.body_available = true;
+        }
+        data.insert_site_probe_run(record).await
+    }
+
+    pub async fn list_site_probe_runs_page(
+        &self,
+        input: SiteProbeHistoryPageInput,
+    ) -> anyhow::Result<SiteProbeHistoryPage> {
+        self.data_source().await.list_site_probe_runs_page(input).await
+    }
+
+    pub async fn get_site_probe_run_detail(
+        &self,
+        run_id: &str,
+    ) -> anyhow::Result<SiteProbeRunDetail> {
+        let data = self.data_source().await;
+        let mut detail = data.get_site_probe_run_detail(run_id).await?;
+        if detail.summary.body_available
+            && detail.prompt.is_none()
+            && matches!(&data, AppDataSource::Sqlite(_))
+        {
+            if let Some(body) = self.site_probe_bodies.read_body(&detail.summary.id).await? {
+                detail.prompt = body.prompt;
+                detail.response_text = body.response_text;
+                detail.request_payload = body.request_payload;
+                detail.raw_error = body.raw_error.or(detail.raw_error);
+                detail.raw_usage = body.raw_usage;
+            } else {
+                detail.summary.body_available = false;
+            }
+        }
+        Ok(detail)
+    }
+
+    pub async fn delete_site_probe_run(&self, run_id: &str) -> anyhow::Result<DeleteResult> {
+        let result = self.data_source().await.delete_site_probe_run(run_id).await?;
+        self.site_probe_bodies.delete_body(run_id).await?;
+        Ok(result)
+    }
+
     pub async fn get_task_summary(&self, task_id: &str) -> anyhow::Result<BenchmarkTaskSummary> {
         self.data_source().await.get_task_summary(task_id).await
     }
@@ -479,6 +543,14 @@ fn request_log_has_body(log: &BenchmarkRequestLogRecord) -> bool {
         || log.response_text.is_some()
         || log.raw_error.is_some()
         || log.raw_usage.is_some()
+}
+
+fn site_probe_has_body(record: &SiteProbeRunRecord) -> bool {
+    record.prompt.is_some()
+        || record.response_text.is_some()
+        || record.request_payload.is_some()
+        || record.raw_error.is_some()
+        || record.raw_usage.is_some()
 }
 
 async fn create_data_source(

@@ -116,7 +116,7 @@ impl RealProviderClient {
         }
     }
 
-    pub(super) async fn text_generation(
+    pub(crate) async fn text_generation(
         &self,
         config: &ProviderConnectionConfig,
         protocol: RealProviderProtocol,

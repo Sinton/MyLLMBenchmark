@@ -21,6 +21,7 @@ mod providers;
 mod reports;
 mod rows;
 mod seed;
+mod site_probe;
 
 #[cfg(test)]
 mod tests;
