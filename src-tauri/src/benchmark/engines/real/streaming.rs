@@ -4,7 +4,10 @@ use super::outcome::{
 use super::protocol::RealProviderProtocol;
 use super::providers::gemini;
 use futures_util::StreamExt;
+use std::sync::Arc;
 use tokio::time::{Duration, Instant};
+
+pub(crate) type StreamDeltaObserver = Arc<dyn Fn(String, i64) + Send + Sync>;
 
 pub(super) async fn collect_streaming_response(
     response: reqwest::Response,
@@ -12,6 +15,7 @@ pub(super) async fn collect_streaming_response(
     prompt: &str,
     started: Instant,
     units: RequestUnits,
+    observer: Option<&StreamDeltaObserver>,
 ) -> RequestOutcome {
     let mut stream = response.bytes_stream();
     let mut parser = SseBuffer::default();
@@ -33,9 +37,14 @@ pub(super) async fn collect_streaming_response(
         };
         let text = String::from_utf8_lossy(&chunk);
         for data in parser.push(&text) {
+            let previous_len = output.len();
             match handle_stream_event(protocol, &data, &mut output, &mut usage, &mut raw_usage) {
                 Ok(EventProgress::Text) if first_token_at.is_none() => {
                     first_token_at = Some(started.elapsed());
+                    notify_delta(observer, &output, previous_len, started.elapsed());
+                }
+                Ok(EventProgress::Text) => {
+                    notify_delta(observer, &output, previous_len, started.elapsed());
                 }
                 Ok(_) => {}
                 Err(message) => {
@@ -50,9 +59,14 @@ pub(super) async fn collect_streaming_response(
     }
 
     for data in parser.finish() {
+        let previous_len = output.len();
         match handle_stream_event(protocol, &data, &mut output, &mut usage, &mut raw_usage) {
             Ok(EventProgress::Text) if first_token_at.is_none() => {
                 first_token_at = Some(started.elapsed());
+                notify_delta(observer, &output, previous_len, started.elapsed());
+            }
+            Ok(EventProgress::Text) => {
+                notify_delta(observer, &output, previous_len, started.elapsed());
             }
             Ok(_) => {}
             Err(message) => {
@@ -81,6 +95,24 @@ pub(super) async fn collect_streaming_response(
         units,
     )
     .with_body(Some(prompt.to_string()), Some(output), raw_usage)
+}
+
+fn notify_delta(
+    observer: Option<&StreamDeltaObserver>,
+    output: &str,
+    previous_len: usize,
+    elapsed: Duration,
+) {
+    let Some(observer) = observer else {
+        return;
+    };
+    if previous_len >= output.len() {
+        return;
+    }
+    observer(
+        output[previous_len..].to_string(),
+        elapsed.as_millis().min(i64::MAX as u128) as i64,
+    );
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

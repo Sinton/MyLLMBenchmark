@@ -22,6 +22,37 @@ pub struct CreateProviderInput {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct ProviderImportItem {
+    pub name: String,
+    pub base_url: String,
+    pub api_key: Option<String>,
+    pub interface_type: String,
+    #[serde(default)]
+    pub models: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ProviderImportInput {
+    pub items: Vec<ProviderImportItem>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProviderImportItemResult {
+    pub index: i64,
+    pub status: String,
+    pub provider_id: Option<String>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProviderImportResult {
+    pub created: i64,
+    pub skipped: i64,
+    pub failed: i64,
+    pub items: Vec<ProviderImportItemResult>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct UpdateProviderInput {
     pub name: String,
     pub base_url: String,

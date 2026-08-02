@@ -38,7 +38,7 @@ pub struct PreparedProviderUpdate {
 
 pub fn prepare_provider_create(input: CreateProviderInput) -> AppResult<PreparedProviderCreate> {
     let name = normalize_required(&input.name, "provider name is required")?;
-    let base_url = normalize_required(&input.base_url, "Base URL is required")?;
+    let base_url = normalize_base_url(&input.base_url)?;
     let interface_type = normalize_interface_type(&input.interface_type);
 
     Ok(PreparedProviderCreate {
@@ -56,7 +56,7 @@ pub fn prepare_provider_update(
     current: ExistingProviderConfig,
 ) -> AppResult<PreparedProviderUpdate> {
     let name = normalize_required(&input.name, "provider name is required")?;
-    let requested_base_url = normalize_required(&input.base_url, "Base URL is required")?;
+    let requested_base_url = normalize_base_url(&input.base_url)?;
     let interface_type = normalize_interface_type(&input.interface_type);
 
     let base_url_changed =
@@ -70,11 +70,15 @@ pub fn prepare_provider_update(
     let (api_key_masked, api_key_plaintext, api_key_changed) =
         if let Some(requested_api_key) = input.api_key.as_deref() {
             let requested_api_key = requested_api_key.trim();
-            (
-                mask_secret(Some(requested_api_key)),
-                requested_api_key.to_string(),
-                requested_api_key != current.api_key_plaintext,
-            )
+            if requested_api_key == current.api_key_masked {
+                (current.api_key_masked, current.api_key_plaintext, false)
+            } else {
+                (
+                    mask_secret(Some(requested_api_key)),
+                    requested_api_key.to_string(),
+                    requested_api_key != current.api_key_plaintext,
+                )
+            }
         } else {
             (current.api_key_masked, current.api_key_plaintext, false)
         };
@@ -109,6 +113,18 @@ fn normalize_required(value: &str, message: &str) -> AppResult<String> {
         return Err(AppError::validation(message));
     }
     Ok(trimmed.to_string())
+}
+
+pub fn normalized_provider_identity(base_url: &str, interface_type: &str) -> (String, String) {
+    (
+        base_url.trim().trim_end_matches('/').to_string(),
+        normalize_interface_type(interface_type),
+    )
+}
+
+fn normalize_base_url(value: &str) -> AppResult<String> {
+    let value = normalize_required(value, "Base URL is required")?;
+    Ok(value.trim_end_matches('/').to_string())
 }
 
 fn normalize_interface_type(value: &str) -> String {

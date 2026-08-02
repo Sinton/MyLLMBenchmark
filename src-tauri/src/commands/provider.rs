@@ -1,8 +1,8 @@
 use super::error_to_string;
 use crate::models::{
     CreateProviderInput, DeleteResult, ModelSummary, ProviderConnectionResult,
-    ProviderDiagnosticsInput, ProviderDiagnosticsResult, ProviderModelScanResult, ProviderSummary,
-    UpdateProviderInput,
+    ProviderDiagnosticsInput, ProviderDiagnosticsResult, ProviderImportInput, ProviderImportResult,
+    ProviderModelScanResult, ProviderSummary, UpdateProviderInput,
 };
 use crate::services;
 use crate::state::AppState;
@@ -21,6 +21,16 @@ pub async fn create_provider(
     input: CreateProviderInput,
 ) -> Result<ProviderSummary, String> {
     services::create_provider(state.inner(), input)
+        .await
+        .map_err(error_to_string)
+}
+
+#[tauri::command]
+pub async fn import_providers(
+    state: State<'_, AppState>,
+    input: ProviderImportInput,
+) -> Result<ProviderImportResult, String> {
+    services::import_providers(state.inner(), input)
         .await
         .map_err(error_to_string)
 }

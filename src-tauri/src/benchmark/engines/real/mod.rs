@@ -14,6 +14,7 @@ pub use helpers::{api_url, classify_model};
 pub(crate) use outcome::RequestOutcome;
 pub use protocol::RealProviderProtocol;
 pub use runtime::RealBenchmarkRuntime;
+pub(crate) use streaming::StreamDeltaObserver;
 
 use crate::domain::workload::WorkloadConfig;
 

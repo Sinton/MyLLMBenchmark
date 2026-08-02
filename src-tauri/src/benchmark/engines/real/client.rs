@@ -11,7 +11,7 @@ use super::providers::{
     anthropic, embedding_openai as embedding, gemini, jina_rerank as rerank,
     openai_compatible as chat, openai_responses as responses, vision_openai as vision,
 };
-use super::streaming::collect_streaming_response;
+use super::streaming::{collect_streaming_response, StreamDeltaObserver};
 use crate::domain::workload::WorkloadConfig;
 use crate::models::{DatasetSample, DiscoveredModel, ProviderConnectionConfig};
 use reqwest::Client;
@@ -20,13 +20,20 @@ use tokio::time::Instant;
 #[derive(Clone)]
 pub struct RealProviderClient {
     pub(super) client: Client,
+    stream_observer: Option<StreamDeltaObserver>,
 }
 
 impl RealProviderClient {
     pub fn new() -> anyhow::Result<Self> {
         Ok(Self {
             client: Client::builder().build()?,
+            stream_observer: None,
         })
+    }
+
+    pub(crate) fn with_stream_observer(mut self, observer: StreamDeltaObserver) -> Self {
+        self.stream_observer = Some(observer);
+        self
     }
 
     pub async fn list_models(
@@ -425,6 +432,7 @@ impl RealProviderClient {
             prompt,
             started,
             RequestUnits::default(),
+            self.stream_observer.as_ref(),
         )
         .await
     }
@@ -489,6 +497,7 @@ impl RealProviderClient {
                 prompt,
                 started,
                 units,
+                self.stream_observer.as_ref(),
             )
             .await;
         }
@@ -571,6 +580,7 @@ impl RealProviderClient {
                 prompt,
                 started,
                 units,
+                self.stream_observer.as_ref(),
             )
             .await;
         }
@@ -658,6 +668,7 @@ impl RealProviderClient {
                 prompt,
                 started,
                 units,
+                self.stream_observer.as_ref(),
             )
             .await;
         }

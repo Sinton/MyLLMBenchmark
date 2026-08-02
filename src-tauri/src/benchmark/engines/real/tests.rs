@@ -265,6 +265,47 @@ async fn diagnostics_probe_models_and_chat_without_exposing_key() {
 }
 
 #[tokio::test]
+async fn chat_streaming_observer_receives_real_deltas_in_order() {
+    let body = concat!(
+        "data: {\"choices\":[{\"delta\":{\"content\":\"Chat\"}}]}\n\n",
+        "data: {\"choices\":[{\"delta\":{\"content\":\" works\"}}]}\n\n",
+        "data: [DONE]\n\n"
+    );
+    let (base_url, requests, handle) =
+        spawn_single_response_server("200 OK", "text/event-stream", body);
+    let config = protocol_config("OpenAI", base_url);
+    let workload = WorkloadConfig::for_model_type("text_generation");
+    let deltas = Arc::new(Mutex::new(Vec::<String>::new()));
+    let observed = Arc::clone(&deltas);
+    let client = RealProviderClient::new()
+        .unwrap()
+        .with_stream_observer(Arc::new(move |delta, _| {
+            observed.lock().unwrap().push(delta);
+        }));
+
+    let outcome = client
+        .text_generation(
+            &config,
+            RealProviderProtocol::OpenAICompatible,
+            "chat-test",
+            "hello",
+            &workload,
+            30,
+        )
+        .await;
+
+    handle.join().unwrap();
+    assert!(outcome.ok, "{:?}", outcome.error_message);
+    assert_eq!(outcome.response_text.as_deref(), Some("Chat works"));
+    assert_eq!(*deltas.lock().unwrap(), vec!["Chat", " works"]);
+    assert!(requests
+        .lock()
+        .unwrap()
+        .join("\n")
+        .starts_with("POST /v1/chat/completions "));
+}
+
+#[tokio::test]
 async fn responses_streaming_request_records_output_usage_and_path() {
     let body = concat!(
             "data: {\"type\":\"response.output_text.delta\",\"delta\":\"Res\"}\n\n",
@@ -276,7 +317,13 @@ async fn responses_streaming_request_records_output_usage_and_path() {
         spawn_single_response_server("200 OK", "text/event-stream", body);
     let config = protocol_config("OpenAI-Response", base_url);
     let workload = WorkloadConfig::for_model_type("text_generation");
-    let client = RealProviderClient::new().unwrap();
+    let deltas = Arc::new(Mutex::new(Vec::<String>::new()));
+    let observed = Arc::clone(&deltas);
+    let client = RealProviderClient::new()
+        .unwrap()
+        .with_stream_observer(Arc::new(move |delta, _| {
+            observed.lock().unwrap().push(delta);
+        }));
 
     let outcome = client
         .text_generation(
@@ -294,6 +341,7 @@ async fn responses_streaming_request_records_output_usage_and_path() {
     assert_eq!(outcome.response_text.as_deref(), Some("Responses"));
     assert_eq!(outcome.usage.input_tokens, 7);
     assert_eq!(outcome.usage.output_tokens, 2);
+    assert_eq!(*deltas.lock().unwrap(), vec!["Res", "ponses"]);
     let request = requests.lock().unwrap().join("\n");
     assert!(request.starts_with("POST /v1/responses "));
     assert!(request.contains("\"stream\":true"));
@@ -313,7 +361,13 @@ async fn anthropic_streaming_request_records_output_usage_and_headers() {
         spawn_single_response_server("200 OK", "text/event-stream", body);
     let config = protocol_config("Anthropic", base_url);
     let workload = WorkloadConfig::for_model_type("text_generation");
-    let client = RealProviderClient::new().unwrap();
+    let deltas = Arc::new(Mutex::new(Vec::<String>::new()));
+    let observed = Arc::clone(&deltas);
+    let client = RealProviderClient::new()
+        .unwrap()
+        .with_stream_observer(Arc::new(move |delta, _| {
+            observed.lock().unwrap().push(delta);
+        }));
 
     let outcome = client
         .text_generation(
@@ -330,6 +384,7 @@ async fn anthropic_streaming_request_records_output_usage_and_headers() {
     assert!(outcome.ok, "{:?}", outcome.error_message);
     assert_eq!(outcome.response_text.as_deref(), Some("Anthropic"));
     assert_eq!(outcome.usage.output_tokens, 2);
+    assert_eq!(*deltas.lock().unwrap(), vec!["Anth", "ropic"]);
     let request = requests.lock().unwrap().join("\n");
     assert!(request.starts_with("POST /v1/messages "));
     assert!(request.contains("\"stream\":true"));
@@ -455,12 +510,16 @@ fn spawn_single_response_server(
         let size = stream.read(&mut buffer).unwrap();
         let request = String::from_utf8_lossy(&buffer[..size]).to_string();
         requests_for_thread.lock().unwrap().push(request);
-        let response = format!(
-                "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                body.len(),
-                body
-            );
-        stream.write_all(response.as_bytes()).unwrap();
+        let headers = format!(
+            "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            body.len()
+        );
+        stream.write_all(headers.as_bytes()).unwrap();
+        for chunk in body.as_bytes().chunks(19) {
+            stream.write_all(chunk).unwrap();
+            stream.flush().unwrap();
+            thread::sleep(Duration::from_millis(2));
+        }
     });
     (format!("http://{addr}/v1"), requests, handle)
 }

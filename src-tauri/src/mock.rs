@@ -6,10 +6,10 @@ use tokio::sync::RwLock;
 mod benchmarks;
 mod dashboard;
 mod datasets;
+mod endpoint_probe;
 mod providers;
 mod reports;
 mod seed;
-mod site_probe;
 mod types;
 
 use seed::seed_mock_data;
@@ -210,6 +210,15 @@ mod tests {
             })
             .await
             .unwrap();
+        assert!(!serde_json::to_string(&provider).unwrap().contains("secret"));
+        assert_eq!(
+            store
+                .get_provider_connection_config(&provider.id)
+                .await
+                .unwrap()
+                .api_key_plaintext,
+            "secret"
+        );
         store
             .update_provider_connection_status(
                 &provider.id,

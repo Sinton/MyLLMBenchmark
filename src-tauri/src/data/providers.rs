@@ -38,6 +38,14 @@ impl ProviderRepository for MockDataStore {
         MockDataStore::get_provider_connection_config(self, provider_id).await
     }
 
+    async fn find_provider_by_endpoint(
+        &self,
+        base_url: &str,
+        interface_type: &str,
+    ) -> anyhow::Result<Option<ProviderSummary>> {
+        MockDataStore::find_provider_by_endpoint(self, base_url, interface_type).await
+    }
+
     async fn update_provider_connection_status(
         &self,
         provider_id: &str,
@@ -106,6 +114,14 @@ impl ProviderRepository for Database {
         provider_id: &str,
     ) -> anyhow::Result<ProviderConnectionConfig> {
         Database::get_provider_connection_config(self, provider_id).await
+    }
+
+    async fn find_provider_by_endpoint(
+        &self,
+        base_url: &str,
+        interface_type: &str,
+    ) -> anyhow::Result<Option<ProviderSummary>> {
+        Database::find_provider_by_endpoint(self, base_url, interface_type).await
     }
 
     async fn update_provider_connection_status(
@@ -205,6 +221,23 @@ impl AppDataSource {
             }
             Self::Sqlite(source) => {
                 ProviderRepository::get_provider_connection_config(source, provider_id).await
+            }
+        }
+    }
+
+    pub async fn find_provider_by_endpoint(
+        &self,
+        base_url: &str,
+        interface_type: &str,
+    ) -> anyhow::Result<Option<ProviderSummary>> {
+        match self {
+            Self::Mock(source) => {
+                ProviderRepository::find_provider_by_endpoint(source, base_url, interface_type)
+                    .await
+            }
+            Self::Sqlite(source) => {
+                ProviderRepository::find_provider_by_endpoint(source, base_url, interface_type)
+                    .await
             }
         }
     }

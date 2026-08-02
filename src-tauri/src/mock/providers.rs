@@ -7,6 +7,7 @@ use crate::models::{
     CreateProviderInput, DeleteResult, DiscoveredModel, ModelSummary, ProviderConnectionConfig,
     ProviderDiagnosticsResult, ProviderSummary, UpdateProviderInput,
 };
+use crate::security::{mask_base_url, mask_secret};
 use uuid::Uuid;
 
 impl MockDataStore {
@@ -74,7 +75,7 @@ impl MockDataStore {
             ExistingProviderConfig {
                 base_url: current_base_url,
                 base_url_masked: current.base_url_masked,
-                api_key_masked: current.api_key_masked,
+                api_key_masked: mask_secret(Some(&current_api_key)),
                 api_key_plaintext: current_api_key,
                 interface_type: current.interface_type,
                 status: current.status,
@@ -170,6 +171,33 @@ impl MockDataStore {
         })
     }
 
+    pub async fn find_provider_by_endpoint(
+        &self,
+        base_url: &str,
+        interface_type: &str,
+    ) -> anyhow::Result<Option<ProviderSummary>> {
+        let data = self.inner.read().await;
+        let normalized = base_url.trim().trim_end_matches('/');
+        Ok(data
+            .providers
+            .iter()
+            .find(|provider| {
+                provider
+                    .interface_type
+                    .eq_ignore_ascii_case(interface_type.trim())
+                    && data
+                        .provider_base_urls
+                        .get(&provider.id)
+                        .is_some_and(|value| {
+                            value
+                                .trim()
+                                .trim_end_matches('/')
+                                .eq_ignore_ascii_case(normalized)
+                        })
+            })
+            .map(|provider| display_provider(&data, provider)))
+    }
+
     pub async fn update_provider_connection_status(
         &self,
         provider_id: &str,
@@ -191,7 +219,7 @@ impl MockDataStore {
         &self,
         provider_id: &str,
         models: Vec<DiscoveredModel>,
-        scanned_at: &str,
+        _scanned_at: &str,
     ) -> anyhow::Result<Vec<ModelSummary>> {
         let mut data = self.inner.write().await;
         if !data
@@ -218,8 +246,6 @@ impl MockDataStore {
         data.models.extend(summaries.clone());
         for provider in &mut data.providers {
             if provider.id == provider_id {
-                provider.last_checked_at = Some(scanned_at.to_string());
-                provider.status = "online".to_string();
                 provider.model_count = summaries.len() as i64;
             }
         }
@@ -248,14 +274,10 @@ impl MockDataStore {
 fn display_provider(data: &MockData, provider: &ProviderSummary) -> ProviderSummary {
     let mut provider = with_model_count(provider, &data.models);
     if let Some(base_url) = data.provider_base_urls.get(&provider.id) {
-        provider.base_url_masked = base_url.clone();
+        provider.base_url_masked = mask_base_url(base_url);
     }
     if let Some(api_key) = data.provider_api_keys.get(&provider.id) {
-        provider.api_key_masked = if api_key.trim().is_empty() {
-            "未配置".to_string()
-        } else {
-            api_key.clone()
-        };
+        provider.api_key_masked = mask_secret(Some(api_key));
     }
     provider
 }

@@ -22,23 +22,30 @@ import type {
   DatasetUpdateInput,
   DatasetValidationResult,
   DeleteResult,
+  EndpointProbeBatchDetail,
+  EndpointProbeBatchSummary,
+  EndpointProbeHistoryPage,
+  EndpointProbeHistoryPageInput,
+  EndpointProbeModelScanInput,
+  EndpointProbeModelScanResult,
+  EndpointProbePromotionInput,
+  EndpointProbePromotionResult,
+  EndpointProbeRunDetail,
+  EndpointProbeStartInput,
+  EndpointProbeStopResult,
   ModelSummary,
   MetricsTick,
   ProviderConnectionResult,
   ProviderDiagnosticsInput,
   ProviderDiagnosticsResult,
+  ProviderImportInput,
+  ProviderImportResult,
   ProviderModelScanResult,
   ProviderSummary,
   ReportDetail,
   ReportExportInput,
   ReportExportResult,
   ReportSummary,
-  SiteProbeHistoryPage,
-  SiteProbeHistoryPageInput,
-  SiteProbeModelScanInput,
-  SiteProbeModelScanResult,
-  SiteProbeRunDetail,
-  SiteProbeRunInput,
   StopResult,
   UpdateProviderInput,
 } from "../types/api";
@@ -49,6 +56,7 @@ export type AppApi = {
   getDashboardSummary: () => Promise<DashboardSummary>;
   listProviders: () => Promise<ProviderSummary[]>;
   createProvider: (input: CreateProviderInput) => Promise<ProviderSummary>;
+  importProviders: (input: ProviderImportInput) => Promise<ProviderImportResult>;
   updateProvider: (providerId: string, input: UpdateProviderInput) => Promise<ProviderSummary>;
   deleteProvider: (providerId: string) => Promise<DeleteResult>;
   testProviderConnection: (providerId: string) => Promise<ProviderConnectionResult>;
@@ -87,13 +95,22 @@ export type AppApi = {
   listReports: () => Promise<ReportSummary[]>;
   getReportDetail: (reportId: string) => Promise<ReportDetail>;
   exportReport: (input: ReportExportInput) => Promise<ReportExportResult>;
-  runSiteProbe: (input: SiteProbeRunInput) => Promise<SiteProbeRunDetail>;
-  scanSiteProbeModels: (
-    input: SiteProbeModelScanInput,
-  ) => Promise<SiteProbeModelScanResult>;
-  listSiteProbeRunsPage: (
-    input: SiteProbeHistoryPageInput,
-  ) => Promise<SiteProbeHistoryPage>;
-  getSiteProbeRunDetail: (runId: string) => Promise<SiteProbeRunDetail>;
-  deleteSiteProbeRun: (runId: string) => Promise<DeleteResult>;
+  startEndpointProbe: (
+    input: EndpointProbeStartInput,
+  ) => Promise<EndpointProbeBatchSummary>;
+  stopEndpointProbe: (batchId: string) => Promise<EndpointProbeStopResult>;
+  scanEndpointProbeModels: (
+    input: EndpointProbeModelScanInput,
+  ) => Promise<EndpointProbeModelScanResult>;
+  promoteEndpointProbeTarget: (
+    input: EndpointProbePromotionInput,
+  ) => Promise<EndpointProbePromotionResult>;
+  listEndpointProbeBatchesPage: (
+    input: EndpointProbeHistoryPageInput,
+  ) => Promise<EndpointProbeHistoryPage>;
+  getEndpointProbeBatchDetail: (
+    batchId: string,
+  ) => Promise<EndpointProbeBatchDetail>;
+  getEndpointProbeRunDetail: (runId: string) => Promise<EndpointProbeRunDetail>;
+  deleteEndpointProbeBatch: (batchId: string) => Promise<DeleteResult>;
 };

@@ -84,7 +84,7 @@ export function ProviderOnboarding({
           onChange={(event) => setForm({ ...form, base_url: event.target.value })}
         />
         <SecretInput
-          hint={isEditing ? "当前保存的 API Key 会直接回填；清空后保存表示移除密钥。" : undefined}
+          hint={isEditing ? "当前 API Key 仅以掩码显示；保持不变可沿用，清空后保存表示移除密钥。" : undefined}
           label="API Key"
           onChange={(api_key) => setForm({ ...form, api_key })}
           placeholder="sk-..."

@@ -7,6 +7,7 @@ use crate::models::{
     CreateProviderInput, DiscoveredModel, ModelSummary, ProviderConnectionConfig,
     ProviderDiagnosticsResult, ProviderSummary, UpdateProviderInput,
 };
+use crate::security::mask_secret;
 use sqlx::Row;
 use uuid::Uuid;
 
@@ -93,7 +94,7 @@ impl Database {
             ExistingProviderConfig {
                 base_url_masked: current_base_url.clone(),
                 base_url: current_base_url,
-                api_key_masked: row.get("api_key_masked"),
+                api_key_masked: display_api_key(&row),
                 api_key_plaintext: row.get("api_key_plaintext"),
                 interface_type: row.get("interface_type"),
                 status: row.get("status"),
@@ -208,6 +209,40 @@ impl Database {
             api_key_plaintext: row.get("api_key_plaintext"),
             interface_type: row.get("interface_type"),
         })
+    }
+
+    pub async fn find_provider_by_endpoint(
+        &self,
+        base_url: &str,
+        interface_type: &str,
+    ) -> anyhow::Result<Option<ProviderSummary>> {
+        let row = sqlx::query(
+            "SELECT p.id, p.name, p.base_url, p.api_key_masked, p.api_key_plaintext,
+                    p.interface_type, p.status, p.last_checked_at, p.created_at,
+                    COUNT(m.id) AS model_count
+             FROM providers p
+             LEFT JOIN models m ON m.provider_id = p.id
+             WHERE LOWER(RTRIM(p.base_url, '/')) = LOWER(?)
+               AND LOWER(p.interface_type) = LOWER(?)
+             GROUP BY p.id
+             LIMIT 1;",
+        )
+        .bind(base_url.trim().trim_end_matches('/'))
+        .bind(interface_type.trim())
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|row| ProviderSummary {
+            id: row.get("id"),
+            name: row.get("name"),
+            base_url_masked: row.get("base_url"),
+            api_key_masked: display_api_key(&row),
+            interface_type: row.get("interface_type"),
+            status: row.get("status"),
+            model_count: row.get("model_count"),
+            last_checked_at: row.get("last_checked_at"),
+            created_at: row.get("created_at"),
+        }))
     }
 
     pub async fn update_provider_connection_status(
@@ -347,8 +382,9 @@ async fn clear_provider_model_cache(
 fn display_api_key(row: &sqlx::sqlite::SqliteRow) -> String {
     let plaintext: String = row.get("api_key_plaintext");
     if plaintext.trim().is_empty() {
-        row.get("api_key_masked")
+        let stored: String = row.get("api_key_masked");
+        mask_secret(Some(&stored))
     } else {
-        plaintext
+        mask_secret(Some(&plaintext))
     }
 }

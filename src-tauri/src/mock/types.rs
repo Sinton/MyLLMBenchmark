@@ -1,7 +1,7 @@
 use crate::models::{
     BenchmarkErrorRecord, BenchmarkRequestLogDetail, BenchmarkTaskSummary, DatasetSample,
-    DatasetSummary, MetricsTick, ModelSummary, ProviderDiagnosticsResult, ProviderSummary,
-    ReportStageSummary, ReportSummary, SiteProbeRunDetail,
+    DatasetSummary, EndpointProbeBatchSummary, EndpointProbeRunDetail, MetricsTick, ModelSummary,
+    ProviderDiagnosticsResult, ProviderSummary, ReportStageSummary, ReportSummary,
 };
 use std::collections::HashMap;
 
@@ -38,6 +38,7 @@ pub(in crate::mock) struct MockData {
     pub(in crate::mock) ticks: HashMap<String, Vec<MetricsTick>>,
     pub(in crate::mock) errors: HashMap<String, Vec<BenchmarkErrorRecord>>,
     pub(in crate::mock) request_logs: HashMap<String, Vec<BenchmarkRequestLogDetail>>,
-    pub(in crate::mock) site_probe_runs: Vec<SiteProbeRunDetail>,
+    pub(in crate::mock) endpoint_probe_batches: Vec<EndpointProbeBatchSummary>,
+    pub(in crate::mock) endpoint_probe_runs: Vec<EndpointProbeRunDetail>,
     pub(in crate::mock) reports: Vec<ReportSummary>,
 }

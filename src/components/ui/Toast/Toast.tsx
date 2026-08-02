@@ -1,11 +1,11 @@
 ﻿import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-import { CheckCircle2, AlertCircle } from "../icons";
+import { AlertCircle, AlertTriangle, CheckCircle2 } from "../icons";
 
 export type ToastItem = {
   id: string;
   title: string;
   description?: string;
-  tone?: "success" | "danger" | "info";
+  tone?: "success" | "warning" | "danger" | "info";
 };
 
 type ToastViewportProps = {
@@ -62,7 +62,13 @@ export function ToastViewport({ items, onDismiss }: ToastViewportProps) {
           onClick={() => onDismiss(item.id)}
           type="button"
         >
-          {item.tone === "danger" ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+          {item.tone === "danger" ? (
+            <AlertCircle size={18} />
+          ) : item.tone === "warning" ? (
+            <AlertTriangle size={18} />
+          ) : (
+            <CheckCircle2 size={18} />
+          )}
           <span>
             <strong>{item.title}</strong>
             {item.description && <em>{item.description}</em>}

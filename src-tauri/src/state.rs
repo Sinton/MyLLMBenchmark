@@ -11,13 +11,15 @@ use crate::models::{
     DatasetExportInput, DatasetExportResult, DatasetImportInput, DatasetSample,
     DatasetSampleBatchDeleteInput, DatasetSampleCreateInput, DatasetSamplePage,
     DatasetSamplePageInput, DatasetSamplePreview, DatasetSampleUpdateInput, DatasetSummary,
-    DatasetUpdateInput, DatasetValidationResult, DeleteResult, DiscoveredModel, MetricsTick,
-    ModelSummary, ProviderConnectionConfig, ProviderDiagnosticsResult, ProviderSummary,
-    ReportDetail, ReportSummary, SiteProbeHistoryPage, SiteProbeHistoryPageInput,
-    SiteProbeRunDetail, SiteProbeRunRecord, SiteProbeRunSummary, UpdateProviderInput,
+    DatasetUpdateInput, DatasetValidationResult, DeleteResult, DiscoveredModel,
+    EndpointProbeBatchDetail, EndpointProbeBatchRecord, EndpointProbeBatchSummary,
+    EndpointProbeHistoryPage, EndpointProbeHistoryPageInput, EndpointProbeRunDetail,
+    EndpointProbeRunRecord, EndpointProbeRunSummary, MetricsTick, ModelSummary,
+    ProviderConnectionConfig, ProviderDiagnosticsResult, ProviderSummary, ReportDetail,
+    ReportSummary, UpdateProviderInput,
 };
 use crate::storage::{
-    RequestLogBodyLine, RequestLogBodyStore, SiteProbeBodyLine, SiteProbeBodyStore,
+    EndpointProbeBodyLine, EndpointProbeBodyStore, RequestLogBodyLine, RequestLogBodyStore,
 };
 use crate::tasks::TaskManager;
 use std::path::PathBuf;
@@ -30,8 +32,9 @@ pub struct AppState {
     config_store: ConfigStore,
     data: Arc<RwLock<AppDataSource>>,
     request_log_bodies: RequestLogBodyStore,
-    site_probe_bodies: SiteProbeBodyStore,
-    tasks: TaskManager,
+    endpoint_probe_bodies: EndpointProbeBodyStore,
+    benchmark_tasks: TaskManager,
+    endpoint_probe_tasks: TaskManager,
 }
 
 impl AppState {
@@ -39,13 +42,16 @@ impl AppState {
         let config_store = ConfigStore::new(config_dir);
         let config = config_store.load_or_create()?;
         let data = create_data_source(&config, &data_dir).await?;
+        let endpoint_probe_bodies = EndpointProbeBodyStore::new(data_dir.clone());
+        endpoint_probe_bodies.migrate_legacy_directory().await?;
         let state = Self {
             config: Arc::new(RwLock::new(config)),
             config_store,
             data: Arc::new(RwLock::new(data)),
             request_log_bodies: RequestLogBodyStore::new(data_dir.clone()),
-            site_probe_bodies: SiteProbeBodyStore::new(data_dir),
-            tasks: TaskManager::default(),
+            endpoint_probe_bodies,
+            benchmark_tasks: TaskManager::default(),
+            endpoint_probe_tasks: TaskManager::default(),
         };
         state.recover_orphaned_running_tasks().await?;
         Ok(state)
@@ -60,12 +66,23 @@ impl AppState {
         let switching_data_mode = current.data_mode != config.data_mode;
         let switching_engine = current.benchmark_engine != config.benchmark_engine;
 
-        if (switching_data_mode || switching_engine) && self.has_running_tasks().await {
-            let running = self.running_task_ids().await;
+        let running_benchmarks = self.running_task_ids().await;
+        let running_probes = self.running_endpoint_probe_batch_ids().await;
+        if switching_data_mode && (!running_benchmarks.is_empty() || !running_probes.is_empty()) {
+            let mut running = running_benchmarks.clone();
+            running.extend(running_probes);
             return Err(AppError::validation(format!(
-                "当前仍有 {} 个压测任务在运行（{}），请先停止后再切换数据源或压测引擎。",
+                "当前仍有 {} 个任务在运行（{}），请先停止后再切换数据源。",
                 running.len(),
                 running.join(", ")
+            ))
+            .into());
+        }
+        if switching_engine && !running_benchmarks.is_empty() {
+            return Err(AppError::validation(format!(
+                "当前仍有 {} 个压测任务在运行（{}），请先停止后再切换压测引擎。",
+                running_benchmarks.len(),
+                running_benchmarks.join(", ")
             ))
             .into());
         }
@@ -136,6 +153,17 @@ impl AppState {
         self.data_source()
             .await
             .get_provider_connection_config(provider_id)
+            .await
+    }
+
+    pub async fn find_provider_by_endpoint(
+        &self,
+        base_url: &str,
+        interface_type: &str,
+    ) -> anyhow::Result<Option<ProviderSummary>> {
+        self.data_source()
+            .await
+            .find_provider_by_endpoint(base_url, interface_type)
             .await
     }
 
@@ -390,16 +418,34 @@ impl AppState {
         Ok(result)
     }
 
-    pub async fn insert_site_probe_run(
+    pub async fn create_endpoint_probe_batch(
         &self,
-        mut record: SiteProbeRunRecord,
-    ) -> anyhow::Result<SiteProbeRunSummary> {
+        batch: EndpointProbeBatchRecord,
+        runs: Vec<EndpointProbeRunRecord>,
+    ) -> anyhow::Result<EndpointProbeBatchSummary> {
+        self.data_source()
+            .await
+            .create_endpoint_probe_batch(batch, runs)
+            .await
+    }
+
+    pub async fn mark_endpoint_probe_run_started(&self, run_id: &str) -> anyhow::Result<()> {
+        self.data_source()
+            .await
+            .mark_endpoint_probe_run_started(run_id)
+            .await
+    }
+
+    pub async fn finish_endpoint_probe_run(
+        &self,
+        mut record: EndpointProbeRunRecord,
+    ) -> anyhow::Result<EndpointProbeRunSummary> {
         let data = self.data_source().await;
-        if matches!(&data, AppDataSource::Sqlite(_)) && site_probe_has_body(&record) {
-            self.site_probe_bodies
+        if matches!(&data, AppDataSource::Sqlite(_)) && endpoint_probe_has_body(&record) {
+            self.endpoint_probe_bodies
                 .write_body(
                     &record.summary.id,
-                    &SiteProbeBodyLine {
+                    &EndpointProbeBodyLine {
                         id: record.summary.id.clone(),
                         prompt: record.prompt.clone(),
                         response_text: record.response_text.clone(),
@@ -409,33 +455,59 @@ impl AppState {
                     },
                 )
                 .await?;
-            record.body_ref = Some(SiteProbeBodyStore::body_ref(&record.summary.id));
+            record.body_ref = Some(EndpointProbeBodyStore::body_ref(&record.summary.id));
             record.summary.body_available = true;
         }
-        data.insert_site_probe_run(record).await
+        data.finish_endpoint_probe_run(record).await
     }
 
-    pub async fn list_site_probe_runs_page(
+    pub async fn finish_endpoint_probe_batch(
         &self,
-        input: SiteProbeHistoryPageInput,
-    ) -> anyhow::Result<SiteProbeHistoryPage> {
+        batch_id: &str,
+        status: &str,
+        finished_at: &str,
+    ) -> anyhow::Result<EndpointProbeBatchSummary> {
         self.data_source()
             .await
-            .list_site_probe_runs_page(input)
+            .finish_endpoint_probe_batch(batch_id, status, finished_at)
             .await
     }
 
-    pub async fn get_site_probe_run_detail(
+    pub async fn list_endpoint_probe_batches_page(
+        &self,
+        input: EndpointProbeHistoryPageInput,
+    ) -> anyhow::Result<EndpointProbeHistoryPage> {
+        self.data_source()
+            .await
+            .list_endpoint_probe_batches_page(input)
+            .await
+    }
+
+    pub async fn get_endpoint_probe_batch_detail(
+        &self,
+        batch_id: &str,
+    ) -> anyhow::Result<EndpointProbeBatchDetail> {
+        self.data_source()
+            .await
+            .get_endpoint_probe_batch_detail(batch_id)
+            .await
+    }
+
+    pub async fn get_endpoint_probe_run_detail(
         &self,
         run_id: &str,
-    ) -> anyhow::Result<SiteProbeRunDetail> {
+    ) -> anyhow::Result<EndpointProbeRunDetail> {
         let data = self.data_source().await;
-        let mut detail = data.get_site_probe_run_detail(run_id).await?;
+        let mut detail = data.get_endpoint_probe_run_detail(run_id).await?;
         if detail.summary.body_available
             && detail.prompt.is_none()
             && matches!(&data, AppDataSource::Sqlite(_))
         {
-            if let Some(body) = self.site_probe_bodies.read_body(&detail.summary.id).await? {
+            if let Some(body) = self
+                .endpoint_probe_bodies
+                .read_body(&detail.summary.id)
+                .await?
+            {
                 detail.prompt = body.prompt;
                 detail.response_text = body.response_text;
                 detail.request_payload = body.request_payload;
@@ -448,13 +520,21 @@ impl AppState {
         Ok(detail)
     }
 
-    pub async fn delete_site_probe_run(&self, run_id: &str) -> anyhow::Result<DeleteResult> {
+    pub async fn delete_endpoint_probe_batch(
+        &self,
+        batch_id: &str,
+    ) -> anyhow::Result<DeleteResult> {
+        let detail = self.get_endpoint_probe_batch_detail(batch_id).await?;
         let result = self
             .data_source()
             .await
-            .delete_site_probe_run(run_id)
+            .delete_endpoint_probe_batch(batch_id)
             .await?;
-        self.site_probe_bodies.delete_body(run_id).await?;
+        if result.deleted {
+            for run in detail.runs {
+                self.endpoint_probe_bodies.delete_body(&run.id).await?;
+            }
+        }
         Ok(result)
     }
 
@@ -502,23 +582,39 @@ impl AppState {
     }
 
     pub async fn register_task(&self, task_id: String, tx: watch::Sender<bool>) {
-        self.tasks.register(task_id, tx).await;
+        self.benchmark_tasks.register(task_id, tx).await;
     }
 
     pub async fn stop_task(&self, task_id: &str) -> bool {
-        self.tasks.stop(task_id).await
+        self.benchmark_tasks.stop(task_id).await
     }
 
     pub async fn remove_task(&self, task_id: &str) {
-        self.tasks.remove(task_id).await;
+        self.benchmark_tasks.remove(task_id).await;
     }
 
     pub async fn has_running_tasks(&self) -> bool {
-        self.tasks.has_running_tasks().await
+        self.benchmark_tasks.has_running_tasks().await
     }
 
     pub async fn running_task_ids(&self) -> Vec<String> {
-        self.tasks.running_task_ids().await
+        self.benchmark_tasks.running_task_ids().await
+    }
+
+    pub async fn register_endpoint_probe_batch(&self, batch_id: String, tx: watch::Sender<bool>) {
+        self.endpoint_probe_tasks.register(batch_id, tx).await;
+    }
+
+    pub async fn stop_endpoint_probe_batch(&self, batch_id: &str) -> bool {
+        self.endpoint_probe_tasks.stop(batch_id).await
+    }
+
+    pub async fn remove_endpoint_probe_batch(&self, batch_id: &str) {
+        self.endpoint_probe_tasks.remove(batch_id).await;
+    }
+
+    pub async fn running_endpoint_probe_batch_ids(&self) -> Vec<String> {
+        self.endpoint_probe_tasks.running_task_ids().await
     }
 
     async fn recover_orphaned_running_tasks(&self) -> anyhow::Result<()> {
@@ -543,6 +639,8 @@ impl AppState {
             )
             .await?;
         }
+        data.recover_endpoint_probe_batches("应用重启后清理未完成测活任务")
+            .await?;
         Ok(())
     }
 }
@@ -554,7 +652,7 @@ fn request_log_has_body(log: &BenchmarkRequestLogRecord) -> bool {
         || log.raw_usage.is_some()
 }
 
-fn site_probe_has_body(record: &SiteProbeRunRecord) -> bool {
+fn endpoint_probe_has_body(record: &EndpointProbeRunRecord) -> bool {
     record.prompt.is_some()
         || record.response_text.is_some()
         || record.request_payload.is_some()
@@ -723,6 +821,40 @@ mod tests {
         assert!(message.contains("仍有"));
         assert!(message.contains("压测任务在运行"));
 
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[tokio::test]
+    async fn probe_tasks_block_data_source_switch_but_not_benchmark_engine_switch() {
+        let root = temp_root("block-probe-switch");
+        let state = AppState::initialize(root.join("config"), root.join("data"))
+            .await
+            .unwrap();
+        let (tx, _rx) = watch::channel(false);
+        state
+            .register_endpoint_probe_batch("probe-running".to_string(), tx)
+            .await;
+
+        state
+            .save_config(AppConfig {
+                data_mode: DataMode::Mock,
+                benchmark_engine: BenchmarkEngineMode::OpenaiCompatible,
+            })
+            .await
+            .unwrap();
+
+        let error = state
+            .save_config(AppConfig {
+                data_mode: DataMode::Sqlite,
+                benchmark_engine: BenchmarkEngineMode::OpenaiCompatible,
+            })
+            .await
+            .unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("probe-running"));
+        assert!(message.contains("切换数据源"));
+
+        state.remove_endpoint_probe_batch("probe-running").await;
         let _ = std::fs::remove_dir_all(root);
     }
 }

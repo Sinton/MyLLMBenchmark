@@ -5,8 +5,9 @@ use crate::domain::model_type::default_capabilities;
 use crate::models::{
     BenchmarkRequestLogRecord, BenchmarkRequestLogSummary, BenchmarkStartInput,
     CreateProviderInput, DatasetImportInput, DatasetSampleCreateInput, DatasetSamplePageInput,
-    DatasetSampleUpdateInput, DatasetUpdateInput, DiscoveredModel, MetricsTick, ModelSummary,
-    SiteProbeHistoryPageInput, SiteProbeRunRecord, SiteProbeRunSummary, UpdateProviderInput,
+    DatasetSampleUpdateInput, DatasetUpdateInput, DiscoveredModel, EndpointProbeBatchRecord,
+    EndpointProbeBatchSummary, EndpointProbeHistoryPageInput, EndpointProbeRunRecord,
+    EndpointProbeRunSummary, MetricsTick, ModelSummary, UpdateProviderInput,
 };
 use base64::prelude::*;
 use std::fs;
@@ -108,7 +109,7 @@ async fn migrations_are_recorded_once_for_existing_database() {
         .fetch_one(&db.pool)
         .await
         .unwrap();
-    assert_eq!(latest, 5);
+    assert_eq!(latest, 6);
     drop(db);
 
     let db = Database::initialize(&data_dir).await.unwrap();
@@ -240,6 +241,14 @@ async fn provider_name_update_keeps_sqlite_state_key_and_models() {
     let data_dir = temp_data_dir("provider-name");
     let db = Database::initialize(&data_dir).await.unwrap();
     let provider = db.create_provider(provider_input()).await.unwrap();
+    assert!(!serde_json::to_string(&provider).unwrap().contains("secret"));
+    assert_eq!(
+        db.get_provider_connection_config(&provider.id)
+            .await
+            .unwrap()
+            .api_key_plaintext,
+        "secret"
+    );
     db.update_provider_connection_status(&provider.id, "online", &chrono::Utc::now().to_rfc3339())
         .await
         .unwrap();
@@ -636,41 +645,160 @@ async fn request_logs_page_and_report_meta_are_available_in_sqlite() {
 }
 
 #[tokio::test]
-async fn site_probe_history_page_and_detail_are_available_in_sqlite() {
-    let data_dir = temp_data_dir("site-probe");
+async fn endpoint_probe_batches_and_runs_are_available_in_sqlite() {
+    let data_dir = temp_data_dir("endpoint-probe");
     let db = Database::initialize(&data_dir).await.unwrap();
-    let passed = site_probe_record(
-        "passed",
-        Some("请回复测活成功"),
-        Some("测活成功"),
-        None,
-        Some("site_probe_bodies/passed.jsonl"),
-    );
-    let failed = site_probe_record("failed", Some("hello"), None, Some("HTTP 401"), None);
-    let passed_id = passed.summary.id.clone();
-    let failed_id = failed.summary.id.clone();
+    let (batch, runs) = endpoint_probe_batch_fixture();
+    let batch_id = batch.summary.id.clone();
+    let passed_id = runs[0].summary.id.clone();
+    let failed_id = runs[1].summary.id.clone();
 
-    db.insert_site_probe_run(&passed).await.unwrap();
-    db.insert_site_probe_run(&failed).await.unwrap();
+    let created = db.create_endpoint_probe_batch(&batch, &runs).await.unwrap();
+    assert_eq!(created.total_runs, 2);
+    assert_eq!(created.pending_runs, 2);
+    assert!(
+        !db.delete_endpoint_probe_batch(&batch_id)
+            .await
+            .unwrap()
+            .deleted
+    );
+
+    db.mark_endpoint_probe_run_started(&passed_id)
+        .await
+        .unwrap();
+    let mut passed = runs[0].clone();
+    passed.summary.status = "passed".to_string();
+    passed.summary.latency_ms = 320;
+    passed.summary.ttft_ms = 80;
+    passed.summary.input_tokens = 8;
+    passed.summary.output_tokens = 12;
+    passed.summary.total_tokens = 20;
+    passed.summary.response_preview = Some("测活成功".to_string());
+    passed.summary.finished_at = Some(chrono::Utc::now().to_rfc3339());
+    passed.body_ref = Some("endpoint_probe_bodies/passed.jsonl".to_string());
+    db.finish_endpoint_probe_run(&passed).await.unwrap();
+
+    db.mark_endpoint_probe_run_started(&failed_id)
+        .await
+        .unwrap();
+    let mut failed = runs[1].clone();
+    failed.summary.status = "failed".to_string();
+    failed.summary.error_kind = Some("http_4xx".to_string());
+    failed.summary.error_message = Some("HTTP 401".to_string());
+    failed.summary.response_preview = Some("HTTP 401".to_string());
+    failed.summary.finished_at = Some(chrono::Utc::now().to_rfc3339());
+    db.finish_endpoint_probe_run(&failed).await.unwrap();
+
+    db.finish_endpoint_probe_batch(&batch_id, "completed", &chrono::Utc::now().to_rfc3339())
+        .await
+        .unwrap();
 
     let failed_page = db
-        .list_site_probe_runs_page(SiteProbeHistoryPageInput {
+        .list_endpoint_probe_batches_page(EndpointProbeHistoryPageInput {
             page: 1,
             page_size: 20,
-            status: Some("failed".to_string()),
+            status: Some("completed".to_string()),
             keyword: Some("401".to_string()),
         })
         .await
         .unwrap();
     assert_eq!(failed_page.total, 1);
-    assert_eq!(failed_page.items[0].id, failed_id);
+    assert_eq!(failed_page.items[0].id, batch_id);
+    assert_eq!(failed_page.items[0].passed_runs, 1);
+    assert_eq!(failed_page.items[0].failed_runs, 1);
 
-    let detail = db.get_site_probe_run_detail(&passed_id).await.unwrap();
+    let detail = db.get_endpoint_probe_run_detail(&passed_id).await.unwrap();
     assert!(detail.summary.body_available);
     assert_eq!(detail.summary.response_preview.as_deref(), Some("测活成功"));
 
-    let deleted = db.delete_site_probe_run(&failed_id).await.unwrap();
+    let deleted = db.delete_endpoint_probe_batch(&batch_id).await.unwrap();
     assert!(deleted.deleted);
+    assert!(db.get_endpoint_probe_run_detail(&failed_id).await.is_err());
+
+    drop(db);
+    let _ = std::fs::remove_dir_all(data_dir);
+}
+
+#[tokio::test]
+async fn endpoint_probe_recovery_marks_orphaned_batches_and_runs_failed() {
+    let data_dir = temp_data_dir("endpoint-probe-recovery");
+    let db = Database::initialize(&data_dir).await.unwrap();
+    let (batch, runs) = endpoint_probe_batch_fixture();
+    let batch_id = batch.summary.id.clone();
+    db.create_endpoint_probe_batch(&batch, &runs).await.unwrap();
+    db.mark_endpoint_probe_run_started(&runs[0].summary.id)
+        .await
+        .unwrap();
+
+    db.recover_endpoint_probe_batches("restart cleanup")
+        .await
+        .unwrap();
+
+    let detail = db.get_endpoint_probe_batch_detail(&batch_id).await.unwrap();
+    assert_eq!(detail.summary.status, "failed");
+    assert_eq!(detail.summary.failed_runs, 2);
+    assert!(detail.runs.iter().all(|run| run.status == "failed"));
+    assert!(detail
+        .runs
+        .iter()
+        .all(|run| run.error_kind.as_deref() == Some("orphaned")));
+
+    drop(db);
+    let _ = std::fs::remove_dir_all(data_dir);
+}
+
+#[tokio::test]
+async fn legacy_site_probe_rows_migrate_into_single_run_batches() {
+    let data_dir = temp_data_dir("endpoint-probe-migration");
+    let db = Database::initialize(&data_dir).await.unwrap();
+    sqlx::query(
+        "CREATE TABLE site_probe_runs (
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, base_url TEXT NOT NULL,
+            interface_type TEXT NOT NULL, model TEXT NOT NULL, status TEXT NOT NULL,
+            latency_ms INTEGER NOT NULL, ttft_ms INTEGER NOT NULL,
+            input_tokens INTEGER NOT NULL, output_tokens INTEGER NOT NULL,
+            total_tokens INTEGER NOT NULL, error_kind TEXT, error_message TEXT,
+            prompt_preview TEXT, response_preview TEXT, body_ref TEXT,
+            created_at TEXT NOT NULL
+        );",
+    )
+    .execute(&db.pool)
+    .await
+    .unwrap();
+    let legacy_id = Uuid::new_v4().to_string();
+    sqlx::query(
+        "INSERT INTO site_probe_runs
+         (id, name, base_url, interface_type, model, status, latency_ms, ttft_ms,
+          input_tokens, output_tokens, total_tokens, prompt_preview, response_preview,
+          body_ref, created_at)
+         VALUES (?, 'Legacy gateway', 'http://127.0.0.1:3000/v1', 'OpenAI',
+                 'legacy-model', 'passed', 300, 70, 8, 12, 20, 'hello', 'ok',
+                 'site_probe_bodies/legacy.jsonl', '2026-08-05T00:00:00Z');",
+    )
+    .bind(&legacy_id)
+    .execute(&db.pool)
+    .await
+    .unwrap();
+    drop(db);
+
+    let db = Database::initialize(&data_dir).await.unwrap();
+    let detail = db
+        .get_endpoint_probe_batch_detail(&legacy_id)
+        .await
+        .unwrap();
+    assert_eq!(detail.summary.id, legacy_id);
+    assert_eq!(detail.summary.total_runs, 1);
+    assert_eq!(detail.summary.status, "completed");
+    assert_eq!(detail.runs[0].source_type, "temporary");
+    assert_eq!(detail.runs[0].status, "passed");
+    assert!(detail.runs[0].body_available);
+    let legacy_table: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'site_probe_runs';",
+    )
+    .fetch_one(&db.pool)
+    .await
+    .unwrap();
+    assert_eq!(legacy_table, 0);
 
     drop(db);
     let _ = std::fs::remove_dir_all(data_dir);
@@ -711,38 +839,63 @@ fn request_log_record(
     }
 }
 
-fn site_probe_record(
-    status: &str,
-    prompt: Option<&str>,
-    response: Option<&str>,
-    error: Option<&str>,
-    body_ref: Option<&str>,
-) -> SiteProbeRunRecord {
-    SiteProbeRunRecord {
-        summary: SiteProbeRunSummary {
-            id: Uuid::new_v4().to_string(),
-            name: "new-api gateway".to_string(),
-            base_url: "http://127.0.0.1:3000/v1".to_string(),
-            interface_type: "OpenAI".to_string(),
-            model: "test-model".to_string(),
-            status: status.to_string(),
-            latency_ms: 320,
-            ttft_ms: if status == "passed" { 80 } else { 0 },
-            input_tokens: 8,
-            output_tokens: if status == "passed" { 12 } else { 0 },
-            total_tokens: if status == "passed" { 20 } else { 8 },
-            error_kind: error.map(|_| "http_4xx".to_string()),
-            error_message: error.map(ToString::to_string),
-            prompt_preview: prompt.map(ToString::to_string),
-            response_preview: response.or(error).map(ToString::to_string),
-            body_available: body_ref.is_some(),
-            created_at: chrono::Utc::now().to_rfc3339(),
+fn endpoint_probe_batch_fixture() -> (EndpointProbeBatchRecord, Vec<EndpointProbeRunRecord>) {
+    let batch_id = Uuid::new_v4().to_string();
+    let created_at = chrono::Utc::now().to_rfc3339();
+    let batch = EndpointProbeBatchRecord {
+        summary: EndpointProbeBatchSummary {
+            id: batch_id.clone(),
+            name: "Batch probe".to_string(),
+            status: "running".to_string(),
+            total_runs: 2,
+            pending_runs: 2,
+            running_runs: 0,
+            passed_runs: 0,
+            failed_runs: 0,
+            cancelled_runs: 0,
+            streaming: true,
+            max_output_tokens: 256,
+            timeout_seconds: 60,
+            save_body: true,
+            concurrency: 2,
+            prompt_preview: Some("请回复测活成功".to_string()),
+            created_at: created_at.clone(),
+            finished_at: None,
         },
-        body_ref: body_ref.map(ToString::to_string),
-        prompt: prompt.map(ToString::to_string),
-        response_text: response.map(ToString::to_string),
-        request_payload: Some(serde_json::json!({"model": "test-model"})),
-        raw_error: error.map(ToString::to_string),
-        raw_usage: None,
-    }
+    };
+    let runs = ["test-model", "failing-model"]
+        .into_iter()
+        .map(|model| EndpointProbeRunRecord {
+            summary: EndpointProbeRunSummary {
+                id: Uuid::new_v4().to_string(),
+                batch_id: batch_id.clone(),
+                source_type: "temporary".to_string(),
+                provider_id: None,
+                name: "new-api gateway".to_string(),
+                base_url: "http://127.0.0.1:3000/v1".to_string(),
+                interface_type: "OpenAI".to_string(),
+                model: model.to_string(),
+                status: "pending".to_string(),
+                latency_ms: 0,
+                ttft_ms: 0,
+                input_tokens: 0,
+                output_tokens: 0,
+                total_tokens: 0,
+                error_kind: None,
+                error_message: None,
+                prompt_preview: Some("请回复测活成功".to_string()),
+                response_preview: None,
+                body_available: false,
+                created_at: created_at.clone(),
+                finished_at: None,
+            },
+            body_ref: None,
+            prompt: None,
+            response_text: None,
+            request_payload: None,
+            raw_error: None,
+            raw_usage: None,
+        })
+        .collect();
+    (batch, runs)
 }

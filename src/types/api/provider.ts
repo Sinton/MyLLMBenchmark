@@ -34,6 +34,32 @@ export type UpdateProviderInput = {
   interface_type: ProviderInterfaceType;
 };
 
+export type ProviderImportItem = {
+  name: string;
+  base_url: string;
+  api_key?: string;
+  interface_type: ProviderInterfaceType;
+  models?: string[];
+};
+
+export type ProviderImportInput = {
+  items: ProviderImportItem[];
+};
+
+export type ProviderImportItemResult = {
+  index: number;
+  status: "created" | "skipped" | "failed" | string;
+  provider_id: string | null;
+  message: string;
+};
+
+export type ProviderImportResult = {
+  created: number;
+  skipped: number;
+  failed: number;
+  items: ProviderImportItemResult[];
+};
+
 export type DeleteResult = {
   id: string;
   deleted: boolean;

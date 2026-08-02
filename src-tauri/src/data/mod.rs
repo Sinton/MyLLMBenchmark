@@ -8,18 +8,20 @@ use crate::models::{
     DatasetExportInput, DatasetExportResult, DatasetImportInput, DatasetSample,
     DatasetSampleBatchDeleteInput, DatasetSampleCreateInput, DatasetSamplePage,
     DatasetSamplePageInput, DatasetSamplePreview, DatasetSampleUpdateInput, DatasetSummary,
-    DatasetUpdateInput, DatasetValidationResult, DeleteResult, DiscoveredModel, MetricsTick,
-    ModelSummary, ProviderConnectionConfig, ProviderDiagnosticsResult, ProviderSummary,
-    ReportDetail, ReportSummary, SiteProbeHistoryPage, SiteProbeHistoryPageInput,
-    SiteProbeRunDetail, SiteProbeRunRecord, SiteProbeRunSummary, UpdateProviderInput,
+    DatasetUpdateInput, DatasetValidationResult, DeleteResult, DiscoveredModel,
+    EndpointProbeBatchDetail, EndpointProbeBatchRecord, EndpointProbeBatchSummary,
+    EndpointProbeHistoryPage, EndpointProbeHistoryPageInput, EndpointProbeRunDetail,
+    EndpointProbeRunRecord, EndpointProbeRunSummary, MetricsTick, ModelSummary,
+    ProviderConnectionConfig, ProviderDiagnosticsResult, ProviderSummary, ReportDetail,
+    ReportSummary, UpdateProviderInput,
 };
 
 mod benchmarks;
 mod dashboard;
 mod datasets;
+mod endpoint_probe;
 mod providers;
 mod reports;
-mod site_probe;
 
 #[derive(Clone)]
 pub enum AppDataSource {
@@ -90,6 +92,11 @@ pub(crate) trait ProviderRepository {
         &self,
         provider_id: &str,
     ) -> anyhow::Result<ProviderConnectionConfig>;
+    async fn find_provider_by_endpoint(
+        &self,
+        base_url: &str,
+        interface_type: &str,
+    ) -> anyhow::Result<Option<ProviderSummary>>;
     async fn update_provider_connection_status(
         &self,
         provider_id: &str,
@@ -160,15 +167,35 @@ pub(crate) trait ReportRepository {
 }
 
 #[allow(async_fn_in_trait)]
-pub(crate) trait SiteProbeRepository {
-    async fn insert_site_probe_run(
+pub(crate) trait EndpointProbeRepository {
+    async fn create_endpoint_probe_batch(
         &self,
-        record: SiteProbeRunRecord,
-    ) -> anyhow::Result<SiteProbeRunSummary>;
-    async fn list_site_probe_runs_page(
+        batch: EndpointProbeBatchRecord,
+        runs: Vec<EndpointProbeRunRecord>,
+    ) -> anyhow::Result<EndpointProbeBatchSummary>;
+    async fn mark_endpoint_probe_run_started(&self, run_id: &str) -> anyhow::Result<()>;
+    async fn finish_endpoint_probe_run(
         &self,
-        input: SiteProbeHistoryPageInput,
-    ) -> anyhow::Result<SiteProbeHistoryPage>;
-    async fn get_site_probe_run_detail(&self, run_id: &str) -> anyhow::Result<SiteProbeRunDetail>;
-    async fn delete_site_probe_run(&self, run_id: &str) -> anyhow::Result<DeleteResult>;
+        record: EndpointProbeRunRecord,
+    ) -> anyhow::Result<EndpointProbeRunSummary>;
+    async fn finish_endpoint_probe_batch(
+        &self,
+        batch_id: &str,
+        status: &str,
+        finished_at: &str,
+    ) -> anyhow::Result<EndpointProbeBatchSummary>;
+    async fn list_endpoint_probe_batches_page(
+        &self,
+        input: EndpointProbeHistoryPageInput,
+    ) -> anyhow::Result<EndpointProbeHistoryPage>;
+    async fn get_endpoint_probe_batch_detail(
+        &self,
+        batch_id: &str,
+    ) -> anyhow::Result<EndpointProbeBatchDetail>;
+    async fn get_endpoint_probe_run_detail(
+        &self,
+        run_id: &str,
+    ) -> anyhow::Result<EndpointProbeRunDetail>;
+    async fn delete_endpoint_probe_batch(&self, batch_id: &str) -> anyhow::Result<DeleteResult>;
+    async fn recover_endpoint_probe_batches(&self, message: &str) -> anyhow::Result<()>;
 }

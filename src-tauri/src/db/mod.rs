@@ -16,12 +16,12 @@ const DATABASE_RENAME_RETRY_DELAY: Duration = Duration::from_millis(50);
 mod benchmarks;
 mod dashboard;
 mod datasets;
+mod endpoint_probe;
 mod migrations;
 mod providers;
 mod reports;
 mod rows;
 mod seed;
-mod site_probe;
 
 #[cfg(test)]
 mod tests;

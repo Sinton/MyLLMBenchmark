@@ -23,23 +23,30 @@ import type {
   DatasetUpdateInput,
   DatasetValidationResult,
   DeleteResult,
+  EndpointProbeBatchDetail,
+  EndpointProbeBatchSummary,
+  EndpointProbeHistoryPage,
+  EndpointProbeHistoryPageInput,
+  EndpointProbeModelScanInput,
+  EndpointProbeModelScanResult,
+  EndpointProbePromotionInput,
+  EndpointProbePromotionResult,
+  EndpointProbeRunDetail,
+  EndpointProbeStartInput,
+  EndpointProbeStopResult,
   ModelSummary,
   MetricsTick,
   ProviderConnectionResult,
   ProviderDiagnosticsInput,
   ProviderDiagnosticsResult,
+  ProviderImportInput,
+  ProviderImportResult,
   ProviderModelScanResult,
   ProviderSummary,
   ReportDetail,
   ReportExportInput,
   ReportExportResult,
   ReportSummary,
-  SiteProbeHistoryPage,
-  SiteProbeHistoryPageInput,
-  SiteProbeModelScanInput,
-  SiteProbeModelScanResult,
-  SiteProbeRunDetail,
-  SiteProbeRunInput,
   StopResult,
 } from "../types/api";
 
@@ -50,6 +57,8 @@ export const api: AppApi = {
   getDashboardSummary: () => invoke<DashboardSummary>("get_dashboard_summary"),
   listProviders: () => invoke<ProviderSummary[]>("list_providers"),
   createProvider: (input) => invoke<ProviderSummary>("create_provider", { input }),
+  importProviders: (input: ProviderImportInput) =>
+    invoke<ProviderImportResult>("import_providers", { input }),
   updateProvider: (providerId, input) =>
     invoke<ProviderSummary>("update_provider", { providerId, input }),
   deleteProvider: (providerId) =>
@@ -109,16 +118,22 @@ export const api: AppApi = {
     invoke<ReportDetail>("get_report_detail", { reportId }),
   exportReport: (input: ReportExportInput) =>
     invoke<ReportExportResult>("export_report", { input }),
-  runSiteProbe: (input: SiteProbeRunInput) =>
-    invoke<SiteProbeRunDetail>("run_site_probe", { input }),
-  scanSiteProbeModels: (input: SiteProbeModelScanInput) =>
-    invoke<SiteProbeModelScanResult>("scan_site_probe_models", { input }),
-  listSiteProbeRunsPage: (input: SiteProbeHistoryPageInput) =>
-    invoke<SiteProbeHistoryPage>("list_site_probe_runs_page", { input }),
-  getSiteProbeRunDetail: (runId) =>
-    invoke<SiteProbeRunDetail>("get_site_probe_run_detail", { runId }),
-  deleteSiteProbeRun: (runId) =>
-    invoke<DeleteResult>("delete_site_probe_run", { runId }),
+  startEndpointProbe: (input: EndpointProbeStartInput) =>
+    invoke<EndpointProbeBatchSummary>("start_endpoint_probe", { input }),
+  stopEndpointProbe: (batchId) =>
+    invoke<EndpointProbeStopResult>("stop_endpoint_probe", { batchId }),
+  scanEndpointProbeModels: (input: EndpointProbeModelScanInput) =>
+    invoke<EndpointProbeModelScanResult>("scan_endpoint_probe_models", { input }),
+  promoteEndpointProbeTarget: (input: EndpointProbePromotionInput) =>
+    invoke<EndpointProbePromotionResult>("promote_endpoint_probe_target", { input }),
+  listEndpointProbeBatchesPage: (input: EndpointProbeHistoryPageInput) =>
+    invoke<EndpointProbeHistoryPage>("list_endpoint_probe_batches_page", { input }),
+  getEndpointProbeBatchDetail: (batchId) =>
+    invoke<EndpointProbeBatchDetail>("get_endpoint_probe_batch_detail", { batchId }),
+  getEndpointProbeRunDetail: (runId) =>
+    invoke<EndpointProbeRunDetail>("get_endpoint_probe_run_detail", { runId }),
+  deleteEndpointProbeBatch: (batchId) =>
+    invoke<DeleteResult>("delete_endpoint_probe_batch", { batchId }),
 };
 
 export { listenToEvent };

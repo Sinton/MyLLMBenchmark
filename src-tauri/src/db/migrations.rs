@@ -5,7 +5,7 @@ const INITIAL_SCHEMA_VERSION: i64 = 1;
 const EVIDENCE_SCHEMA_VERSION: i64 = 2;
 const RELEASE_PREP_SCHEMA_VERSION: i64 = 3;
 const REQUEST_LOG_SCHEMA_VERSION: i64 = 4;
-const SITE_PROBE_SCHEMA_VERSION: i64 = 5;
+const ENDPOINT_PROBE_SCHEMA_VERSION: i64 = 6;
 
 impl Database {
     pub(super) async fn configure(&self) -> anyhow::Result<()> {
@@ -35,8 +35,8 @@ impl Database {
         self.migrate_request_log_schema().await?;
         self.record_migration(REQUEST_LOG_SCHEMA_VERSION, "request_log_schema")
             .await?;
-        self.migrate_site_probe_schema().await?;
-        self.record_migration(SITE_PROBE_SCHEMA_VERSION, "site_probe_schema")
+        self.migrate_endpoint_probe_schema().await?;
+        self.record_migration(ENDPOINT_PROBE_SCHEMA_VERSION, "endpoint_probe_batch_schema")
             .await?;
         Ok(())
     }
@@ -364,8 +364,46 @@ impl Database {
         self.ensure_request_log_table().await
     }
 
-    async fn migrate_site_probe_schema(&self) -> anyhow::Result<()> {
-        self.ensure_site_probe_table().await
+    async fn migrate_endpoint_probe_schema(&self) -> anyhow::Result<()> {
+        self.ensure_endpoint_probe_tables().await?;
+        if !self.table_exists("site_probe_runs").await? {
+            return Ok(());
+        }
+
+        let mut tx = self.pool.begin().await?;
+        sqlx::query(
+            "INSERT OR IGNORE INTO endpoint_probe_batches
+             (id, name, status, streaming, max_output_tokens, timeout_seconds, save_body,
+              concurrency, prompt_preview, created_at, finished_at)
+             SELECT id, name, 'completed', 0, 512, 60,
+                    CASE WHEN body_ref IS NULL THEN 0 ELSE 1 END,
+                    1, prompt_preview, created_at, created_at
+             FROM site_probe_runs;",
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "INSERT OR IGNORE INTO endpoint_probe_runs
+             (id, batch_id, source_type, provider_id, name, base_url, interface_type, model,
+              status, latency_ms, ttft_ms, input_tokens, output_tokens, total_tokens,
+              error_kind, error_message, prompt_preview, response_preview, body_ref,
+              created_at, finished_at)
+             SELECT id, id, 'temporary', NULL, name, base_url, interface_type, model,
+                    status, latency_ms, ttft_ms, input_tokens, output_tokens, total_tokens,
+                    error_kind, error_message, prompt_preview, response_preview, body_ref,
+                    created_at, created_at
+             FROM site_probe_runs;",
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("DROP INDEX IF EXISTS idx_site_probe_runs_created_at;")
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DROP TABLE site_probe_runs;")
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(())
     }
 
     async fn ensure_task_evidence_columns(&self) -> anyhow::Result<()> {
@@ -474,15 +512,35 @@ impl Database {
         Ok(())
     }
 
-    async fn ensure_site_probe_table(&self) -> anyhow::Result<()> {
+    async fn ensure_endpoint_probe_tables(&self) -> anyhow::Result<()> {
         sqlx::query(
-            "CREATE TABLE IF NOT EXISTS site_probe_runs (
+            "CREATE TABLE IF NOT EXISTS endpoint_probe_batches (
                 id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                status TEXT NOT NULL,
+                streaming INTEGER NOT NULL DEFAULT 0,
+                max_output_tokens INTEGER NOT NULL DEFAULT 512,
+                timeout_seconds INTEGER NOT NULL DEFAULT 60,
+                save_body INTEGER NOT NULL DEFAULT 0,
+                concurrency INTEGER NOT NULL DEFAULT 1,
+                prompt_preview TEXT,
+                created_at TEXT NOT NULL,
+                finished_at TEXT
+            );",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS endpoint_probe_runs (
+                id TEXT PRIMARY KEY,
+                batch_id TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                provider_id TEXT,
                 name TEXT NOT NULL,
                 base_url TEXT NOT NULL,
                 interface_type TEXT NOT NULL,
                 model TEXT NOT NULL,
-                status TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
                 latency_ms INTEGER NOT NULL DEFAULT 0,
                 ttft_ms INTEGER NOT NULL DEFAULT 0,
                 input_tokens INTEGER NOT NULL DEFAULT 0,
@@ -493,14 +551,29 @@ impl Database {
                 prompt_preview TEXT,
                 response_preview TEXT,
                 body_ref TEXT,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                finished_at TEXT,
+                FOREIGN KEY(batch_id) REFERENCES endpoint_probe_batches(id) ON DELETE CASCADE,
+                FOREIGN KEY(provider_id) REFERENCES providers(id) ON DELETE SET NULL
             );",
         )
         .execute(&self.pool)
         .await?;
         sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_site_probe_runs_created_at
-             ON site_probe_runs(created_at DESC);",
+            "CREATE INDEX IF NOT EXISTS idx_endpoint_probe_batches_created_at
+             ON endpoint_probe_batches(created_at DESC);",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_endpoint_probe_runs_batch
+             ON endpoint_probe_runs(batch_id, created_at ASC);",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_endpoint_probe_runs_provider
+             ON endpoint_probe_runs(provider_id, status);",
         )
         .execute(&self.pool)
         .await?;
@@ -600,5 +673,15 @@ impl Database {
         Ok(rows
             .iter()
             .any(|row| row.get::<String, _>("name") == column))
+    }
+
+    async fn table_exists(&self, table: &str) -> anyhow::Result<bool> {
+        let found: Option<i64> = sqlx::query_scalar(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1;",
+        )
+        .bind(table)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(found.is_some())
     }
 }
