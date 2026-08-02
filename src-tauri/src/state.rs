@@ -1,4 +1,4 @@
-﻿use crate::config::{AppConfig, ConfigStore, ConfigUpdateResult};
+use crate::config::{AppConfig, ConfigStore, ConfigUpdateResult};
 use crate::data::AppDataSource;
 use crate::db::Database;
 use crate::domain::benchmark_sample::StageSample;
@@ -16,7 +16,9 @@ use crate::models::{
     ReportDetail, ReportSummary, SiteProbeHistoryPage, SiteProbeHistoryPageInput,
     SiteProbeRunDetail, SiteProbeRunRecord, SiteProbeRunSummary, UpdateProviderInput,
 };
-use crate::storage::{RequestLogBodyLine, RequestLogBodyStore, SiteProbeBodyLine, SiteProbeBodyStore};
+use crate::storage::{
+    RequestLogBodyLine, RequestLogBodyStore, SiteProbeBodyLine, SiteProbeBodyStore,
+};
 use crate::tasks::TaskManager;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -417,7 +419,10 @@ impl AppState {
         &self,
         input: SiteProbeHistoryPageInput,
     ) -> anyhow::Result<SiteProbeHistoryPage> {
-        self.data_source().await.list_site_probe_runs_page(input).await
+        self.data_source()
+            .await
+            .list_site_probe_runs_page(input)
+            .await
     }
 
     pub async fn get_site_probe_run_detail(
@@ -444,7 +449,11 @@ impl AppState {
     }
 
     pub async fn delete_site_probe_run(&self, run_id: &str) -> anyhow::Result<DeleteResult> {
-        let result = self.data_source().await.delete_site_probe_run(run_id).await?;
+        let result = self
+            .data_source()
+            .await
+            .delete_site_probe_run(run_id)
+            .await?;
         self.site_probe_bodies.delete_body(run_id).await?;
         Ok(result)
     }

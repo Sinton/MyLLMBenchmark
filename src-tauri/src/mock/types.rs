@@ -1,8 +1,7 @@
 use crate::models::{
     BenchmarkErrorRecord, BenchmarkRequestLogDetail, BenchmarkTaskSummary, DatasetSample,
     DatasetSummary, MetricsTick, ModelSummary, ProviderDiagnosticsResult, ProviderSummary,
-    ReportStageSummary, ReportSummary,
-    SiteProbeRunDetail,
+    ReportStageSummary, ReportSummary, SiteProbeRunDetail,
 };
 use std::collections::HashMap;
 

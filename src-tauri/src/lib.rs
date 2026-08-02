@@ -18,12 +18,13 @@ pub mod telemetry;
 use commands::{
     append_dataset_samples, create_dataset_sample, create_provider, delete_benchmark_request_logs,
     delete_dataset, delete_dataset_sample, delete_dataset_samples_batch, delete_provider,
-    diagnose_provider, export_dataset, export_report, generate_report, get_app_config,
-    get_benchmark_request_log_detail, get_benchmark_task, get_dashboard_summary,
-    get_provider_diagnostics, get_report_detail, import_dataset, list_benchmark_request_logs_page,
-    list_benchmark_ticks, list_dataset_samples_page, list_datasets, list_provider_models,
-    list_providers, list_reports, preview_dataset_samples, scan_provider_models, start_benchmark,
-    stop_benchmark, test_provider_connection, update_app_config, update_dataset,
+    delete_site_probe_run, diagnose_provider, export_dataset, export_report, generate_report,
+    get_app_config, get_benchmark_request_log_detail, get_benchmark_task, get_dashboard_summary,
+    get_provider_diagnostics, get_report_detail, get_site_probe_run_detail, import_dataset,
+    list_benchmark_request_logs_page, list_benchmark_ticks, list_dataset_samples_page,
+    list_datasets, list_provider_models, list_providers, list_reports, list_site_probe_runs_page,
+    preview_dataset_samples, run_site_probe, scan_provider_models, scan_site_probe_models,
+    start_benchmark, stop_benchmark, test_provider_connection, update_app_config, update_dataset,
     update_dataset_sample, update_provider, validate_dataset_samples,
 };
 use state::AppState;
@@ -75,7 +76,12 @@ pub fn run() {
             generate_report,
             list_reports,
             get_report_detail,
-            export_report
+            export_report,
+            run_site_probe,
+            scan_site_probe_models,
+            list_site_probe_runs_page,
+            get_site_probe_run_detail,
+            delete_site_probe_run
         ])
         .run(tauri::generate_context!())
         .expect("error while running MyLLMBenchmark");

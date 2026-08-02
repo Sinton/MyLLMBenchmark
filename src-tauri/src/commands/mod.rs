@@ -4,6 +4,7 @@ mod dashboard;
 mod dataset;
 mod provider;
 mod report;
+mod site_probe;
 
 pub use benchmark::{
     delete_benchmark_request_logs, get_benchmark_request_log_detail, get_benchmark_task,
@@ -23,6 +24,10 @@ pub use provider::{
     update_provider,
 };
 pub use report::{export_report, generate_report, get_report_detail, list_reports};
+pub use site_probe::{
+    delete_site_probe_run, get_site_probe_run_detail, list_site_probe_runs_page, run_site_probe,
+    scan_site_probe_models,
+};
 
 use crate::error::AppError;
 

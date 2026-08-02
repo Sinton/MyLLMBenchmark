@@ -14,6 +14,28 @@ pub struct SiteProbeRunInput {
     pub save_body: bool,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct SiteProbeModelScanInput {
+    pub base_url: String,
+    pub api_key: Option<String>,
+    pub interface_type: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SiteProbeModelOption {
+    pub name: String,
+    pub model_type: String,
+    pub capabilities: Vec<String>,
+    pub supports_streaming: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SiteProbeModelScanResult {
+    pub models: Vec<SiteProbeModelOption>,
+    pub message: String,
+    pub scanned_at: String,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct SiteProbeRunSummary {
     pub id: String,

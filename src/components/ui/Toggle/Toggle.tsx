@@ -28,7 +28,7 @@ export function Toggle({
         role="switch"
         type="button"
       >
-        <span />
+        <span aria-hidden="true" className="toggle-thumb" />
       </button>
       {label && <span>{label}</span>}
     </label>

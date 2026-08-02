@@ -33,6 +33,12 @@ import type {
   ReportExportInput,
   ReportExportResult,
   ReportSummary,
+  SiteProbeHistoryPage,
+  SiteProbeHistoryPageInput,
+  SiteProbeModelScanInput,
+  SiteProbeModelScanResult,
+  SiteProbeRunDetail,
+  SiteProbeRunInput,
   StopResult,
   UpdateProviderInput,
 } from "../types/api";
@@ -81,4 +87,13 @@ export type AppApi = {
   listReports: () => Promise<ReportSummary[]>;
   getReportDetail: (reportId: string) => Promise<ReportDetail>;
   exportReport: (input: ReportExportInput) => Promise<ReportExportResult>;
+  runSiteProbe: (input: SiteProbeRunInput) => Promise<SiteProbeRunDetail>;
+  scanSiteProbeModels: (
+    input: SiteProbeModelScanInput,
+  ) => Promise<SiteProbeModelScanResult>;
+  listSiteProbeRunsPage: (
+    input: SiteProbeHistoryPageInput,
+  ) => Promise<SiteProbeHistoryPage>;
+  getSiteProbeRunDetail: (runId: string) => Promise<SiteProbeRunDetail>;
+  deleteSiteProbeRun: (runId: string) => Promise<DeleteResult>;
 };

@@ -34,6 +34,12 @@ import type {
   ReportExportInput,
   ReportExportResult,
   ReportSummary,
+  SiteProbeHistoryPage,
+  SiteProbeHistoryPageInput,
+  SiteProbeModelScanInput,
+  SiteProbeModelScanResult,
+  SiteProbeRunDetail,
+  SiteProbeRunInput,
   StopResult,
 } from "../types/api";
 
@@ -103,6 +109,16 @@ export const api: AppApi = {
     invoke<ReportDetail>("get_report_detail", { reportId }),
   exportReport: (input: ReportExportInput) =>
     invoke<ReportExportResult>("export_report", { input }),
+  runSiteProbe: (input: SiteProbeRunInput) =>
+    invoke<SiteProbeRunDetail>("run_site_probe", { input }),
+  scanSiteProbeModels: (input: SiteProbeModelScanInput) =>
+    invoke<SiteProbeModelScanResult>("scan_site_probe_models", { input }),
+  listSiteProbeRunsPage: (input: SiteProbeHistoryPageInput) =>
+    invoke<SiteProbeHistoryPage>("list_site_probe_runs_page", { input }),
+  getSiteProbeRunDetail: (runId) =>
+    invoke<SiteProbeRunDetail>("get_site_probe_run_detail", { runId }),
+  deleteSiteProbeRun: (runId) =>
+    invoke<DeleteResult>("delete_site_probe_run", { runId }),
 };
 
 export { listenToEvent };

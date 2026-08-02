@@ -13,6 +13,7 @@ import {
   Database,
   FileText,
   LayoutDashboard,
+  Network,
   Settings as SettingsIcon,
 } from "../components/ui/icons";
 import { LoadingBlock } from "../components/ui/LoadingBlock";
@@ -42,6 +43,11 @@ const Workbench = lazy(() =>
 const Reports = lazy(() =>
   import("../pages/reports/Reports").then((module) => ({ default: module.Reports })),
 );
+const SiteProbe = lazy(() =>
+  import("../pages/site-probe/SiteProbe").then((module) => ({
+    default: module.SiteProbe,
+  })),
+);
 const SettingsRoute = lazy(() =>
   import("../pages/settings/Settings").then((module) => ({
     default: module.Settings,
@@ -54,6 +60,7 @@ const navItems: DesktopNavItem[] = [
   { to: "/datasets", label: "测试数据集", shortLabel: "数据", icon: Database },
   { to: "/workbench", label: "压测工作台", shortLabel: "压测", icon: Activity },
   { to: "/reports", label: "测试报告", shortLabel: "报告", icon: FileText },
+  { to: "/site-probe", label: "站点测活", shortLabel: "测活", icon: Network },
   { to: "/settings", label: "系统设置", shortLabel: "设置", icon: SettingsIcon },
 ];
 
@@ -110,6 +117,7 @@ export function App() {
           <Route path="/datasets" element={<Datasets />} />
           <Route path="/workbench" element={<Workbench />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/site-probe" element={<SiteProbe />} />
           <Route path="/settings" element={<SettingsRoute />} />
         </Routes>
       </Suspense>

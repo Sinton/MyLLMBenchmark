@@ -8,6 +8,7 @@ export type SelectOption<T extends string = string> = {
 
 type SelectFieldProps<T extends string = string> = {
   label?: string;
+  ariaLabel?: string;
   value: T;
   options: Array<SelectOption<T>>;
   onChange: (value: T) => void;
@@ -17,6 +18,7 @@ type SelectFieldProps<T extends string = string> = {
 
 export function SelectField<T extends string = string>({
   label,
+  ariaLabel,
   value,
   options,
   onChange,
@@ -26,6 +28,7 @@ export function SelectField<T extends string = string>({
   return (
     <Picker
       disabled={disabled}
+      ariaLabel={ariaLabel}
       label={label}
       onChange={(nextValue) => onChange(nextValue)}
       options={options}

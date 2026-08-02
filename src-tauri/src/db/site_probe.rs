@@ -49,8 +49,7 @@ impl Database {
         let offset = (input.page - 1) * input.page_size;
         let keyword_pattern = input.keyword.as_ref().map(|value| format!("%{value}%"));
 
-        let mut count_builder =
-            QueryBuilder::<Sqlite>::new("SELECT COUNT(*) FROM site_probe_runs");
+        let mut count_builder = QueryBuilder::<Sqlite>::new("SELECT COUNT(*) FROM site_probe_runs");
         push_site_probe_filters(&mut count_builder, &input, keyword_pattern.as_deref());
         let total: i64 = count_builder
             .build_query_scalar()

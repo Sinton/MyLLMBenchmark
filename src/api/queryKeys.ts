@@ -26,4 +26,7 @@ export const queryKeys = {
   ) => ["benchmark-request-logs", taskId, page, pageSize, stageIndex ?? "all", status, keyword] as const,
   benchmarkRequestLogDetail: (requestId: string) =>
     ["benchmark-request-log-detail", requestId] as const,
+  siteProbeRuns: (page: number, pageSize: number, status: string, keyword: string) =>
+    ["site-probe-runs", page, pageSize, status, keyword] as const,
+  siteProbeRunDetail: (runId: string) => ["site-probe-run-detail", runId] as const,
 };

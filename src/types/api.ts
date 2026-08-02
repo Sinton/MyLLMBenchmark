@@ -5,3 +5,4 @@ export * from "./api/dataset";
 export * from "./api/model";
 export * from "./api/provider";
 export * from "./api/report";
+export * from "./api/siteProbe";

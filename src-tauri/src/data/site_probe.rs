@@ -72,7 +72,9 @@ impl AppDataSource {
         input: SiteProbeHistoryPageInput,
     ) -> anyhow::Result<SiteProbeHistoryPage> {
         match self {
-            Self::Mock(source) => SiteProbeRepository::list_site_probe_runs_page(source, input).await,
+            Self::Mock(source) => {
+                SiteProbeRepository::list_site_probe_runs_page(source, input).await
+            }
             Self::Sqlite(source) => {
                 SiteProbeRepository::list_site_probe_runs_page(source, input).await
             }
@@ -84,7 +86,9 @@ impl AppDataSource {
         run_id: &str,
     ) -> anyhow::Result<SiteProbeRunDetail> {
         match self {
-            Self::Mock(source) => SiteProbeRepository::get_site_probe_run_detail(source, run_id).await,
+            Self::Mock(source) => {
+                SiteProbeRepository::get_site_probe_run_detail(source, run_id).await
+            }
             Self::Sqlite(source) => {
                 SiteProbeRepository::get_site_probe_run_detail(source, run_id).await
             }
@@ -94,7 +98,9 @@ impl AppDataSource {
     pub async fn delete_site_probe_run(&self, run_id: &str) -> anyhow::Result<DeleteResult> {
         match self {
             Self::Mock(source) => SiteProbeRepository::delete_site_probe_run(source, run_id).await,
-            Self::Sqlite(source) => SiteProbeRepository::delete_site_probe_run(source, run_id).await,
+            Self::Sqlite(source) => {
+                SiteProbeRepository::delete_site_probe_run(source, run_id).await
+            }
         }
     }
 }

@@ -6,7 +6,7 @@ use crate::models::{
     BenchmarkRequestLogRecord, BenchmarkRequestLogSummary, BenchmarkStartInput,
     CreateProviderInput, DatasetImportInput, DatasetSampleCreateInput, DatasetSamplePageInput,
     DatasetSampleUpdateInput, DatasetUpdateInput, DiscoveredModel, MetricsTick, ModelSummary,
-    UpdateProviderInput,
+    SiteProbeHistoryPageInput, SiteProbeRunRecord, SiteProbeRunSummary, UpdateProviderInput,
 };
 use base64::prelude::*;
 use std::fs;
@@ -103,12 +103,12 @@ async fn migrations_are_recorded_once_for_existing_database() {
         .fetch_one(&db.pool)
         .await
         .unwrap();
-    assert_eq!(count, 4);
+    assert_eq!(count, 5);
     let latest: i64 = sqlx::query_scalar("SELECT MAX(version) FROM schema_migrations;")
         .fetch_one(&db.pool)
         .await
         .unwrap();
-    assert_eq!(latest, 4);
+    assert_eq!(latest, 5);
     drop(db);
 
     let db = Database::initialize(&data_dir).await.unwrap();
@@ -116,7 +116,7 @@ async fn migrations_are_recorded_once_for_existing_database() {
         .fetch_one(&db.pool)
         .await
         .unwrap();
-    assert_eq!(count, 4);
+    assert_eq!(count, 5);
     drop(db);
 
     let _ = std::fs::remove_dir_all(data_dir);
@@ -635,6 +635,47 @@ async fn request_logs_page_and_report_meta_are_available_in_sqlite() {
     let _ = std::fs::remove_dir_all(data_dir);
 }
 
+#[tokio::test]
+async fn site_probe_history_page_and_detail_are_available_in_sqlite() {
+    let data_dir = temp_data_dir("site-probe");
+    let db = Database::initialize(&data_dir).await.unwrap();
+    let passed = site_probe_record(
+        "passed",
+        Some("请回复测活成功"),
+        Some("测活成功"),
+        None,
+        Some("site_probe_bodies/passed.jsonl"),
+    );
+    let failed = site_probe_record("failed", Some("hello"), None, Some("HTTP 401"), None);
+    let passed_id = passed.summary.id.clone();
+    let failed_id = failed.summary.id.clone();
+
+    db.insert_site_probe_run(&passed).await.unwrap();
+    db.insert_site_probe_run(&failed).await.unwrap();
+
+    let failed_page = db
+        .list_site_probe_runs_page(SiteProbeHistoryPageInput {
+            page: 1,
+            page_size: 20,
+            status: Some("failed".to_string()),
+            keyword: Some("401".to_string()),
+        })
+        .await
+        .unwrap();
+    assert_eq!(failed_page.total, 1);
+    assert_eq!(failed_page.items[0].id, failed_id);
+
+    let detail = db.get_site_probe_run_detail(&passed_id).await.unwrap();
+    assert!(detail.summary.body_available);
+    assert_eq!(detail.summary.response_preview.as_deref(), Some("测活成功"));
+
+    let deleted = db.delete_site_probe_run(&failed_id).await.unwrap();
+    assert!(deleted.deleted);
+
+    drop(db);
+    let _ = std::fs::remove_dir_all(data_dir);
+}
+
 fn request_log_record(
     task_id: &str,
     request_index: i64,
@@ -666,6 +707,42 @@ fn request_log_record(
         prompt: prompt.map(ToString::to_string),
         response_text: response.map(ToString::to_string),
         raw_error: error_kind.map(ToString::to_string),
+        raw_usage: None,
+    }
+}
+
+fn site_probe_record(
+    status: &str,
+    prompt: Option<&str>,
+    response: Option<&str>,
+    error: Option<&str>,
+    body_ref: Option<&str>,
+) -> SiteProbeRunRecord {
+    SiteProbeRunRecord {
+        summary: SiteProbeRunSummary {
+            id: Uuid::new_v4().to_string(),
+            name: "new-api gateway".to_string(),
+            base_url: "http://127.0.0.1:3000/v1".to_string(),
+            interface_type: "OpenAI".to_string(),
+            model: "test-model".to_string(),
+            status: status.to_string(),
+            latency_ms: 320,
+            ttft_ms: if status == "passed" { 80 } else { 0 },
+            input_tokens: 8,
+            output_tokens: if status == "passed" { 12 } else { 0 },
+            total_tokens: if status == "passed" { 20 } else { 8 },
+            error_kind: error.map(|_| "http_4xx".to_string()),
+            error_message: error.map(ToString::to_string),
+            prompt_preview: prompt.map(ToString::to_string),
+            response_preview: response.or(error).map(ToString::to_string),
+            body_available: body_ref.is_some(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+        },
+        body_ref: body_ref.map(ToString::to_string),
+        prompt: prompt.map(ToString::to_string),
+        response_text: response.map(ToString::to_string),
+        request_payload: Some(serde_json::json!({"model": "test-model"})),
+        raw_error: error.map(ToString::to_string),
         raw_usage: None,
     }
 }

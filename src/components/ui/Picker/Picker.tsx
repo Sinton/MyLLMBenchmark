@@ -10,6 +10,7 @@ export type PickerOption<T extends string = string> = {
 
 type PickerProps<T extends string = string> = {
   label?: string;
+  ariaLabel?: string;
   value: T;
   options: Array<PickerOption<T>>;
   onChange: (value: T, option: PickerOption<T>) => void;
@@ -19,6 +20,7 @@ type PickerProps<T extends string = string> = {
 
 export function Picker<T extends string = string>({
   label,
+  ariaLabel,
   value,
   options,
   onChange,
@@ -44,6 +46,7 @@ export function Picker<T extends string = string>({
             aria-controls={open ? contentId : undefined}
             aria-expanded={open}
             aria-haspopup="listbox"
+            aria-label={label ? undefined : ariaLabel ?? placeholder}
             aria-labelledby={label ? labelId : undefined}
             className={`select-trigger ${open ? "open" : ""}`}
             disabled={disabled}
