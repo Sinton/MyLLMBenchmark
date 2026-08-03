@@ -11,6 +11,7 @@
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
   transition:
     transform 120ms ease,
     background 180ms ease,

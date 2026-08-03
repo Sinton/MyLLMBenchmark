@@ -54,6 +54,17 @@
   line-height: 18px;
 }
 
+.endpoint-probe-mode-tabs {
+  flex: 0 0 148px;
+}
+
+.endpoint-probe-mode-tabs button {
+  min-width: 0;
+  flex: 1 1 0;
+  padding-right: 8px;
+  padding-left: 8px;
+}
+
 .endpoint-probe-config-scroll {
   min-height: 0;
   overflow: auto;
@@ -196,11 +207,6 @@
   padding: 13px 20px;
   border-top: 1px solid var(--border-strong);
   background: var(--surface-soft);
-}
-
-.endpoint-probe-launch-dock > .inline-alert {
-  grid-column: 1 / -1;
-  padding: 8px 10px;
 }
 
 .endpoint-probe-launch-summary {

@@ -1,7 +1,6 @@
 import { Card } from "../../../components/ui/Card";
 import { Play, Square } from "../../../components/ui/icons";
 import { Button } from "../../../components/ui/Button";
-import { InlineAlert } from "../../../components/ui/InlineAlert";
 import { Tabs } from "../../../components/ui/Tabs";
 import type { useEndpointProbeView } from "../hooks/useEndpointProbeView";
 import { EndpointProbeBatchTargets } from "./EndpointProbeBatchTargets";
@@ -11,7 +10,8 @@ import { EndpointProbeSingleTarget } from "./EndpointProbeSingleTarget";
 type EndpointProbeView = ReturnType<typeof useEndpointProbeView>;
 
 export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }) {
-  const isActive = view.activeBatch?.status === "pending" || view.activeBatch?.status === "running";
+  const isActive =
+    view.activeBatch?.status === "pending" || view.activeBatch?.status === "running";
 
   return (
     <Card className="endpoint-probe-config-card">
@@ -22,6 +22,7 @@ export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }
         </div>
         <Tabs
           ariaLabel="测活模式"
+          className="endpoint-probe-mode-tabs"
           items={[
             { key: "single", label: "单次测活" },
             { key: "batch", label: "批量测活" },
@@ -48,13 +49,13 @@ export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }
               : "1 个模型请求"}
           </strong>
           <span>
-            {view.common.streaming ? "实时 Streaming" : "非流式响应"}
-            {view.common.save_body ? " · 保存正文" : " · 仅保存摘要"}
+            {!view.listenersReady
+              ? "正在初始化实时事件通道"
+              : `${view.common.streaming ? "实时 Streaming" : "非流式响应"}${
+                  view.common.save_body ? " · 保存正文" : " · 仅保存摘要"
+                }`}
           </span>
         </div>
-        {view.startIssue && !isActive && (
-          <InlineAlert tone="info">{view.startIssue}</InlineAlert>
-        )}
         {isActive ? (
           <Button
             loading={view.stopping}
@@ -66,7 +67,7 @@ export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }
           </Button>
         ) : (
           <Button
-            disabled={Boolean(view.startIssue)}
+            disabled={!view.listenersReady}
             icon={<Play size={16} />}
             loading={view.running}
             variant="primary"
