@@ -7,7 +7,7 @@ import { Download, FileText } from "../../components/ui/icons";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { LoadingBlock } from "../../components/ui/LoadingBlock";
 import { WorkspaceHeader } from "../../components/app-shell/WorkspaceHeader";
-import { useToast } from "../../components/ui/Toast";
+import { useNotification } from "../../components/ui/Notification";
 import { ReportDetailView } from "../../features/reports/components/ReportDetailView";
 import { ReportExportDialog } from "../../features/reports/components/ReportExportDialog";
 import { ReportRail } from "../../features/reports/components/ReportRail";
@@ -16,7 +16,7 @@ import { useReportsView } from "../../features/reports/hooks/useReportsView";
 export function Reports() {
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const { pushToast } = useToast();
+  const { notify } = useNotification();
   const reportsView = useReportsView();
 
   return (
@@ -87,7 +87,7 @@ export function Reports() {
               format,
               template,
             });
-            pushToast({
+            notify({
               title: "报告导出完成",
               description: result.file_name,
               tone: "success",

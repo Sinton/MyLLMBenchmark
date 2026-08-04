@@ -5,18 +5,24 @@ import { queryKeys } from "../../api/queryKeys";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { FileText, Gauge, Lock, Network, Settings2 } from "../../components/ui/icons";
-import { useToast } from "../../components/ui/Toast";
+import { useNotification } from "../../components/ui/Notification";
 import { Toggle } from "../../components/ui/Toggle";
 import { SelectField } from "../../components/ui/SelectField";
 import {
   SettingRow,
   SettingsPanel,
 } from "../../features/settings/components/SettingsPanel";
-import type { AppConfig, BenchmarkEngineMode, DataMode } from "../../types/api";
+import type {
+  AppConfig,
+  BenchmarkEngineMode,
+  DataMode,
+  NotificationPosition,
+} from "../../types/api";
 
 const defaultConfig: AppConfig = {
   data_mode: "mock",
   benchmark_engine: "mock",
+  notification_position: "top-right",
 };
 
 const settingsSections = [
@@ -56,7 +62,7 @@ type SettingsSectionKey = (typeof settingsSections)[number]["key"];
 
 export function Settings() {
   const queryClient = useQueryClient();
-  const { pushToast } = useToast();
+  const { notify, setPosition } = useNotification();
   const [configDraft, setConfigDraft] = useState<AppConfig>(defaultConfig);
   const [activeSection, setActiveSection] =
     useState<SettingsSectionKey>("general");
@@ -73,8 +79,9 @@ export function Settings() {
     mutationFn: api.updateAppConfig,
     onSuccess: async (result) => {
       setConfigDraft(result.config);
+      setPosition(result.config.notification_position);
       await queryClient.invalidateQueries();
-      pushToast({
+      notify({
         title: "系统设置已保存",
         description: result.restart_required
           ? "配置已写入 Tauri config.json，部分系统级配置会在应用重启后生效。"
@@ -83,7 +90,7 @@ export function Settings() {
       });
     },
     onError: (error) => {
-      pushToast({
+      notify({
         title: "系统设置保存失败",
         description: error instanceof Error ? error.message : String(error),
         tone: "danger" as const,
@@ -106,7 +113,7 @@ export function Settings() {
   };
 
   const pushSaved = (title: string) => {
-    pushToast({
+    notify({
       title,
       description: "该配置项当前是界面占位，后续会接入对应的 Tauri 设置服务。",
       tone: "success" as const,
@@ -240,6 +247,40 @@ export function Settings() {
                       value: "en-US",
                       label: "English",
                       description: "英文报告预留",
+                    },
+                  ]}
+                />
+              </SettingRow>
+              <SettingRow
+                label="应用通知位置"
+                description="控制带标题和详情的应用通知显示位置；单行 Toast 固定显示在顶部中央。"
+              >
+                <SelectField<NotificationPosition>
+                  value={configDraft.notification_position}
+                  disabled={configQuery.isLoading}
+                  onChange={(value) =>
+                    updateConfigDraft("notification_position", value)
+                  }
+                  options={[
+                    {
+                      value: "top-right",
+                      label: "右上角（推荐）",
+                      description: "避开主工作区和底部状态栏",
+                    },
+                    {
+                      value: "top-left",
+                      label: "左上角",
+                      description: "靠近应用导航区域",
+                    },
+                    {
+                      value: "bottom-right",
+                      label: "右下角",
+                      description: "显示在底部状态栏上方",
+                    },
+                    {
+                      value: "bottom-left",
+                      label: "左下角",
+                      description: "显示在导航栏右侧的底部区域",
                     },
                   ]}
                 />

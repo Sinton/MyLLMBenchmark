@@ -21,11 +21,28 @@ impl Default for BenchmarkEngineMode {
     }
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum NotificationPosition {
+    TopRight,
+    TopLeft,
+    BottomRight,
+    BottomLeft,
+}
+
+impl Default for NotificationPosition {
+    fn default() -> Self {
+        Self::TopRight
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AppConfig {
     pub data_mode: DataMode,
     #[serde(default)]
     pub benchmark_engine: BenchmarkEngineMode,
+    #[serde(default)]
+    pub notification_position: NotificationPosition,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -63,7 +80,35 @@ impl Default for AppConfig {
         Self {
             data_mode: DataMode::Mock,
             benchmark_engine: BenchmarkEngineMode::Mock,
+            notification_position: NotificationPosition::TopRight,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AppConfig, DataMode, NotificationPosition};
+
+    #[test]
+    fn old_config_defaults_notification_position_to_top_right() {
+        let config: AppConfig =
+            serde_json::from_str(r#"{"data_mode":"sqlite","benchmark_engine":"mock"}"#).unwrap();
+
+        assert_eq!(config.data_mode, DataMode::Sqlite);
+        assert_eq!(config.notification_position, NotificationPosition::TopRight);
+    }
+
+    #[test]
+    fn notification_position_uses_kebab_case_values() {
+        let config: AppConfig = serde_json::from_str(
+            r#"{"data_mode":"mock","benchmark_engine":"mock","notification_position":"bottom-left"}"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            config.notification_position,
+            NotificationPosition::BottomLeft
+        );
     }
 }
 

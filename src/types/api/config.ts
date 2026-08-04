@@ -2,9 +2,16 @@ export type DataMode = "mock" | "sqlite";
 
 export type BenchmarkEngineMode = "mock" | "openai_compatible";
 
+export type NotificationPosition =
+  | "top-right"
+  | "top-left"
+  | "bottom-right"
+  | "bottom-left";
+
 export type AppConfig = {
   data_mode: DataMode;
   benchmark_engine: BenchmarkEngineMode;
+  notification_position: NotificationPosition;
 };
 
 export type ConfigUpdateResult = {

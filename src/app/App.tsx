@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
@@ -17,6 +17,7 @@ import {
   Settings as SettingsIcon,
 } from "../components/ui/icons";
 import { LoadingBlock } from "../components/ui/LoadingBlock";
+import { useNotification } from "../components/ui/Notification";
 import { StatusBarItem } from "../components/app-shell/StatusBarItem";
 import { useWorkbenchStore } from "../stores/workbenchStore";
 
@@ -65,6 +66,7 @@ const navItems: DesktopNavItem[] = [
 ];
 
 export function App() {
+  const { setPosition } = useNotification();
   const activeTask = useWorkbenchStore((state) => state.activeTask);
   const latestTick = useWorkbenchStore((state) => state.latestTick);
   const configQuery = useQuery({
@@ -72,6 +74,12 @@ export function App() {
     queryFn: api.getAppConfig,
     staleTime: 60_000,
   });
+
+  useEffect(() => {
+    if (configQuery.data?.notification_position) {
+      setPosition(configQuery.data.notification_position);
+    }
+  }, [configQuery.data?.notification_position, setPosition]);
 
   return (
     <DesktopShell

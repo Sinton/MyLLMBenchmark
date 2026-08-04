@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { api } from "../../../api/client";
 import { queryKeys } from "../../../api/queryKeys";
+import { useNotification } from "../../../components/ui/Notification";
 import { useToast } from "../../../components/ui/Toast";
 import type {
   EndpointProbeBatchDetail,
@@ -30,7 +31,8 @@ import { useEndpointProbeProviders } from "./useEndpointProbeProviders";
 
 export function useEndpointProbeView() {
   const queryClient = useQueryClient();
-  const { pushToast } = useToast();
+  const { notify } = useNotification();
+  const { showToast } = useToast();
   const [workspaceMode, setWorkspaceMode] =
     useState<EndpointProbeWorkspaceMode>("single");
   const [singleSource, setSingleSource] =
@@ -98,14 +100,14 @@ export function useEndpointProbeView() {
         if (runId) submittedTemporaryKeys.current.set(runId, temporary.api_key);
       }
       await invalidateEndpointProbeQueries(queryClient);
-      pushToast({
+      notify({
         title: detail.total_runs > 1 ? "批量测活已启动" : "站点测活已启动",
         description: `正在执行 ${detail.total_runs} 个模型请求。`,
         tone: "info",
       });
     },
     onError: (error) => {
-      pushToast({
+      notify({
         title: "测活无法启动",
         description: errorMessage(error),
         tone: "danger",
@@ -116,8 +118,8 @@ export function useEndpointProbeView() {
   const stopMutation = useMutation({
     mutationFn: api.stopEndpointProbe,
     onSuccess: (result) => {
-      pushToast({
-        title: result.stopped ? "正在停止测活" : "该批次已经结束",
+      showToast({
+        message: result.stopped ? "正在停止测活" : "该批次已经结束",
         tone: result.stopped ? "warning" : "info",
       });
     },
@@ -141,14 +143,14 @@ export function useEndpointProbeView() {
         });
         await queryClient.invalidateQueries({ queryKey: queryKeys.providers() });
       }
-      pushToast({
+      notify({
         title: result.models.length ? "模型列表已更新" : "模型列表为空",
         description: result.message,
         tone: result.models.length ? "success" : "info",
       });
     },
     onError: (error) => {
-      pushToast({
+      notify({
         title: "模型列表获取失败",
         description: errorMessage(error),
         tone: "danger",
@@ -164,7 +166,7 @@ export function useEndpointProbeView() {
         setActiveBatch(null);
       }
       await invalidateEndpointProbeQueries(queryClient);
-      pushToast({ title: "测活批次已删除", tone: "success" });
+      showToast({ message: "测活批次已删除", tone: "success" });
     },
   });
 
@@ -174,14 +176,14 @@ export function useEndpointProbeView() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.providers() });
       submittedTemporaryKeys.current.delete(input.run_id);
       setPromotionRun(null);
-      pushToast({
+      notify({
         title: result.status === "already_exists" ? "服务商已经存在" : "已保存为服务商",
         description: result.warning ?? `已保存 ${result.provider.name}`,
         tone: result.warning ? "warning" : "success",
       });
     },
     onError: (error) => {
-      pushToast({
+      notify({
         title: "保存服务商失败",
         description: errorMessage(error),
         tone: "danger",
@@ -193,14 +195,14 @@ export function useEndpointProbeView() {
     mutationFn: (items: ProviderImportItem[]) => api.importProviders({ items }),
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.providers() });
-      pushToast({
+      notify({
         title: `已导入 ${result.created} 个服务商`,
         description: `跳过 ${result.skipped} 个，失败 ${result.failed} 个。`,
         tone: result.failed ? "warning" : "success",
       });
     },
     onError: (error) => {
-      pushToast({
+      notify({
         title: "服务商导入失败",
         description: errorMessage(error),
         tone: "danger",
@@ -222,7 +224,7 @@ export function useEndpointProbeView() {
 
   const start = () => {
     if (startIssue) {
-      pushToast({ title: "请完善测活配置", description: startIssue, tone: "danger" });
+      notify({ title: "请完善测活配置", description: startIssue, tone: "danger" });
       return;
     }
     probeEvents.resetStreams();

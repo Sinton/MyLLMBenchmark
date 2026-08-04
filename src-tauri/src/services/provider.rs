@@ -354,6 +354,7 @@ mod tests {
             .save_config(AppConfig {
                 data_mode: DataMode::Sqlite,
                 benchmark_engine: BenchmarkEngineMode::Mock,
+                ..AppConfig::default()
             })
             .await
             .unwrap();

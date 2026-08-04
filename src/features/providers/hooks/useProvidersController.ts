@@ -2,7 +2,7 @@ import { type FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../../api/client";
 import { queryKeys } from "../../../api/queryKeys";
-import { useToast } from "../../../components/ui/Toast";
+import { useNotification } from "../../../components/ui/Notification";
 import {
   countCapabilities,
   DEFAULT_INTERFACE_TYPE,
@@ -33,7 +33,7 @@ const emptyProviderForm = (): ProviderFormState => ({
 
 export function useProvidersController() {
   const queryClient = useQueryClient();
-  const { pushToast } = useToast();
+  const { notify } = useNotification();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerMode, setDrawerMode] = useState<ProviderDrawerMode>(null);
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
@@ -150,7 +150,7 @@ export function useProvidersController() {
   const scanModelsMutation = useMutation({
     mutationFn: api.scanProviderModels,
     onSuccess: async (result) => {
-      pushToast({
+      notify({
         title: "模型列表已更新",
         description: `已扫描到 ${result.models.length} 个模型`,
         tone: "success",
@@ -173,7 +173,7 @@ export function useProvidersController() {
       if (result.ok) {
         setConnectionFailure(null);
         setRecentConnectedProviderId(result.provider_id);
-        pushToast({
+        notify({
           title: "连接测试通过",
           description: `${result.message} 正在继续扫描模型。`,
           tone: "success",

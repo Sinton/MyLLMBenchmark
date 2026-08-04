@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../../api/client";
 import { queryKeys } from "../../../api/queryKeys";
-import { useToast } from "../../../components/ui/Toast";
+import { useNotification } from "../../../components/ui/Notification";
 import type {
   DatasetAppendInput,
   DatasetExportInput,
@@ -24,7 +24,7 @@ const DEFAULT_SAMPLE_PAGE_SIZE = 50;
 
 export function useDatasetsController() {
   const queryClient = useQueryClient();
-  const { pushToast } = useToast();
+  const { notify } = useNotification();
   const [importOpen, setImportOpen] = useState(false);
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null);
   const [detailMode, setDetailMode] = useState<DetailMode>("view");
@@ -106,14 +106,14 @@ export function useDatasetsController() {
       setSelectedDatasetId(dataset.id);
       setDetailMode("view");
       resetSamplePaging();
-      pushToast({
+      notify({
         title: "数据集导入成功",
         description: `${dataset.name} / ${dataset.sample_count.toLocaleString("zh-CN")} 条样本`,
         tone: "success",
       });
     },
     onError: (error) => {
-      pushToast({
+      notify({
         title: "数据集导入失败",
         description: error instanceof Error ? error.message : String(error),
         tone: "danger",
@@ -127,14 +127,14 @@ export function useDatasetsController() {
       await invalidateDatasets();
       setSelectedDatasetId(dataset.id);
       setDetailMode("view");
-      pushToast({
+      notify({
         title: "数据集已更新",
         description: dataset.name,
         tone: "success",
       });
     },
     onError: (error) => {
-      pushToast({
+      notify({
         title: "数据集更新失败",
         description: error instanceof Error ? error.message : String(error),
         tone: "danger",
@@ -150,7 +150,7 @@ export function useDatasetsController() {
         closeDetail();
       }
       setDeleteTarget(null);
-      pushToast({
+      notify({
         title: result.deleted ? "数据集已删除" : "数据集未删除",
         description: result.deleted
           ? "样本正文已清理，历史任务和报告仍可读取数据集名称。"
@@ -159,7 +159,7 @@ export function useDatasetsController() {
       });
     },
     onError: (error) => {
-      pushToast({
+      notify({
         title: "数据集删除失败",
         description: error instanceof Error ? error.message : String(error),
         tone: "danger",
@@ -179,14 +179,14 @@ export function useDatasetsController() {
         setSamplePage(Math.max(1, Math.ceil(nextTotal / samplePageSize)));
         await invalidateSamples(selectedDatasetId);
       }
-      pushToast({
+      notify({
         title: "样本已新增",
         description: `第 ${sample.sample_index + 1} 条 Prompt`,
         tone: "success",
       });
     },
     onError: (error) => {
-      pushToast({
+      notify({
         title: "样本新增失败",
         description: error instanceof Error ? error.message : String(error),
         tone: "danger",
@@ -201,14 +201,14 @@ export function useDatasetsController() {
       if (selectedDatasetId) {
         await invalidateSamples(selectedDatasetId);
       }
-      pushToast({
+      notify({
         title: "样本已更新",
         description: `第 ${sample.sample_index + 1} 条 Prompt`,
         tone: "success",
       });
     },
     onError: (error) => {
-      pushToast({
+      notify({
         title: "样本更新失败",
         description: error instanceof Error ? error.message : String(error),
         tone: "danger",
@@ -228,7 +228,7 @@ export function useDatasetsController() {
         }
         await invalidateSamples(selectedDatasetId);
       }
-      pushToast({
+      notify({
         title: result.deleted ? "样本已删除" : "样本未删除",
         description: result.deleted
           ? "样本统计已重新计算。"
@@ -237,7 +237,7 @@ export function useDatasetsController() {
       });
     },
     onError: (error) => {
-      pushToast({
+      notify({
         title: "样本删除失败",
         description: error instanceof Error ? error.message : String(error),
         tone: "danger",
@@ -255,14 +255,14 @@ export function useDatasetsController() {
       setSampleKeyword("");
       setSamplePage(Math.max(1, Math.ceil(dataset.sample_count / samplePageSize)));
       setValidationResult(null);
-      pushToast({
+      notify({
         title: "样本已追加",
         description: `${dataset.name} 当前 ${dataset.sample_count.toLocaleString("zh-CN")} 条样本`,
         tone: "success",
       });
     },
     onError: (error) => {
-      pushToast({
+      notify({
         title: "追加样本失败",
         description: error instanceof Error ? error.message : String(error),
         tone: "danger",
@@ -283,14 +283,14 @@ export function useDatasetsController() {
         await invalidateSamples(selectedDatasetId);
       }
       setValidationResult(null);
-      pushToast({
+      notify({
         title: result.deleted ? "已批量删除样本" : "未删除样本",
         description: result.deleted ? "当前页样本统计已刷新。" : "没有匹配到要删除的样本。",
         tone: result.deleted ? "success" : "danger",
       });
     },
     onError: (error) => {
-      pushToast({
+      notify({
         title: "批量删除失败",
         description: error instanceof Error ? error.message : String(error),
         tone: "danger",
@@ -301,14 +301,14 @@ export function useDatasetsController() {
   const exportDatasetMutation = useMutation({
     mutationFn: api.exportDataset,
     onSuccess: (result) => {
-      pushToast({
+      notify({
         title: "数据集已导出",
         description: result.file_path,
         tone: "success",
       });
     },
     onError: (error) => {
-      pushToast({
+      notify({
         title: "数据集导出失败",
         description: error instanceof Error ? error.message : String(error),
         tone: "danger",
@@ -320,7 +320,7 @@ export function useDatasetsController() {
     mutationFn: api.validateDatasetSamples,
     onSuccess: (result) => {
       setValidationResult(result);
-      pushToast({
+      notify({
         title: result.status === "passed" ? "质量检查通过" : "质量检查完成",
         description:
           result.issues.length > 0
@@ -330,7 +330,7 @@ export function useDatasetsController() {
       });
     },
     onError: (error) => {
-      pushToast({
+      notify({
         title: "质量检查失败",
         description: error instanceof Error ? error.message : String(error),
         tone: "danger",

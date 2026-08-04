@@ -2,7 +2,7 @@ import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Download, Upload } from "../../components/ui/icons";
 import { WorkspaceHeader } from "../../components/app-shell/WorkspaceHeader";
-import { useToast } from "../../components/ui/Toast";
+import { useNotification } from "../../components/ui/Notification";
 import { DatasetDeleteDialog } from "../../features/datasets/components/DatasetDeleteDialog";
 import { DatasetDetailDrawer } from "../../features/datasets/components/DatasetDetailDrawer";
 import { DatasetImportDialog } from "../../features/datasets/components/DatasetImportDialog";
@@ -11,7 +11,7 @@ import { DatasetTypeTabs } from "../../features/datasets/components/DatasetTypeT
 import { useDatasetsController } from "../../features/datasets/hooks/useDatasetsController";
 
 export function Datasets() {
-  const { pushToast } = useToast();
+  const { notify } = useNotification();
   const controller = useDatasetsController();
 
   return (
@@ -25,7 +25,7 @@ export function Datasets() {
             <Button
               icon={<Download size={16} />}
               onClick={() =>
-                pushToast({
+                notify({
                   title: "模板准备中",
                   description: "当前优先支持 JSONL、CSV、TXT 和 Excel 导入，模板导出会在后续补齐。",
                   tone: "success",

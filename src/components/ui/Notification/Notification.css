@@ -1,0 +1,125 @@
+.notification-viewport {
+  position: fixed;
+  z-index: 110;
+  display: flex;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.notification-viewport-top-right {
+  top: 50px;
+  right: 20px;
+}
+
+.notification-viewport-top-left {
+  top: 50px;
+  left: 20px;
+}
+
+.notification-viewport-bottom-right {
+  right: 20px;
+  bottom: 44px;
+  flex-direction: column-reverse;
+}
+
+.notification-viewport-bottom-left {
+  bottom: 44px;
+  left: 20px;
+  flex-direction: column-reverse;
+}
+
+.notification {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 28px;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow-floating);
+  color: var(--text);
+  padding: 12px 10px 12px 12px;
+  pointer-events: auto;
+  animation: notification-in 180ms var(--motion-spring);
+}
+
+.notification-icon {
+  display: grid;
+  margin-top: 1px;
+  color: var(--info);
+  place-items: center;
+}
+
+.notification-success .notification-icon {
+  color: var(--success);
+}
+
+.notification-danger .notification-icon {
+  color: var(--danger);
+}
+
+.notification-warning .notification-icon {
+  color: var(--warning);
+}
+
+.notification-copy,
+.notification-copy strong,
+.notification-copy span {
+  display: block;
+  min-width: 0;
+}
+
+.notification-copy strong {
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 20px;
+}
+
+.notification-copy span {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.notification-close {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  place-items: center;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.notification-close:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.notification-close:focus-visible {
+  outline: 2px solid var(--primary-soft);
+  outline-offset: 1px;
+}
+
+@keyframes notification-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notification {
+    animation: none;
+  }
+}

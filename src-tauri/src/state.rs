@@ -702,6 +702,7 @@ mod tests {
             .save_config(AppConfig {
                 data_mode: DataMode::Sqlite,
                 benchmark_engine: BenchmarkEngineMode::Mock,
+                ..AppConfig::default()
             })
             .await
             .unwrap();
@@ -744,6 +745,7 @@ mod tests {
             .save_config(AppConfig {
                 data_mode: DataMode::Sqlite,
                 benchmark_engine: BenchmarkEngineMode::Mock,
+                ..AppConfig::default()
             })
             .await
             .unwrap();
@@ -814,6 +816,7 @@ mod tests {
             .save_config(AppConfig {
                 data_mode: DataMode::Mock,
                 benchmark_engine: BenchmarkEngineMode::OpenaiCompatible,
+                ..AppConfig::default()
             })
             .await
             .unwrap_err();
@@ -839,6 +842,7 @@ mod tests {
             .save_config(AppConfig {
                 data_mode: DataMode::Mock,
                 benchmark_engine: BenchmarkEngineMode::OpenaiCompatible,
+                ..AppConfig::default()
             })
             .await
             .unwrap();
@@ -847,6 +851,7 @@ mod tests {
             .save_config(AppConfig {
                 data_mode: DataMode::Sqlite,
                 benchmark_engine: BenchmarkEngineMode::OpenaiCompatible,
+                ..AppConfig::default()
             })
             .await
             .unwrap_err();
