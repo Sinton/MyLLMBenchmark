@@ -31,6 +31,7 @@ export {
   Plus,
   RefreshCw,
   Rocket,
+  Save,
   Search,
   Settings,
   Settings2,

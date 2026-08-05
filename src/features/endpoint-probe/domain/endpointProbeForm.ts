@@ -2,6 +2,7 @@ import type {
   EndpointProbeInterfaceType,
   EndpointProbeStartInput,
 } from "../../../types/api";
+import { DEFAULT_ENDPOINT_PROBE_PROMPT } from "./endpointProbePromptTemplates";
 
 export type EndpointProbeWorkspaceMode = "single" | "batch";
 export type EndpointProbeSingleSource = "provider" | "temporary";
@@ -24,7 +25,7 @@ export type EndpointProbeTemporaryForm = {
 };
 
 export const createEndpointProbeCommonForm = (): EndpointProbeCommonForm => ({
-  prompt: "请用一句话回复：MyLLMBenchmark 测活成功。",
+  prompt: DEFAULT_ENDPOINT_PROBE_PROMPT,
   streaming: true,
   max_output_tokens: 256,
   timeout_seconds: 60,

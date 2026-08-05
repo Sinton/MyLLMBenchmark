@@ -6,6 +6,7 @@ import { InlineAlert } from "../../../components/ui/InlineAlert";
 import { RefreshCw } from "../../../components/ui/icons";
 import { SelectField } from "../../../components/ui/SelectField";
 import { Tabs } from "../../../components/ui/Tabs";
+import { Tooltip } from "../../../components/ui/Tooltip";
 import type { EndpointProbeInterfaceType } from "../../../types/api";
 import {
   endpointProbeInterfaceOptions,
@@ -34,19 +35,19 @@ export function EndpointProbeSingleTarget({ view }: { view: EndpointProbeView })
 
   return (
     <section className="endpoint-probe-config-section">
-      <div className="endpoint-probe-section-title">
+      <div className="endpoint-probe-section-title endpoint-probe-source-heading">
         <span>测试目标</span>
-        <Tabs
-          ariaLabel="站点来源"
-          items={[
-            { key: "provider", label: "已保存服务商" },
-            { key: "temporary", label: "临时站点" },
-          ]}
-          value={view.singleSource}
-          variant="line"
-          onChange={view.setSingleSource}
-        />
       </div>
+      <Tabs
+        ariaLabel="站点来源"
+        className="endpoint-probe-source-tabs"
+        items={[
+          { key: "provider", label: "已保存服务商" },
+          { key: "temporary", label: "临时站点" },
+        ]}
+        value={view.singleSource}
+        onChange={view.setSingleSource}
+      />
 
       {view.singleSource === "provider" ? (
         <div className="endpoint-probe-field-stack">
@@ -63,11 +64,21 @@ export function EndpointProbeSingleTarget({ view }: { view: EndpointProbeView })
                 onChange={view.setSingleProviderId}
               />
               {selectedProvider && (
-                <div className="endpoint-probe-target-fact">
-                  <span>{selectedProvider.base_url_masked}</span>
-                  <Badge tone={selectedProvider.status === "online" ? "success" : "neutral"}>
-                    {selectedProvider.interface_type}
-                  </Badge>
+                <div className="endpoint-probe-target-endpoint">
+                  <span className="endpoint-probe-target-endpoint-label">端点</span>
+                  <div className="endpoint-probe-target-endpoint-value">
+                    <Tooltip
+                      ariaLabel={`端点：${selectedProvider.base_url_masked}`}
+                      content={selectedProvider.base_url_masked}
+                    >
+                      <span className="endpoint-probe-target-endpoint-url">
+                        {selectedProvider.base_url_masked}
+                      </span>
+                    </Tooltip>
+                    <Badge tone={selectedProvider.status === "online" ? "success" : "neutral"}>
+                      {selectedProvider.interface_type}
+                    </Badge>
+                  </div>
                 </div>
               )}
               <ModelField

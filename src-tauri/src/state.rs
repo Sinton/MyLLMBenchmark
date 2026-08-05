@@ -61,7 +61,9 @@ impl AppState {
         Ok(self.config.read().await.clone())
     }
 
-    pub async fn save_config(&self, config: AppConfig) -> anyhow::Result<ConfigUpdateResult> {
+    pub async fn save_config(&self, mut config: AppConfig) -> anyhow::Result<ConfigUpdateResult> {
+        config.endpoint_probe_prompt_templates =
+            config.endpoint_probe_prompt_templates.normalized();
         let current = self.config.read().await.clone();
         let switching_data_mode = current.data_mode != config.data_mode;
         let switching_engine = current.benchmark_engine != config.benchmark_engine;

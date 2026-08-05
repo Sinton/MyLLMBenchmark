@@ -12,6 +12,7 @@ import {
   SettingRow,
   SettingsPanel,
 } from "../../features/settings/components/SettingsPanel";
+import { DEFAULT_ENDPOINT_PROBE_PROMPT_TEMPLATES } from "../../features/endpoint-probe/domain/endpointProbePromptTemplates";
 import type {
   AppConfig,
   BenchmarkEngineMode,
@@ -23,6 +24,7 @@ const defaultConfig: AppConfig = {
   data_mode: "mock",
   benchmark_engine: "mock",
   notification_position: "top-right",
+  endpoint_probe_prompt_templates: DEFAULT_ENDPOINT_PROBE_PROMPT_TEMPLATES,
 };
 
 const settingsSections = [

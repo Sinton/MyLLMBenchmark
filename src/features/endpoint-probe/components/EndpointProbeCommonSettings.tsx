@@ -1,7 +1,10 @@
+import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { InlineAlert } from "../../../components/ui/InlineAlert";
+import { SelectField } from "../../../components/ui/SelectField";
 import { Textarea } from "../../../components/ui/Textarea";
 import { Toggle } from "../../../components/ui/Toggle";
+import { Plus, Save } from "../../../components/ui/icons";
 import type { useEndpointProbeView } from "../hooks/useEndpointProbeView";
 
 type EndpointProbeView = ReturnType<typeof useEndpointProbeView>;
@@ -17,6 +20,38 @@ export function EndpointProbeCommonSettings({ view }: { view: EndpointProbeView 
       <div className="endpoint-probe-section-title">
         <span>请求设置</span>
         <small>当前批次的所有模型共用</small>
+      </div>
+      <div className="endpoint-probe-prompt-template-row">
+        <SelectField
+          ariaLabel="Prompt 模板"
+          disabled={view.promptTemplatesLoading || view.running}
+          value={view.selectedPromptTemplateId}
+          options={view.promptTemplates.map((template) => ({
+            value: template.id,
+            label: template.name,
+            description: template.prompt,
+          }))}
+          onChange={view.selectPromptTemplate}
+        />
+        <Button
+          aria-label="保存当前 Prompt 模板"
+          className="endpoint-probe-icon-action"
+          disabled={!view.promptTemplateDirty || view.running}
+          icon={<Save size={15} />}
+          loading={view.savingPromptTemplate}
+          onClick={view.saveCurrentPromptTemplate}
+          title="保存模板"
+          type="button"
+        />
+        <Button
+          aria-label="新增 Prompt 模板"
+          className="endpoint-probe-icon-action"
+          disabled={view.running}
+          icon={<Plus size={15} />}
+          onClick={view.addPromptTemplate}
+          title="新增模板"
+          type="button"
+        />
       </div>
       <Textarea
         label="测试 Prompt"

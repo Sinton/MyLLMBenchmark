@@ -12,6 +12,36 @@ type EndpointProbeView = ReturnType<typeof useEndpointProbeView>;
 export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }) {
   const isActive =
     view.activeBatch?.status === "pending" || view.activeBatch?.status === "running";
+  const isStarting = view.running && !isActive;
+  const requestCount = isActive
+    ? view.activeBatch?.total_runs ?? 0
+    : view.workspaceMode === "batch"
+      ? view.selectedRunCount
+      : 1;
+  const requestSummary = `${requestCount} 个请求 · ${
+    view.common.streaming ? "流式响应" : "非流式响应"
+  } · ${view.common.save_body ? "保存正文" : "仅保存摘要"}`;
+  const launchState = isActive || isStarting
+    ? {
+        description: requestSummary,
+        title: view.stopping
+          ? "正在停止测活"
+          : isStarting
+            ? "正在启动测活"
+            : "测活进行中",
+        tone: "running",
+      }
+    : view.startIssue
+      ? {
+          description: view.startIssue,
+          title: view.listenersReady ? "配置未就绪" : "正在准备",
+          tone: view.listenersReady ? "warning" : "pending",
+        }
+      : {
+          description: requestSummary,
+          title: "配置就绪",
+          tone: "ready",
+        };
 
   return (
     <Card className="endpoint-probe-config-card">
@@ -42,18 +72,16 @@ export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }
       </div>
 
       <div className="endpoint-probe-launch-dock">
-        <div className="endpoint-probe-launch-summary">
-          <strong>
-            {view.workspaceMode === "batch"
-              ? `${view.selectedRunCount} 个模型请求`
-              : "1 个模型请求"}
-          </strong>
-          <span>
-            {!view.listenersReady
-              ? "正在初始化实时事件通道"
-              : `${view.common.streaming ? "实时 Streaming" : "非流式响应"}${
-                  view.common.save_body ? " · 保存正文" : " · 仅保存摘要"
-                }`}
+        <div
+          aria-live="polite"
+          className={`endpoint-probe-launch-summary is-${launchState.tone}`}
+        >
+          <div className="endpoint-probe-launch-status">
+            <span aria-hidden="true" className="endpoint-probe-launch-status-dot" />
+            <strong>{launchState.title}</strong>
+          </div>
+          <span title={launchState.description}>
+            {launchState.description}
           </span>
         </div>
         {isActive ? (
@@ -67,7 +95,7 @@ export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }
           </Button>
         ) : (
           <Button
-            disabled={!view.listenersReady}
+            disabled={Boolean(view.startIssue)}
             icon={<Play size={16} />}
             loading={view.running}
             variant="primary"

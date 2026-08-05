@@ -9,8 +9,10 @@ import { queryKeys } from "../../../api/queryKeys";
 import { useNotification } from "../../../components/ui/Notification";
 import { useToast } from "../../../components/ui/Toast";
 import type {
+  AppConfig,
   EndpointProbeBatchDetail,
   EndpointProbeModelOption,
+  EndpointProbePromptTemplatesConfig,
   EndpointProbeModelScanInput,
   EndpointProbeRunDetail,
   EndpointProbeStartInput,
@@ -26,6 +28,12 @@ import {
   type EndpointProbeSingleSource,
   type EndpointProbeWorkspaceMode,
 } from "../domain/endpointProbeForm";
+import {
+  DEFAULT_ENDPOINT_PROBE_PROMPT_TEMPLATES,
+  createEndpointProbePromptTemplate,
+  normalizeEndpointProbePromptTemplates,
+  selectedEndpointProbePromptTemplate,
+} from "../domain/endpointProbePromptTemplates";
 import { useEndpointProbeEvents } from "./useEndpointProbeEvents";
 import { useEndpointProbeProviders } from "./useEndpointProbeProviders";
 
@@ -38,6 +46,10 @@ export function useEndpointProbeView() {
   const [singleSource, setSingleSource] =
     useState<EndpointProbeSingleSource>("provider");
   const [common, setCommon] = useState(createEndpointProbeCommonForm);
+  const [promptTemplatesConfig, setPromptTemplatesConfig] =
+    useState<EndpointProbePromptTemplatesConfig>(
+      DEFAULT_ENDPOINT_PROBE_PROMPT_TEMPLATES,
+    );
   const [temporary, setTemporary] = useState(createEndpointProbeTemporaryForm);
   const [temporaryModels, setTemporaryModels] = useState<EndpointProbeModelOption[]>([]);
   const [batchModels, setBatchModels] = useState<Record<string, string[]>>({});
@@ -54,6 +66,7 @@ export function useEndpointProbeView() {
   const [historyKeyword, setHistoryKeyword] = useState("");
   const [promotionRun, setPromotionRun] = useState<EndpointProbeRunDetail | null>(null);
   const submittedTemporaryKeys = useRef(new Map<string, string>());
+  const promptTemplatesInitialized = useRef(false);
   const providerState = useEndpointProbeProviders(batchExtraModels);
   const probeEvents = useEndpointProbeEvents({
     activeBatchId: activeBatch?.id ?? null,
@@ -61,6 +74,22 @@ export function useEndpointProbeView() {
     setActiveBatch,
     setRunDetails,
   });
+
+  const configQuery = useQuery({
+    queryKey: queryKeys.appConfig(),
+    queryFn: api.getAppConfig,
+  });
+
+  useEffect(() => {
+    if (!configQuery.data || promptTemplatesInitialized.current) return;
+    const templatesConfig = normalizeEndpointProbePromptTemplates(
+      configQuery.data.endpoint_probe_prompt_templates,
+    );
+    const selected = selectedEndpointProbePromptTemplate(templatesConfig);
+    setPromptTemplatesConfig(templatesConfig);
+    setCommon((current) => ({ ...current, prompt: selected.prompt }));
+    promptTemplatesInitialized.current = true;
+  }, [configQuery.data]);
 
   const historyQuery = useQuery({
     queryKey: queryKeys.endpointProbeBatches(
@@ -210,7 +239,45 @@ export function useEndpointProbeView() {
     },
   });
 
+  const savePromptTemplatesMutation = useMutation({
+    mutationFn: async ({
+      templatesConfig,
+    }: {
+      templatesConfig: EndpointProbePromptTemplatesConfig;
+      message: string;
+    }) => {
+      const config = configQuery.data;
+      if (!config) throw new Error("Prompt 模板配置仍在加载，请稍候。");
+      return api.updateAppConfig({
+        ...config,
+        endpoint_probe_prompt_templates:
+          normalizeEndpointProbePromptTemplates(templatesConfig),
+      });
+    },
+    onSuccess: async (result, variables) => {
+      const templatesConfig = normalizeEndpointProbePromptTemplates(
+        result.config.endpoint_probe_prompt_templates,
+      );
+      setPromptTemplatesConfig(templatesConfig);
+      queryClient.setQueryData<AppConfig>(queryKeys.appConfig(), result.config);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.appConfig() });
+      showToast({ message: variables.message, tone: "success" });
+    },
+    onError: (error) => {
+      notify({
+        title: "Prompt 模板保存失败",
+        description: errorMessage(error),
+        tone: "danger",
+      });
+    },
+  });
+
   const selectedRunCount = useMemo(() => countSelectedProbeRuns(batchModels), [batchModels]);
+  const selectedPromptTemplate = useMemo(
+    () => selectedEndpointProbePromptTemplate(promptTemplatesConfig),
+    [promptTemplatesConfig],
+  );
+  const promptTemplateDirty = selectedPromptTemplate.prompt !== common.prompt;
   const formSnapshot = {
     workspaceMode,
     singleSource,
@@ -295,9 +362,60 @@ export function useEndpointProbeView() {
     setPromotionRun(detail);
   };
 
+  const selectPromptTemplate = (templateId: string) => {
+    const nextConfig = normalizeEndpointProbePromptTemplates({
+      ...promptTemplatesConfig,
+      selected_id: templateId,
+    });
+    const selected = selectedEndpointProbePromptTemplate(nextConfig);
+    setPromptTemplatesConfig(nextConfig);
+    setCommon((current) => ({ ...current, prompt: selected.prompt }));
+  };
+
+  const saveCurrentPromptTemplate = () => {
+    const prompt = common.prompt;
+    if (!prompt.trim()) {
+      notify({
+        title: "Prompt 模板无法保存",
+        description: "模板内容不能为空。",
+        tone: "danger",
+      });
+      return;
+    }
+    const nextConfig = normalizeEndpointProbePromptTemplates({
+      selected_id: promptTemplatesConfig.selected_id,
+      items: promptTemplatesConfig.items.map((item) =>
+        item.id === promptTemplatesConfig.selected_id ? { ...item, prompt } : item,
+      ),
+    });
+    setPromptTemplatesConfig(nextConfig);
+    savePromptTemplatesMutation.mutate({
+      templatesConfig: nextConfig,
+      message: "Prompt 模板已保存",
+    });
+  };
+
+  const addPromptTemplate = () => {
+    const template = createEndpointProbePromptTemplate(
+      promptTemplatesConfig.items,
+      common.prompt,
+    );
+    const nextConfig = normalizeEndpointProbePromptTemplates({
+      selected_id: template.id,
+      items: [...promptTemplatesConfig.items, template],
+    });
+    setPromptTemplatesConfig(nextConfig);
+    setCommon((current) => ({ ...current, prompt: template.prompt }));
+    savePromptTemplatesMutation.mutate({
+      templatesConfig: nextConfig,
+      message: "Prompt 模板已新增",
+    });
+  };
+
   return {
     activeBatch,
     addManualProviderModel,
+    addPromptTemplate,
     batchDetailError: batchDetailQuery.error,
     batchDetailLoading: batchDetailQuery.isFetching,
     batchModels,
@@ -328,6 +446,9 @@ export function useEndpointProbeView() {
     providerModels: providerState.providerModels,
     providers: providerState.providers,
     providersLoading: providerState.providersLoading,
+    promptTemplateDirty,
+    promptTemplates: promptTemplatesConfig.items,
+    promptTemplatesLoading: configQuery.isFetching && !promptTemplatesInitialized.current,
     refreshProviderModels: (providerId: string) =>
       {
         providerState.ensureProviderModels(providerId);
@@ -396,6 +517,10 @@ export function useEndpointProbeView() {
         api_key: temporary.api_key,
         interface_type: temporary.interface_type,
       }),
+    saveCurrentPromptTemplate,
+    savingPromptTemplate: savePromptTemplatesMutation.isPending,
+    selectPromptTemplate,
+    selectedPromptTemplateId: promptTemplatesConfig.selected_id,
     resetTemporaryModels: () => setTemporaryModels([]),
   };
 }
