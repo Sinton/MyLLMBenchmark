@@ -115,3 +115,24 @@ describe("DataTable column layout", () => {
     expect(markup).toContain('class="is-fixed-right is-fixed-edge"');
   });
 });
+
+describe("DataTable selectable rows", () => {
+  it("renders clickable rows with selected state and keyboard focus", () => {
+    const markup = renderToStaticMarkup(
+      <DataTable
+        columns={columns}
+        getRowAriaLabel={(row) => `查看 ${row.name}`}
+        getRowKey={(row) => row.id}
+        onRowClick={() => undefined}
+        rows={rows}
+        selectedRowKey="row-1"
+      />,
+    );
+
+    expect(markup).toContain("table-row-clickable");
+    expect(markup).toContain("table-row-selected");
+    expect(markup).toContain('aria-label="查看 第一行"');
+    expect(markup).toContain('aria-selected="true"');
+    expect(markup).toContain('tabindex="0"');
+  });
+});

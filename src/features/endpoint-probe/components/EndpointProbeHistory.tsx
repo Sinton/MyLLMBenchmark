@@ -4,7 +4,7 @@ import { Card } from "../../../components/ui/Card";
 import { DataTable, type DataTableColumn } from "../../../components/ui/DataTable";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { Input } from "../../../components/ui/Input";
-import { Eye, Network, Search, Trash2 } from "../../../components/ui/icons";
+import { Network, Search, Trash2 } from "../../../components/ui/icons";
 import { Pagination } from "../../../components/ui/Pagination";
 import { Popconfirm } from "../../../components/ui/Popconfirm";
 import { SelectField } from "../../../components/ui/SelectField";
@@ -24,14 +24,12 @@ export function EndpointProbeHistory({ view }: { view: EndpointProbeView }) {
       key: "batch",
       title: "批次",
       render: (batch) => (
-        <button
-          className={`endpoint-probe-history-primary ${view.selectedBatchId === batch.id ? "active" : ""}`}
-          type="button"
-          onClick={() => view.selectBatch(batch.id)}
-        >
+        <div className="endpoint-probe-history-primary">
           <strong>{batch.name}</strong>
-          <span>{batch.prompt_preview ?? "无 Prompt 摘要"}</span>
-        </button>
+          <span title={batch.prompt_preview ?? undefined}>
+            {batch.prompt_preview ?? "无 Prompt 摘要"}
+          </span>
+        </div>
       ),
     },
     {
@@ -46,18 +44,10 @@ export function EndpointProbeHistory({ view }: { view: EndpointProbeView }) {
       ),
     },
     {
-      key: "runs",
-      title: "请求",
-      width: 82,
-      align: "right",
-      render: (batch) => batch.total_runs,
-    },
-    {
       key: "result",
-      title: "可用 / 失败",
-      width: 112,
-      align: "right",
-      render: (batch) => `${batch.passed_runs} / ${batch.failed_runs}`,
+      title: "结果",
+      width: 156,
+      render: (batch) => <ProbeResult batch={batch} />,
     },
     {
       key: "time",
@@ -68,34 +58,38 @@ export function EndpointProbeHistory({ view }: { view: EndpointProbeView }) {
     {
       key: "actions",
       title: "操作",
-      width: 82,
+      width: 88,
       align: "center",
-      fixed: "right",
       render: (batch) => (
         <div className="endpoint-probe-history-actions">
-          <Tooltip content="查看批次" triggerFocusable={false}>
-            <Button
-              aria-label={`查看 ${batch.name}`}
-              icon={<Eye size={15} />}
-              variant="ghost"
-              onClick={() => view.selectBatch(batch.id)}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="删除测活批次"
-            description="将同时删除批次内所有请求记录和已保存正文。"
-            confirmText="删除"
-            onConfirm={() => view.deleteBatch(batch.id)}
-          >
-            <Tooltip content={isActive(batch.status) ? "运行中的批次不能删除" : "删除批次"} triggerFocusable={false}>
+          {isActive(batch.status) ? (
+            <Tooltip content="运行中的批次不能删除" triggerFocusable={false}>
               <Button
                 aria-label={`删除 ${batch.name}`}
-                disabled={isActive(batch.status) || view.deletingBatchId === batch.id}
+                className="endpoint-probe-history-action endpoint-probe-history-action-danger"
+                disabled
                 icon={<Trash2 size={15} />}
                 variant="ghost"
               />
             </Tooltip>
-          </Popconfirm>
+          ) : (
+            <Popconfirm
+              title="删除测活批次"
+              description="将同时删除批次内所有请求记录和已保存正文。"
+              confirmText="删除"
+              onConfirm={() => view.deleteBatch(batch.id)}
+            >
+              <Tooltip content="删除批次" triggerFocusable={false}>
+                <Button
+                  aria-label={`删除 ${batch.name}`}
+                  className="endpoint-probe-history-action endpoint-probe-history-action-danger"
+                  disabled={view.deletingBatchId === batch.id}
+                  icon={<Trash2 size={15} />}
+                  variant="ghost"
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
         </div>
       ),
     },
@@ -145,9 +139,11 @@ export function EndpointProbeHistory({ view }: { view: EndpointProbeView }) {
               description="完成一次端点测活后，批次及请求指标会保留在这里。"
             />
           }
+          getRowAriaLabel={(batch) => `查看测活批次 ${batch.name}`}
           getRowKey={(batch) => batch.id}
+          onRowClick={(batch) => view.selectBatch(batch.id)}
           rows={view.history?.items ?? []}
-          scrollX={760}
+          selectedRowKey={view.selectedBatchId}
         />
       )}
       <Pagination
@@ -161,6 +157,22 @@ export function EndpointProbeHistory({ view }: { view: EndpointProbeView }) {
         onPageSizeChange={view.setHistoryPageSize}
       />
     </Card>
+  );
+}
+
+function ProbeResult({ batch }: { batch: EndpointProbeBatchSummary }) {
+  return (
+    <div className={`endpoint-probe-history-result ${batch.failed_runs ? "has-failures" : "is-clean"}`}>
+      <span className="is-passed">
+        <strong>{batch.passed_runs}</strong>
+        通过
+      </span>
+      <span className="is-failed">
+        <strong>{batch.failed_runs}</strong>
+        失败
+      </span>
+      <em>共 {batch.total_runs}</em>
+    </div>
   );
 }
 

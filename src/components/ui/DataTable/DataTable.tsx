@@ -2,6 +2,7 @@ import {
   Fragment,
   useId,
   type CSSProperties,
+  type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
 } from "react";
@@ -43,6 +44,9 @@ type DataTableProps<T> = {
   className?: string;
   empty?: ReactNode;
   expandable?: DataTableExpandable<T>;
+  selectedRowKey?: DataTableRowKey | null;
+  onRowClick?: (row: T) => void;
+  getRowAriaLabel?: (row: T) => string;
   scrollX?: number;
 };
 
@@ -53,6 +57,9 @@ export function DataTable<T>({
   className = "",
   empty,
   expandable,
+  selectedRowKey,
+  onRowClick,
+  getRowAriaLabel,
   scrollX,
 }: DataTableProps<T>) {
   const tableId = useId().replaceAll(":", "");
@@ -107,14 +114,24 @@ export function DataTable<T>({
               expandable && (expandable.rowExpandable?.(row) ?? true),
             );
             const isExpanded = canExpand && expandable?.expandedRowKey === rowKey;
+            const isSelected = selectedRowKey === rowKey;
+            const canActivateRow = Boolean(
+              onRowClick || (expandable?.expandOnRowClick && canExpand),
+            );
             const expandedContentId = `${tableId}-expanded-${rowIndex}-${normalizeId(rowKey)}`;
             const toggleExpanded = () => {
               if (!expandable || !canExpand) return;
               expandable.onExpandedRowChange(isExpanded ? null : rowKey);
             };
+            const activateRow = () => {
+              if (onRowClick) onRowClick(row);
+              if (expandable?.expandOnRowClick) toggleExpanded();
+            };
             const rowClassName = [
               canExpand ? "table-row-expandable" : "",
               isExpanded ? "table-row-expanded" : "",
+              canActivateRow ? "table-row-clickable" : "",
+              isSelected ? "table-row-selected" : "",
             ]
               .filter(Boolean)
               .join(" ");
@@ -122,13 +139,30 @@ export function DataTable<T>({
             return (
               <Fragment key={rowKey}>
                 <tr
+                  aria-label={getRowAriaLabel?.(row)}
+                  aria-selected={isSelected || undefined}
                   className={rowClassName}
                   onClick={(event) => {
-                    if (!expandable?.expandOnRowClick || isInteractiveTarget(event)) {
+                    if (
+                      !canActivateRow ||
+                      isInteractiveTarget(event)
+                    ) {
                       return;
                     }
-                    toggleExpanded();
+                    activateRow();
                   }}
+                  onKeyDown={(event) => {
+                    if (
+                      !canActivateRow ||
+                      isInteractiveKeyboardTarget(event)
+                    ) {
+                      return;
+                    }
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    activateRow();
+                  }}
+                  tabIndex={canActivateRow ? 0 : undefined}
                 >
                   {expandable && (
                     <td className="table-expand-cell">
@@ -262,6 +296,15 @@ function isInteractiveTarget(event: MouseEvent<HTMLTableRowElement>) {
   const target = event.target;
   return (
     target instanceof Element &&
+    Boolean(target.closest("button, a, input, select, textarea, [role='button']"))
+  );
+}
+
+function isInteractiveKeyboardTarget(event: KeyboardEvent<HTMLTableRowElement>) {
+  const target = event.target;
+  return (
+    target instanceof Element &&
+    target !== event.currentTarget &&
     Boolean(target.closest("button, a, input, select, textarea, [role='button']"))
   );
 }
