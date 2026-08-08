@@ -15,6 +15,7 @@ import type {
   EndpointProbePromptTemplatesConfig,
   EndpointProbeModelScanInput,
   EndpointProbeRunDetail,
+  EndpointProbeRunSummary,
   EndpointProbeStartInput,
   ProviderImportItem,
   ProviderImportResult,
@@ -34,6 +35,10 @@ import {
   normalizeEndpointProbePromptTemplates,
   selectedEndpointProbePromptTemplate,
 } from "../domain/endpointProbePromptTemplates";
+import {
+  canPromoteEndpointProbeRun,
+  pickDefaultEndpointProbeRunId,
+} from "../domain/endpointProbePresentation";
 import { useEndpointProbeEvents } from "./useEndpointProbeEvents";
 import { useEndpointProbeProviders } from "./useEndpointProbeProviders";
 
@@ -42,7 +47,7 @@ export function useEndpointProbeView() {
   const { notify } = useNotification();
   const { showToast } = useToast();
   const [workspaceMode, setWorkspaceMode] =
-    useState<EndpointProbeWorkspaceMode>("single");
+    useState<EndpointProbeWorkspaceMode>("batch");
   const [singleSource, setSingleSource] =
     useState<EndpointProbeSingleSource>("provider");
   const [common, setCommon] = useState(createEndpointProbeCommonForm);
@@ -67,6 +72,7 @@ export function useEndpointProbeView() {
   const [promotionRun, setPromotionRun] = useState<EndpointProbeRunDetail | null>(null);
   const submittedTemporaryKeys = useRef(new Map<string, string>());
   const promptTemplatesInitialized = useRef(false);
+  const autoExpandedBatchId = useRef<string | null>(null);
   const providerState = useEndpointProbeProviders(batchExtraModels);
   const probeEvents = useEndpointProbeEvents({
     activeBatchId: activeBatch?.id ?? null,
@@ -114,7 +120,7 @@ export function useEndpointProbeView() {
   });
   useEffect(() => {
     if (!batchDetailQuery.data) return;
-    setActiveBatch(batchDetailQuery.data);
+    hydrateBatchDetail(batchDetailQuery.data);
   }, [batchDetailQuery.data]);
 
   const startMutation = useMutation({
@@ -122,15 +128,14 @@ export function useEndpointProbeView() {
     onSuccess: async (batch, input) => {
       const detail = await api.getEndpointProbeBatchDetail(batch.id);
       setSelectedBatchId(batch.id);
-      setActiveBatch(detail);
-      setExpandedRunId(detail.runs[0]?.id ?? null);
+      hydrateBatchDetail(detail);
       if (input.targets.length === 1 && input.targets[0].source === "temporary") {
         const runId = detail.runs[0]?.id;
         if (runId) submittedTemporaryKeys.current.set(runId, temporary.api_key);
       }
       await invalidateEndpointProbeQueries(queryClient);
       notify({
-        title: detail.total_runs > 1 ? "批量测活已启动" : "站点测活已启动",
+        title: "站点测活已启动",
         description: `正在执行 ${detail.total_runs} 个模型请求。`,
         tone: "info",
       });
@@ -273,6 +278,13 @@ export function useEndpointProbeView() {
   });
 
   const selectedRunCount = useMemo(() => countSelectedProbeRuns(batchModels), [batchModels]);
+  const promotableRun = useMemo(
+    () =>
+      activeBatch?.runs.length === 1
+        ? activeBatch.runs.find(canPromoteEndpointProbeRun) ?? null
+        : null,
+    [activeBatch],
+  );
   const selectedPromptTemplate = useMemo(
     () => selectedEndpointProbePromptTemplate(promptTemplatesConfig),
     [promptTemplatesConfig],
@@ -294,6 +306,7 @@ export function useEndpointProbeView() {
       notify({ title: "请完善测活配置", description: startIssue, tone: "danger" });
       return;
     }
+    autoExpandedBatchId.current = null;
     probeEvents.resetStreams();
     submittedTemporaryKeys.current.clear();
     setRunDetails({});
@@ -303,6 +316,8 @@ export function useEndpointProbeView() {
   };
 
   const selectBatch = (batchId: string) => {
+    if (batchId === selectedBatchId) return;
+    autoExpandedBatchId.current = null;
     setSelectedBatchId(batchId);
     setActiveBatch(null);
     setExpandedRunId(null);
@@ -314,18 +329,7 @@ export function useEndpointProbeView() {
   const expandRun = async (runId: string | null) => {
     setExpandedRunId(runId);
     setRunDetailError(null);
-    if (!runId || runDetails[runId]) return;
-    const summary = activeBatch?.runs.find((run) => run.id === runId);
-    if (summary?.status === "running" || summary?.status === "pending") return;
-    setLoadingRunId(runId);
-    try {
-      const detail = await api.getEndpointProbeRunDetail(runId);
-      setRunDetails((current) => ({ ...current, [runId]: detail }));
-    } catch (error) {
-      setRunDetailError(errorMessage(error));
-    } finally {
-      setLoadingRunId(null);
-    }
+    await loadRunDetail(runId);
   };
 
   const toggleBatchModel = (providerId: string, model: string, checked: boolean) => {
@@ -412,6 +416,55 @@ export function useEndpointProbeView() {
     });
   };
 
+  function hydrateBatchDetail(detail: EndpointProbeBatchDetail) {
+    setActiveBatch(detail);
+    if (autoExpandedBatchId.current === detail.id) return;
+    const runId = pickDefaultEndpointProbeRunId(detail.runs);
+    autoExpandedBatchId.current = detail.id;
+    setExpandedRunId(runId);
+    if (!runId) return;
+    void loadRunDetail(runId, detail.runs.find((run) => run.id === runId));
+  }
+
+  async function loadRunDetail(
+    runId: string | null,
+    summary?: EndpointProbeRunSummary,
+  ) {
+    if (!runId || runDetails[runId]) return;
+    const runSummary = summary ?? activeBatch?.runs.find((run) => run.id === runId);
+    if (runSummary?.status === "running" || runSummary?.status === "pending") return;
+    setLoadingRunId(runId);
+    try {
+      const detail = await api.getEndpointProbeRunDetail(runId);
+      setRunDetails((current) => ({ ...current, [runId]: detail }));
+    } catch (error) {
+      setRunDetailError(errorMessage(error));
+    } finally {
+      setLoadingRunId(null);
+    }
+  }
+
+  async function copyProbeText(label: string, value?: string | null) {
+    if (!value) {
+      notify({
+        title: "没有可复制内容",
+        description: "当前只保留了摘要，完整正文需要在测活前开启保存。",
+        tone: "warning",
+      });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(value);
+      showToast({ message: `${label}已复制`, tone: "success" });
+    } catch {
+      notify({
+        title: `${label}复制失败`,
+        description: "系统剪贴板暂不可用，请稍后重试。",
+        tone: "danger",
+      });
+    }
+  }
+
   return {
     activeBatch,
     addManualProviderModel,
@@ -449,6 +502,7 @@ export function useEndpointProbeView() {
     promptTemplateDirty,
     promptTemplates: promptTemplatesConfig.items,
     promptTemplatesLoading: configQuery.isFetching && !promptTemplatesInitialized.current,
+    promotableRun,
     refreshProviderModels: (providerId: string) =>
       {
         providerState.ensureProviderModels(providerId);
@@ -522,6 +576,7 @@ export function useEndpointProbeView() {
     selectPromptTemplate,
     selectedPromptTemplateId: promptTemplatesConfig.selected_id,
     resetTemporaryModels: () => setTemporaryModels([]),
+    copyProbeText,
   };
 }
 

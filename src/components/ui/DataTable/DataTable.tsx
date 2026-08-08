@@ -47,6 +47,7 @@ type DataTableProps<T> = {
   selectedRowKey?: DataTableRowKey | null;
   onRowClick?: (row: T) => void;
   getRowAriaLabel?: (row: T) => string;
+  getRowClassName?: (row: T) => string | undefined;
   scrollX?: number;
 };
 
@@ -60,6 +61,7 @@ export function DataTable<T>({
   selectedRowKey,
   onRowClick,
   getRowAriaLabel,
+  getRowClassName,
   scrollX,
 }: DataTableProps<T>) {
   const tableId = useId().replaceAll(":", "");
@@ -132,6 +134,7 @@ export function DataTable<T>({
               isExpanded ? "table-row-expanded" : "",
               canActivateRow ? "table-row-clickable" : "",
               isSelected ? "table-row-selected" : "",
+              getRowClassName?.(row),
             ]
               .filter(Boolean)
               .join(" ");

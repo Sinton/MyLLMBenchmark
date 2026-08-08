@@ -76,7 +76,7 @@ export function EndpointProbeBatchTargets({ view }: { view: EndpointProbeView })
           <EmptyState
             compact
             icon={<Network size={20} />}
-            title="没有可批量测活的服务商"
+            title="没有可测活的服务商"
             description="请先通过右上角导入服务商，或在模型服务商页新增连接。"
           />
         }

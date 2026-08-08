@@ -135,4 +135,17 @@ describe("DataTable selectable rows", () => {
     expect(markup).toContain('aria-selected="true"');
     expect(markup).toContain('tabindex="0"');
   });
+
+  it("supports business row class names without changing column markup", () => {
+    const markup = renderToStaticMarkup(
+      <DataTable
+        columns={columns}
+        getRowClassName={() => "custom-row-state"}
+        getRowKey={(row) => row.id}
+        rows={rows}
+      />,
+    );
+
+    expect(markup).toContain("custom-row-state");
+  });
 });

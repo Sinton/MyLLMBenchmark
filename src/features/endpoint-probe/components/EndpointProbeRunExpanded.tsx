@@ -3,12 +3,13 @@ import { Button } from "../../../components/ui/Button";
 import { InlineAlert } from "../../../components/ui/InlineAlert";
 import { LoadingBlock } from "../../../components/ui/LoadingBlock";
 import { Tabs } from "../../../components/ui/Tabs";
-import { ArrowRight, Building2 } from "../../../components/ui/icons";
+import { ArrowRight, Building2, Copy } from "../../../components/ui/icons";
 import type {
   EndpointProbeRunDetail,
   EndpointProbeRunSummary,
 } from "../../../types/api";
 import {
+  canPromoteEndpointProbeRun,
   endpointProbeInterfaceLabel,
   endpointProbeStatusLabel,
 } from "../domain/endpointProbePresentation";
@@ -21,6 +22,7 @@ type EndpointProbeRunExpandedProps = {
   liveText: string;
   loading: boolean;
   error: string | null;
+  onCopy: (label: string, value?: string | null) => Promise<void>;
   onRetry: () => void;
   onPromote: () => void;
 };
@@ -31,6 +33,7 @@ export function EndpointProbeRunExpanded({
   liveText,
   loading,
   error,
+  onCopy,
   onRetry,
   onPromote,
 }: EndpointProbeRunExpandedProps) {
@@ -38,7 +41,13 @@ export function EndpointProbeRunExpanded({
   useEffect(() => setTab("response"), [run.id]);
   const running = run.status === "pending" || run.status === "running";
   const response = liveText || detail?.response_text || run.response_preview || "";
-  const canPromote = run.source_type === "temporary" && run.status === "passed";
+  const responseCopyValue = liveText || detail?.response_text || null;
+  const promptCopyValue = detail?.prompt ?? null;
+  const payloadCopyValue = detail?.request_payload
+    ? formatJson(redactSensitiveValue(detail.request_payload))
+    : null;
+  const errorCopyValue = detail?.raw_error ?? run.error_message ?? null;
+  const canPromote = canPromoteEndpointProbeRun(run);
 
   return (
     <div className="endpoint-probe-run-expanded">
@@ -54,11 +63,34 @@ export function EndpointProbeRunExpanded({
           variant="line"
           onChange={setTab}
         />
-        {canPromote && (
-          <Button icon={<Building2 size={15} />} variant="primary" onClick={onPromote}>
-            保存为服务商
-          </Button>
-        )}
+        <div className="endpoint-probe-run-expanded-actions">
+          {tab === "response" && (
+            <CopyButton
+              disabled={!responseCopyValue}
+              label="复制响应"
+              onClick={() => onCopy("响应", responseCopyValue)}
+            />
+          )}
+          {tab === "request" && (
+            <>
+              <CopyButton
+                disabled={!promptCopyValue}
+                label="复制 Prompt"
+                onClick={() => onCopy("Prompt", promptCopyValue)}
+              />
+              <CopyButton
+                disabled={!payloadCopyValue}
+                label="复制 Payload"
+                onClick={() => onCopy("Payload", payloadCopyValue)}
+              />
+            </>
+          )}
+          {canPromote && (
+            <Button icon={<Building2 size={15} />} variant="primary" onClick={onPromote}>
+              保存为服务商
+            </Button>
+          )}
+        </div>
       </div>
 
       {error ? (
@@ -81,7 +113,7 @@ export function EndpointProbeRunExpanded({
             title="Prompt"
             value={detail?.prompt ?? run.prompt_preview ?? "请求执行完成后显示 Prompt 摘要"}
           />
-          <CodeBlock title="请求 Payload" value={formatJson(detail?.request_payload)} />
+          <CodeBlock title="请求 Payload" value={payloadCopyValue ?? "无"} />
         </div>
       ) : (
         <div className="endpoint-probe-run-metrics">
@@ -100,10 +132,39 @@ export function EndpointProbeRunExpanded({
 
       {run.status === "failed" && (detail?.raw_error || run.error_message) && (
         <InlineAlert tone="danger" title={run.error_kind ?? "请求失败"}>
-          {detail?.raw_error ?? run.error_message}
+          <div className="endpoint-probe-error-detail">
+            <span>{detail?.raw_error ?? run.error_message}</span>
+            <CopyButton
+              disabled={!errorCopyValue}
+              label="复制错误"
+              onClick={() => onCopy("错误", errorCopyValue)}
+            />
+          </div>
         </InlineAlert>
       )}
     </div>
+  );
+}
+
+function CopyButton({
+  disabled,
+  label,
+  onClick,
+}: {
+  disabled: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      disabled={disabled}
+      icon={<Copy size={14} />}
+      title={disabled ? "仅保存摘要，暂无完整正文可复制" : label}
+      variant="ghost"
+      onClick={onClick}
+    >
+      {label}
+    </Button>
   );
 }
 
@@ -176,6 +237,30 @@ function formatJson(value: unknown) {
   } catch {
     return String(value);
   }
+}
+
+function redactSensitiveValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactSensitiveValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+      key,
+      isSensitiveKey(key) ? "[REDACTED]" : redactSensitiveValue(item),
+    ]),
+  );
+}
+
+function isSensitiveKey(key: string) {
+  const normalized = key.toLowerCase();
+  return [
+    "api_key",
+    "apikey",
+    "authorization",
+    "cookie",
+    "x-api-key",
+    "anthropic-api-key",
+    "openai-api-key",
+  ].includes(normalized) || normalized.includes("secret");
 }
 
 function formatMs(value: number) {

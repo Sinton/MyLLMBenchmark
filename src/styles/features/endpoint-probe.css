@@ -27,6 +27,17 @@
   grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
+.endpoint-probe-result-head-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.endpoint-probe-result-head-actions .button {
+  min-height: 32px;
+}
+
 .endpoint-probe-panel-head {
   display: flex;
   min-width: 0;
@@ -52,17 +63,6 @@
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 18px;
-}
-
-.endpoint-probe-mode-tabs {
-  flex: 0 0 148px;
-}
-
-.endpoint-probe-mode-tabs button {
-  min-width: 0;
-  flex: 1 1 0;
-  padding-right: 8px;
-  padding-left: 8px;
 }
 
 .endpoint-probe-config-scroll {
@@ -480,13 +480,13 @@
 .endpoint-probe-batch-overview {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  padding: 14px 20px 10px;
+  gap: 7px;
+  padding: 12px 18px 8px;
 }
 
 .endpoint-probe-batch-overview .metric-card {
-  min-height: 72px;
-  padding: 10px 12px;
+  min-height: 66px;
+  padding: 9px 11px;
 }
 
 .endpoint-probe-batch-overview .metric-value {
@@ -497,14 +497,14 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 20px 10px;
+  padding: 0 18px 8px;
   color: var(--text-muted);
   font-size: 10px;
 }
 
 .endpoint-probe-runs-table {
   min-height: 0;
-  margin: 0 20px 18px;
+  margin: 0 18px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow: auto;
@@ -523,11 +523,50 @@
   white-space: nowrap;
 }
 
+.endpoint-probe-run-result-note {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.endpoint-probe-run-result-note.is-failed {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.endpoint-probe-run-result-note.is-running {
+  color: var(--running);
+  font-weight: 650;
+}
+
+.endpoint-probe-run-result-note.is-promotable {
+  color: var(--primary);
+  font-weight: 650;
+}
+
+.endpoint-probe-run-result-note.is-passed {
+  color: var(--success);
+}
+
+.endpoint-probe-run-row.is-failed > td {
+  background: rgba(184, 92, 92, 0.035);
+}
+
+.endpoint-probe-run-row.is-running > td,
+.endpoint-probe-run-row.is-pending > td {
+  background: rgba(109, 158, 149, 0.04);
+}
+
 .endpoint-probe-run-expanded {
   display: grid;
   min-width: 0;
-  gap: 12px;
-  padding: 2px;
+  gap: 10px;
+  padding: 1px;
 }
 
 .endpoint-probe-run-expanded-head,
@@ -536,6 +575,23 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.endpoint-probe-run-expanded-head {
+  min-width: 0;
+}
+
+.endpoint-probe-run-expanded-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.endpoint-probe-run-expanded-actions .button {
+  min-height: 30px;
+  padding-inline: 9px;
+  font-size: 11px;
 }
 
 .endpoint-probe-stream-shell {
@@ -635,6 +691,23 @@
   font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
   font-size: 11px;
   line-height: 1.65;
+}
+
+.endpoint-probe-error-detail {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+}
+
+.endpoint-probe-error-detail > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.endpoint-probe-error-detail .button {
+  min-height: 28px;
 }
 
 .endpoint-probe-run-metrics {

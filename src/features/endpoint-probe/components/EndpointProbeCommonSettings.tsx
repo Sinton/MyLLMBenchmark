@@ -59,7 +59,7 @@ export function EndpointProbeCommonSettings({ view }: { view: EndpointProbeView 
         value={view.common.prompt}
         onChange={(event) => update("prompt", event.target.value)}
       />
-      <div className={`endpoint-probe-form-grid ${view.workspaceMode === "batch" ? "three" : "two"}`}>
+      <div className="endpoint-probe-form-grid three">
         <Input
           label="最大输出 Token"
           hint="限制模型本次最多生成的 Token 数"
@@ -77,17 +77,15 @@ export function EndpointProbeCommonSettings({ view }: { view: EndpointProbeView 
           value={view.common.timeout_seconds}
           onChange={(event) => update("timeout_seconds", Number(event.target.value))}
         />
-        {view.workspaceMode === "batch" && (
-          <Input
-            label="并发请求"
-            hint="允许 1-10 个请求同时执行"
-            max={10}
-            min={1}
-            type="number"
-            value={view.common.concurrency}
-            onChange={(event) => update("concurrency", Number(event.target.value))}
-          />
-        )}
+        <Input
+          label="并发请求"
+          hint="允许 1-10 个请求同时执行"
+          max={10}
+          min={1}
+          type="number"
+          value={view.common.concurrency}
+          onChange={(event) => update("concurrency", Number(event.target.value))}
+        />
       </div>
       <div className="endpoint-probe-toggle-list">
         <div className="endpoint-probe-toggle-item">

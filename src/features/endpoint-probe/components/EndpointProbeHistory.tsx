@@ -100,7 +100,7 @@ export function EndpointProbeHistory({ view }: { view: EndpointProbeView }) {
       <div className="endpoint-probe-panel-head">
         <div>
           <h2>测活历史</h2>
-          <p>单次与批量测活统一按批次留痕。</p>
+          <p>测活任务按批次留痕，可回看请求状态、响应和错误原因。</p>
         </div>
         {view.historyLoading && <span className="endpoint-probe-syncing">同步中</span>}
       </div>
@@ -136,7 +136,7 @@ export function EndpointProbeHistory({ view }: { view: EndpointProbeView }) {
               compact
               icon={<Network size={20} />}
               title="暂无测活历史"
-              description="完成一次端点测活后，批次及请求指标会保留在这里。"
+              description="完成一次站点测活后，批次及请求指标会保留在这里。"
             />
           }
           getRowAriaLabel={(batch) => `查看测活批次 ${batch.name}`}

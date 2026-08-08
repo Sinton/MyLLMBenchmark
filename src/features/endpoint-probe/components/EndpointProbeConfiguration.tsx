@@ -1,11 +1,9 @@
 import { Card } from "../../../components/ui/Card";
 import { Play, Square } from "../../../components/ui/icons";
 import { Button } from "../../../components/ui/Button";
-import { Tabs } from "../../../components/ui/Tabs";
 import type { useEndpointProbeView } from "../hooks/useEndpointProbeView";
 import { EndpointProbeBatchTargets } from "./EndpointProbeBatchTargets";
 import { EndpointProbeCommonSettings } from "./EndpointProbeCommonSettings";
-import { EndpointProbeSingleTarget } from "./EndpointProbeSingleTarget";
 
 type EndpointProbeView = ReturnType<typeof useEndpointProbeView>;
 
@@ -15,9 +13,7 @@ export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }
   const isStarting = view.running && !isActive;
   const requestCount = isActive
     ? view.activeBatch?.total_runs ?? 0
-    : view.workspaceMode === "batch"
-      ? view.selectedRunCount
-      : 1;
+    : view.selectedRunCount;
   const requestSummary = `${requestCount} 个请求 · ${
     view.common.streaming ? "流式响应" : "非流式响应"
   } · ${view.common.save_body ? "保存正文" : "仅保存摘要"}`;
@@ -48,26 +44,12 @@ export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }
       <div className="endpoint-probe-panel-head">
         <div>
           <h2>测活配置</h2>
-          <p>使用真实端点发出最小请求，快速确认协议、Key 与模型是否可用。</p>
+          <p>选择已保存服务商和模型，用同一 Prompt 批量确认协议、Key 与模型是否可用。</p>
         </div>
-        <Tabs
-          ariaLabel="测活模式"
-          className="endpoint-probe-mode-tabs"
-          items={[
-            { key: "single", label: "单次测活" },
-            { key: "batch", label: "批量测活" },
-          ]}
-          value={view.workspaceMode}
-          onChange={view.setWorkspaceMode}
-        />
       </div>
 
       <div className="endpoint-probe-config-scroll">
-        {view.workspaceMode === "single" ? (
-          <EndpointProbeSingleTarget view={view} />
-        ) : (
-          <EndpointProbeBatchTargets view={view} />
-        )}
+        <EndpointProbeBatchTargets view={view} />
         <EndpointProbeCommonSettings view={view} />
       </div>
 
@@ -101,7 +83,7 @@ export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }
             variant="primary"
             onClick={view.start}
           >
-            {view.workspaceMode === "batch" ? "开始批量测活" : "开始测活"}
+            开始测活
           </Button>
         )}
       </div>

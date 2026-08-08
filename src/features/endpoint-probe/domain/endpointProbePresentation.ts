@@ -1,6 +1,7 @@
 import type {
   EndpointProbeInterfaceType,
   EndpointProbeModelOption,
+  EndpointProbeRunSummary,
   EndpointProbeResponseDeltaEvent,
   ModelSummary,
   ProviderImportItem,
@@ -63,6 +64,34 @@ export function endpointProbeStatusTone(status: string) {
   if (status === "running" || status === "pending") return "info" as const;
   if (status === "cancelled") return "warning" as const;
   return "danger" as const;
+}
+
+export function pickDefaultEndpointProbeRunId(
+  runs: EndpointProbeRunSummary[],
+) {
+  return (
+    runs.find((run) => run.status === "failed")?.id ??
+    runs[0]?.id ??
+    null
+  );
+}
+
+export function endpointProbeRunResultText(run: EndpointProbeRunSummary) {
+  if (run.status === "failed") {
+    return [run.error_kind, run.error_message].filter(Boolean).join(" · ") || "请求失败";
+  }
+  if (run.status === "running") return "正在接收响应";
+  if (run.status === "pending") return "等待调度";
+  if (run.status === "passed" && run.source_type === "temporary") {
+    return "可保存为服务商";
+  }
+  if (run.status === "passed") return "请求可用";
+  if (run.status === "cancelled") return "已停止";
+  return endpointProbeStatusLabel(run.status);
+}
+
+export function canPromoteEndpointProbeRun(run: EndpointProbeRunSummary) {
+  return run.source_type === "temporary" && run.status === "passed";
 }
 
 export type EndpointProbeStreamBuffer = {

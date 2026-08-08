@@ -6,10 +6,13 @@ import { EmptyState } from "../../../components/ui/EmptyState";
 import { InlineAlert } from "../../../components/ui/InlineAlert";
 import { LoadingBlock } from "../../../components/ui/LoadingBlock";
 import { MetricCard } from "../../../components/ui/MetricCard";
-import { Network } from "../../../components/ui/icons";
+import { Button } from "../../../components/ui/Button";
+import { Building2, Network } from "../../../components/ui/icons";
 import type { EndpointProbeRunSummary } from "../../../types/api";
 import {
+  canPromoteEndpointProbeRun,
   endpointProbeInterfaceLabel,
+  endpointProbeRunResultText,
   endpointProbeStatusLabel,
   endpointProbeStatusTone,
 } from "../domain/endpointProbePresentation";
@@ -20,6 +23,7 @@ type EndpointProbeView = ReturnType<typeof useEndpointProbeView>;
 
 export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
   const batch = view.activeBatch;
+  const promotableRun = view.promotableRun;
   const columns: Array<DataTableColumn<EndpointProbeRunSummary>> = [
     {
       key: "target",
@@ -39,13 +43,19 @@ export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
     {
       key: "status",
       title: "状态",
-      width: 86,
+      width: 82,
       align: "center",
       render: (run) => (
         <Badge tone={endpointProbeStatusTone(run.status)}>
           {endpointProbeStatusLabel(run.status)}
         </Badge>
       ),
+    },
+    {
+      key: "result",
+      title: "结果说明",
+      width: 190,
+      render: (run) => <RunResultNote run={run} />,
     },
     {
       key: "ttft",
@@ -78,9 +88,20 @@ export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
           <p>{batch ? batch.name : "启动测活后，这里会按请求展示真实响应。"}</p>
         </div>
         {batch && (
-          <Badge tone={endpointProbeStatusTone(batch.status)}>
-            {endpointProbeStatusLabel(batch.status)}
-          </Badge>
+          <div className="endpoint-probe-result-head-actions">
+            {promotableRun && (
+              <Button
+                icon={<Building2 size={15} />}
+                variant="primary"
+                onClick={() => void view.openPromotion(promotableRun.id)}
+              >
+                保存为服务商
+              </Button>
+            )}
+            <Badge tone={endpointProbeStatusTone(batch.status)}>
+              {endpointProbeStatusLabel(batch.status)}
+            </Badge>
+          </div>
         )}
       </div>
 
@@ -128,18 +149,39 @@ export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
                   liveText={view.streamText[run.id] ?? ""}
                   loading={view.loadingRunId === run.id}
                   run={run}
+                  onCopy={view.copyProbeText}
                   onPromote={() => void view.openPromotion(run.id)}
                   onRetry={() => void view.expandRun(run.id)}
                 />
               ),
             }}
             getRowKey={(run) => run.id}
+            getRowClassName={(run) => `endpoint-probe-run-row is-${run.status}`}
             rows={batch.runs}
-            scrollX={780}
+            scrollX={940}
           />
         </>
       )}
     </Card>
+  );
+}
+
+function RunResultNote({ run }: { run: EndpointProbeRunSummary }) {
+  const text = endpointProbeRunResultText(run);
+  const tone = run.status === "failed"
+    ? "failed"
+    : run.status === "running" || run.status === "pending"
+      ? "running"
+      : canPromoteEndpointProbeRun(run)
+        ? "promotable"
+        : run.status === "passed"
+          ? "passed"
+          : "neutral";
+
+  return (
+    <span className={`endpoint-probe-run-result-note is-${tone}`} title={text}>
+      {text}
+    </span>
   );
 }
 
