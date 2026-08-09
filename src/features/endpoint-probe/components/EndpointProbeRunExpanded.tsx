@@ -48,6 +48,7 @@ export function EndpointProbeRunExpanded({
     : null;
   const errorCopyValue = detail?.raw_error ?? run.error_message ?? null;
   const canPromote = canPromoteEndpointProbeRun(run);
+  const failedReason = detail?.raw_error ?? run.error_message;
 
   return (
     <div className="endpoint-probe-run-expanded">
@@ -93,6 +94,19 @@ export function EndpointProbeRunExpanded({
         </div>
       </div>
 
+      {run.status === "failed" && failedReason && (
+        <InlineAlert tone="danger" title={run.error_kind ?? "请求失败"}>
+          <div className="endpoint-probe-error-detail">
+            <span>{failedReason}</span>
+            <CopyButton
+              disabled={!errorCopyValue}
+              label="复制错误"
+              onClick={() => onCopy("错误", errorCopyValue)}
+            />
+          </div>
+        </InlineAlert>
+      )}
+
       {error ? (
         <InlineAlert tone="danger" title="请求详情读取失败">
           {error}
@@ -103,7 +117,7 @@ export function EndpointProbeRunExpanded({
       ) : tab === "response" ? (
         <StreamingResponse running={running} text={response} />
       ) : tab === "request" ? (
-        <div className="endpoint-probe-code-grid">
+        <div className="endpoint-probe-code-stack">
           {!detail?.body_available && !running && (
             <InlineAlert tone="info" title="历史正文未保存">
               当前仅有请求与响应摘要；完整正文只能在测活前显式开启保存。
@@ -128,19 +142,6 @@ export function EndpointProbeRunExpanded({
           <Fact label="错误类型" value={run.error_kind ?? "-"} />
           <CodeBlock title="Raw Usage" value={formatJson(detail?.raw_usage)} />
         </div>
-      )}
-
-      {run.status === "failed" && (detail?.raw_error || run.error_message) && (
-        <InlineAlert tone="danger" title={run.error_kind ?? "请求失败"}>
-          <div className="endpoint-probe-error-detail">
-            <span>{detail?.raw_error ?? run.error_message}</span>
-            <CopyButton
-              disabled={!errorCopyValue}
-              label="复制错误"
-              onClick={() => onCopy("错误", errorCopyValue)}
-            />
-          </div>
-        </InlineAlert>
       )}
     </div>
   );

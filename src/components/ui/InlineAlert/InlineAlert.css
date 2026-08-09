@@ -13,8 +13,14 @@
   margin-top: 1px;
 }
 
+.inline-alert-body {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
 .inline-alert strong,
-.inline-alert span {
+.inline-alert-message {
   display: block;
 }
 
@@ -24,7 +30,7 @@
   line-height: 20px;
 }
 
-.inline-alert span {
+.inline-alert-message {
   color: var(--text-muted);
   font-size: 12px;
   line-height: 18px;

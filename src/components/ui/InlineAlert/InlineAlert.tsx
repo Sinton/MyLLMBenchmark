@@ -15,9 +15,9 @@ export function InlineAlert({ tone = "info", title, children }: InlineAlertProps
   return (
     <div className={`inline-alert inline-alert-${tone}`}>
       <Icon size={17} />
-      <div>
+      <div className="inline-alert-body">
         {title && <strong>{title}</strong>}
-        <span>{children}</span>
+        <div className="inline-alert-message">{children}</div>
       </div>
     </div>
   );

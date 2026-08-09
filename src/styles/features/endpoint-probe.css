@@ -147,7 +147,7 @@
 
 .endpoint-probe-field-stack,
 .endpoint-probe-dialog-form,
-.endpoint-probe-code-grid {
+.endpoint-probe-code-stack {
   display: grid;
   gap: 12px;
 }
@@ -503,10 +503,16 @@
 }
 
 .endpoint-probe-runs-table {
+  container-type: inline-size;
   min-height: 0;
   margin: 0 18px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.endpoint-probe-runs-table.table-wrap-scroll-x {
   overflow: auto;
 }
 
@@ -565,8 +571,19 @@
 .endpoint-probe-run-expanded {
   display: grid;
   min-width: 0;
-  gap: 10px;
+  gap: 12px;
   padding: 1px;
+}
+
+.endpoint-probe-runs-table .table-expanded-row > td {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.endpoint-probe-runs-table .table-expanded-content {
+  box-sizing: border-box;
+  width: 100cqw;
 }
 
 .endpoint-probe-run-expanded-head,
@@ -579,12 +596,19 @@
 
 .endpoint-probe-run-expanded-head {
   min-width: 0;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.endpoint-probe-run-expanded-head .tabs {
+  flex: 1 1 240px;
 }
 
 .endpoint-probe-run-expanded-actions {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -659,12 +683,12 @@
   color: #aa9f97;
 }
 
-.endpoint-probe-code-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.endpoint-probe-code-stack {
+  grid-template-columns: minmax(0, 1fr);
 }
 
-.endpoint-probe-code-grid > .inline-alert {
-  grid-column: 1 / -1;
+.endpoint-probe-code-stack > .inline-alert {
+  width: 100%;
 }
 
 .endpoint-probe-code-block {
@@ -684,7 +708,7 @@
 }
 
 .endpoint-probe-code-block pre {
-  max-height: 190px;
+  max-height: clamp(150px, 24vh, 260px);
   overflow: auto;
   padding: 11px;
   color: var(--text);

@@ -43,7 +43,7 @@ export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
     {
       key: "status",
       title: "状态",
-      width: 82,
+      width: 76,
       align: "center",
       render: (run) => (
         <Badge tone={endpointProbeStatusTone(run.status)}>
@@ -54,27 +54,27 @@ export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
     {
       key: "result",
       title: "结果说明",
-      width: 190,
+      width: 156,
       render: (run) => <RunResultNote run={run} />,
     },
     {
       key: "ttft",
       title: <MetricHelp helpKey="ttft">TTFT</MetricHelp>,
-      width: 82,
+      width: 72,
       align: "right",
       render: (run) => formatMilliseconds(run.ttft_ms),
     },
     {
       key: "latency",
       title: <MetricHelp helpKey="latency">耗时</MetricHelp>,
-      width: 88,
+      width: 76,
       align: "right",
       render: (run) => formatMilliseconds(run.latency_ms),
     },
     {
       key: "tokens",
       title: "Token",
-      width: 78,
+      width: 68,
       align: "right",
       render: (run) => run.total_tokens.toLocaleString("zh-CN"),
     },
@@ -158,7 +158,7 @@ export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
             getRowKey={(run) => run.id}
             getRowClassName={(run) => `endpoint-probe-run-row is-${run.status}`}
             rows={batch.runs}
-            scrollX={940}
+            scrollX={720}
           />
         </>
       )}
