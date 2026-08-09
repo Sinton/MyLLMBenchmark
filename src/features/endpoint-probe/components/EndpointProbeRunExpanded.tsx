@@ -114,33 +114,37 @@ export function EndpointProbeRunExpanded({
         </InlineAlert>
       ) : loading ? (
         <LoadingBlock text="正在读取请求详情..." />
-      ) : tab === "response" ? (
-        <StreamingResponse running={running} text={response} />
-      ) : tab === "request" ? (
-        <div className="endpoint-probe-code-stack">
-          {!detail?.body_available && !running && (
-            <InlineAlert tone="info" title="历史正文未保存">
-              当前仅有请求与响应摘要；完整正文只能在测活前显式开启保存。
-            </InlineAlert>
-          )}
-          <CodeBlock
-            title="Prompt"
-            value={detail?.prompt ?? run.prompt_preview ?? "请求执行完成后显示 Prompt 摘要"}
-          />
-          <CodeBlock title="请求 Payload" value={payloadCopyValue ?? "无"} />
-        </div>
       ) : (
-        <div className="endpoint-probe-run-metrics">
-          <Fact label="状态" value={endpointProbeStatusLabel(run.status)} />
-          <Fact label="接口" value={endpointProbeInterfaceLabel(run.interface_type)} />
-          <Fact label="模型" value={run.model} />
-          <Fact label="TTFT" value={formatMs(run.ttft_ms)} />
-          <Fact label="总耗时" value={formatMs(run.latency_ms)} />
-          <Fact label="输入 Token" value={String(run.input_tokens)} />
-          <Fact label="输出 Token" value={String(run.output_tokens)} />
-          <Fact label="总 Token" value={String(run.total_tokens)} />
-          <Fact label="错误类型" value={run.error_kind ?? "-"} />
-          <CodeBlock title="Raw Usage" value={formatJson(detail?.raw_usage)} />
+        <div className={`endpoint-probe-run-expanded-body is-${tab}`}>
+          {tab === "response" ? (
+            <StreamingResponse running={running} text={response} />
+          ) : tab === "request" ? (
+            <div className="endpoint-probe-code-stack">
+              {!detail?.body_available && !running && (
+                <InlineAlert tone="info" title="历史正文未保存">
+                  当前仅有请求与响应摘要；完整正文只能在测活前显式开启保存。
+                </InlineAlert>
+              )}
+              <CodeBlock
+                title="Prompt"
+                value={detail?.prompt ?? run.prompt_preview ?? "请求执行完成后显示 Prompt 摘要"}
+              />
+              <CodeBlock title="请求 Payload" value={payloadCopyValue ?? "无"} />
+            </div>
+          ) : (
+            <div className="endpoint-probe-run-metrics">
+              <Fact label="状态" value={endpointProbeStatusLabel(run.status)} />
+              <Fact label="接口" value={endpointProbeInterfaceLabel(run.interface_type)} />
+              <Fact label="模型" value={run.model} />
+              <Fact label="TTFT" value={formatMs(run.ttft_ms)} />
+              <Fact label="总耗时" value={formatMs(run.latency_ms)} />
+              <Fact label="输入 Token" value={String(run.input_tokens)} />
+              <Fact label="输出 Token" value={String(run.output_tokens)} />
+              <Fact label="总 Token" value={String(run.total_tokens)} />
+              <Fact label="错误类型" value={run.error_kind ?? "-"} />
+              <CodeBlock title="Raw Usage" value={formatJson(detail?.raw_usage)} />
+            </div>
+          )}
         </div>
       )}
     </div>

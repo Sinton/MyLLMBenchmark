@@ -20,7 +20,7 @@ describe("EndpointProbeResults", () => {
       <EndpointProbeResults view={view(batch({ runs: [failed] }))} />,
     );
 
-    expect(markup).toContain("结果说明");
+    expect(markup).toContain("结果");
     expect(markup).toContain("unauthorized · API Key 无效");
   });
 

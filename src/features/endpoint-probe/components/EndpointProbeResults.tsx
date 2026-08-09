@@ -27,56 +27,50 @@ export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
   const columns: Array<DataTableColumn<EndpointProbeRunSummary>> = [
     {
       key: "target",
-      title: "站点 / 协议",
+      title: "站点 / 模型",
       render: (run) => (
         <div className="endpoint-probe-run-target">
           <strong>{run.name}</strong>
-          <span>{endpointProbeInterfaceLabel(run.interface_type)}</span>
+          <span title={`${endpointProbeInterfaceLabel(run.interface_type)} · ${run.model}`}>
+            {endpointProbeInterfaceLabel(run.interface_type)} · {run.model}
+          </span>
         </div>
       ),
     },
     {
-      key: "model",
-      title: "模型",
-      render: (run) => <span className="endpoint-probe-model-name" title={run.model}>{run.model}</span>,
-    },
-    {
-      key: "status",
-      title: "状态",
-      width: 76,
-      align: "center",
+      key: "result",
+      title: "结果",
+      width: 248,
       render: (run) => (
-        <Badge tone={endpointProbeStatusTone(run.status)}>
-          {endpointProbeStatusLabel(run.status)}
-        </Badge>
+        <div className="endpoint-probe-run-outcome">
+          <Badge tone={endpointProbeStatusTone(run.status)}>
+            {endpointProbeStatusLabel(run.status)}
+          </Badge>
+          <RunResultNote run={run} />
+        </div>
       ),
     },
     {
-      key: "result",
-      title: "结果说明",
-      width: 156,
-      render: (run) => <RunResultNote run={run} />,
-    },
-    {
-      key: "ttft",
-      title: <MetricHelp helpKey="ttft">TTFT</MetricHelp>,
-      width: 72,
+      key: "metrics",
+      title: <MetricHelp helpKey="latency">核心指标</MetricHelp>,
+      width: 218,
       align: "right",
-      render: (run) => formatMilliseconds(run.ttft_ms),
-    },
-    {
-      key: "latency",
-      title: <MetricHelp helpKey="latency">耗时</MetricHelp>,
-      width: 76,
-      align: "right",
-      render: (run) => formatMilliseconds(run.latency_ms),
-    },
-    {
-      key: "tokens",
-      title: "Token",
-      width: 68,
-      align: "right",
-      render: (run) => run.total_tokens.toLocaleString("zh-CN"),
+      render: (run) => (
+        <div className="endpoint-probe-run-metric-strip">
+          <span>
+            <small>TTFT</small>
+            <strong>{formatMilliseconds(run.ttft_ms)}</strong>
+          </span>
+          <span>
+            <small>耗时</small>
+            <strong>{formatMilliseconds(run.latency_ms)}</strong>
+          </span>
+          <span>
+            <small>Token</small>
+            <strong>{run.total_tokens.toLocaleString("zh-CN")}</strong>
+          </span>
+        </div>
+      ),
     },
   ];
 
@@ -158,7 +152,6 @@ export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
             getRowKey={(run) => run.id}
             getRowClassName={(run) => `endpoint-probe-run-row is-${run.status}`}
             rows={batch.runs}
-            scrollX={720}
           />
         </>
       )}

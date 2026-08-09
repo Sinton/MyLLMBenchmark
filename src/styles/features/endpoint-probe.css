@@ -503,30 +503,24 @@
 }
 
 .endpoint-probe-runs-table {
-  container-type: inline-size;
   min-height: 0;
   margin: 0 18px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   scrollbar-gutter: stable;
 }
 
 .endpoint-probe-runs-table.table-wrap-scroll-x {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
 }
 
 .endpoint-probe-runs-table thead {
   position: sticky;
   z-index: 4;
   top: 0;
-}
-
-.endpoint-probe-model-name {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .endpoint-probe-run-result-note {
@@ -559,6 +553,46 @@
   color: var(--success);
 }
 
+.endpoint-probe-run-outcome {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.endpoint-probe-run-metric-strip {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.endpoint-probe-run-metric-strip span {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+  text-align: right;
+}
+
+.endpoint-probe-run-metric-strip small {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 9px;
+  line-height: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.endpoint-probe-run-metric-strip strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .endpoint-probe-run-row.is-failed > td {
   background: rgba(184, 92, 92, 0.035);
 }
@@ -573,17 +607,6 @@
   min-width: 0;
   gap: 12px;
   padding: 1px;
-}
-
-.endpoint-probe-runs-table .table-expanded-row > td {
-  position: sticky;
-  left: 0;
-  z-index: 1;
-}
-
-.endpoint-probe-runs-table .table-expanded-content {
-  box-sizing: border-box;
-  width: 100cqw;
 }
 
 .endpoint-probe-run-expanded-head,
@@ -616,6 +639,20 @@
   min-height: 30px;
   padding-inline: 9px;
   font-size: 11px;
+}
+
+.endpoint-probe-run-expanded-body {
+  min-width: 0;
+  max-height: clamp(190px, 30vh, 320px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding-right: 3px;
+}
+
+.endpoint-probe-run-expanded-body.is-response {
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
 }
 
 .endpoint-probe-stream-shell {
@@ -715,6 +752,11 @@
   font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
   font-size: 11px;
   line-height: 1.65;
+}
+
+.endpoint-probe-code-stack .endpoint-probe-code-block pre {
+  max-height: none;
+  overflow: visible;
 }
 
 .endpoint-probe-error-detail {
