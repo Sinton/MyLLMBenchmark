@@ -42,11 +42,16 @@ export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
       title: "结果",
       width: 248,
       render: (run) => (
-        <div className="endpoint-probe-run-outcome">
+        <div
+          className={[
+            "endpoint-probe-run-outcome",
+            view.expandedRunId === run.id ? "is-expanded" : "",
+          ].filter(Boolean).join(" ")}
+        >
           <Badge tone={endpointProbeStatusTone(run.status)}>
             {endpointProbeStatusLabel(run.status)}
           </Badge>
-          <RunResultNote run={run} />
+          {view.expandedRunId !== run.id && <RunResultNote run={run} />}
         </div>
       ),
     },

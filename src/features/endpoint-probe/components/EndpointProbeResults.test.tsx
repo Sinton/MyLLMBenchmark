@@ -24,6 +24,25 @@ describe("EndpointProbeResults", () => {
     expect(markup).toContain("unauthorized · API Key 无效");
   });
 
+  it("hides duplicated failed reason from the expanded result row", () => {
+    const failed = run({
+      id: "failed-run",
+      status: "failed",
+      error_kind: "http_5xx",
+      error_message: "HTTP 502 Bad Gateway",
+    });
+    const markup = renderToStaticMarkup(
+      <EndpointProbeResults
+        view={view(batch({ runs: [failed] }), {
+          expandedRunId: failed.id,
+        })}
+      />,
+    );
+
+    expect(markup).toContain("失败");
+    expect(markup).not.toContain("http_5xx · HTTP 502 Bad Gateway");
+  });
+
   it("shows a header promotion action for a passed single temporary run", () => {
     const passed = run({
       id: "temporary-run",

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "../../../components/ui/Button";
 import { InlineAlert } from "../../../components/ui/InlineAlert";
 import { LoadingBlock } from "../../../components/ui/LoadingBlock";
@@ -49,6 +49,7 @@ export function EndpointProbeRunExpanded({
   const errorCopyValue = detail?.raw_error ?? run.error_message ?? null;
   const canPromote = canPromoteEndpointProbeRun(run);
   const failedReason = detail?.raw_error ?? run.error_message;
+  const responseStatus = buildResponseStatus(run, failedReason);
 
   return (
     <div className="endpoint-probe-run-expanded">
@@ -72,20 +73,6 @@ export function EndpointProbeRunExpanded({
               onClick={() => onCopy("响应", responseCopyValue)}
             />
           )}
-          {tab === "request" && (
-            <>
-              <CopyButton
-                disabled={!promptCopyValue}
-                label="复制 Prompt"
-                onClick={() => onCopy("Prompt", promptCopyValue)}
-              />
-              <CopyButton
-                disabled={!payloadCopyValue}
-                label="复制 Payload"
-                onClick={() => onCopy("Payload", payloadCopyValue)}
-              />
-            </>
-          )}
           {canPromote && (
             <Button icon={<Building2 size={15} />} variant="primary" onClick={onPromote}>
               保存为服务商
@@ -93,19 +80,6 @@ export function EndpointProbeRunExpanded({
           )}
         </div>
       </div>
-
-      {run.status === "failed" && failedReason && (
-        <InlineAlert tone="danger" title={run.error_kind ?? "请求失败"}>
-          <div className="endpoint-probe-error-detail">
-            <span>{failedReason}</span>
-            <CopyButton
-              disabled={!errorCopyValue}
-              label="复制错误"
-              onClick={() => onCopy("错误", errorCopyValue)}
-            />
-          </div>
-        </InlineAlert>
-      )}
 
       {error ? (
         <InlineAlert tone="danger" title="请求详情读取失败">
@@ -117,7 +91,13 @@ export function EndpointProbeRunExpanded({
       ) : (
         <div className={`endpoint-probe-run-expanded-body is-${tab}`}>
           {tab === "response" ? (
-            <StreamingResponse running={running} text={response} />
+            <StreamingResponse
+              errorCopyValue={errorCopyValue}
+              running={running}
+              status={responseStatus}
+              text={response}
+              onCopyError={() => onCopy("错误", errorCopyValue)}
+            />
           ) : tab === "request" ? (
             <div className="endpoint-probe-code-stack">
               {!detail?.body_available && !running && (
@@ -126,10 +106,27 @@ export function EndpointProbeRunExpanded({
                 </InlineAlert>
               )}
               <CodeBlock
+                action={
+                  <CodeCopyButton
+                    disabled={!promptCopyValue}
+                    label="复制 Prompt"
+                    onClick={() => onCopy("Prompt", promptCopyValue)}
+                  />
+                }
                 title="Prompt"
                 value={detail?.prompt ?? run.prompt_preview ?? "请求执行完成后显示 Prompt 摘要"}
               />
-              <CodeBlock title="请求 Payload" value={payloadCopyValue ?? "无"} />
+              <CodeBlock
+                action={
+                  <CodeCopyButton
+                    disabled={!payloadCopyValue}
+                    label="复制 Payload"
+                    onClick={() => onCopy("Payload", payloadCopyValue)}
+                  />
+                }
+                title="请求 Payload"
+                value={payloadCopyValue ?? "无"}
+              />
             </div>
           ) : (
             <div className="endpoint-probe-run-metrics">
@@ -173,7 +170,47 @@ function CopyButton({
   );
 }
 
-function StreamingResponse({ text, running }: { text: string; running: boolean }) {
+function CodeCopyButton({
+  disabled,
+  label,
+  onClick,
+}: {
+  disabled: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      aria-label={label}
+      className="endpoint-probe-code-copy-action"
+      disabled={disabled}
+      icon={<Copy size={13} />}
+      title={disabled ? "仅保存摘要，暂无完整正文可复制" : label}
+      variant="ghost"
+      onClick={onClick}
+    />
+  );
+}
+
+type ResponseStatus = {
+  label: string;
+  tone: "success" | "warning" | "danger" | "running" | "neutral";
+  title: string;
+};
+
+function StreamingResponse({
+  errorCopyValue,
+  text,
+  running,
+  status,
+  onCopyError,
+}: {
+  errorCopyValue: string | null;
+  text: string;
+  running: boolean;
+  status: ResponseStatus;
+  onCopyError: () => void;
+}) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [followOutput, setFollowOutput] = useState(true);
 
@@ -188,20 +225,39 @@ function StreamingResponse({ text, running }: { text: string; running: boolean }
         <span className={running ? "is-live" : ""}>
           {running ? "SSE 接收中" : "响应已完成"}
         </span>
-        {!followOutput && (
-          <Button
-            icon={<ArrowRight size={14} />}
-            variant="ghost"
-            onClick={() => {
-              setFollowOutput(true);
-              if (viewportRef.current) {
-                viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
-              }
-            }}
+        <div className="endpoint-probe-stream-actions">
+          <span
+            className={`endpoint-probe-response-status is-${status.tone}`}
+            title={status.title}
           >
-            回到底部
-          </Button>
-        )}
+            {status.label}
+          </span>
+          {status.tone === "danger" || status.tone === "warning" ? (
+            <Button
+              aria-label="复制错误"
+              className="endpoint-probe-stream-copy-action"
+              disabled={!errorCopyValue}
+              icon={<Copy size={13} />}
+              title={errorCopyValue ? "复制错误" : "暂无错误详情可复制"}
+              variant="ghost"
+              onClick={onCopyError}
+            />
+          ) : null}
+          {!followOutput && (
+            <Button
+              icon={<ArrowRight size={14} />}
+              variant="ghost"
+              onClick={() => {
+                setFollowOutput(true);
+                if (viewportRef.current) {
+                  viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+                }
+              }}
+            >
+              回到底部
+            </Button>
+          )}
+        </div>
       </div>
       <div
         className="endpoint-probe-stream-output"
@@ -217,10 +273,21 @@ function StreamingResponse({ text, running }: { text: string; running: boolean }
   );
 }
 
-function CodeBlock({ title, value }: { title: string; value: string }) {
+function CodeBlock({
+  action,
+  title,
+  value,
+}: {
+  action?: ReactNode;
+  title: string;
+  value: string;
+}) {
   return (
     <section className="endpoint-probe-code-block">
-      <strong>{title}</strong>
+      <div className="endpoint-probe-code-block-head">
+        <strong>{title}</strong>
+        {action}
+      </div>
       <pre>{value}</pre>
     </section>
   );
@@ -266,6 +333,49 @@ function isSensitiveKey(key: string) {
     "anthropic-api-key",
     "openai-api-key",
   ].includes(normalized) || normalized.includes("secret");
+}
+
+function buildResponseStatus(
+  run: EndpointProbeRunSummary,
+  failedReason?: string | null,
+): ResponseStatus {
+  if (run.status === "pending" || run.status === "running") {
+    return { label: "接收中", tone: "running", title: "请求正在执行" };
+  }
+  if (run.status === "passed") {
+    return { label: "HTTP 200", tone: "success", title: "请求通过" };
+  }
+  if (run.status === "cancelled") {
+    return { label: "已停止", tone: "neutral", title: "请求已停止" };
+  }
+
+  const statusCode = extractHttpStatusCode(failedReason) ?? statusCodeFromKind(run.error_kind);
+  if (statusCode) {
+    const tone = statusCode >= 500 ? "danger" : statusCode >= 400 ? "warning" : "neutral";
+    return {
+      label: `HTTP ${statusCode}`,
+      tone,
+      title: failedReason || run.error_kind || "请求失败",
+    };
+  }
+
+  return {
+    label: run.error_kind || "请求失败",
+    tone: "danger",
+    title: failedReason || run.error_kind || "请求失败",
+  };
+}
+
+function extractHttpStatusCode(value?: string | null) {
+  const match = value?.match(/\bHTTP\s*(\d{3})\b/i) ?? value?.match(/\bstatus\s*(\d{3})\b/i);
+  if (!match) return null;
+  return Number(match[1]);
+}
+
+function statusCodeFromKind(kind?: string | null) {
+  if (kind === "http_4xx") return 400;
+  if (kind === "http_5xx") return 500;
+  return null;
 }
 
 function formatMs(value: number) {

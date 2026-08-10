@@ -518,9 +518,23 @@
 }
 
 .endpoint-probe-runs-table thead {
-  position: sticky;
-  z-index: 4;
-  top: 0;
+  display: none;
+}
+
+.endpoint-probe-runs-table tbody > tr:first-child > td {
+  border-top: 0;
+}
+
+.endpoint-probe-runs-table .table-row-expanded > td {
+  background: var(--surface);
+}
+
+.endpoint-probe-runs-table .table-expanded-row > td {
+  background: var(--surface-muted);
+}
+
+.endpoint-probe-runs-table .table-expanded-content {
+  padding: 10px 12px 12px;
 }
 
 .endpoint-probe-run-result-note {
@@ -559,6 +573,10 @@
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 8px;
+}
+
+.endpoint-probe-run-outcome.is-expanded {
+  display: inline-flex;
 }
 
 .endpoint-probe-run-metric-strip {
@@ -646,7 +664,7 @@
   max-height: clamp(190px, 30vh, 320px);
   overflow: auto;
   overscroll-behavior: contain;
-  padding-right: 3px;
+  padding-right: 1px;
 }
 
 .endpoint-probe-run-expanded-body.is-response {
@@ -695,6 +713,99 @@
   color: #e9dfd8;
 }
 
+.endpoint-probe-stream-actions {
+  display: inline-flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.endpoint-probe-response-status {
+  display: inline-flex;
+  max-width: 170px;
+  height: 22px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d7ccc4;
+  padding: 0 8px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.endpoint-probe-response-status::before {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #8c8075;
+  content: "";
+}
+
+.endpoint-probe-response-status.is-success {
+  border-color: rgba(128, 184, 173, 0.26);
+  background: rgba(128, 184, 173, 0.12);
+  color: #b8ddd6;
+}
+
+.endpoint-probe-response-status.is-success::before {
+  background: #80b8ad;
+  box-shadow: 0 0 0 3px rgba(128, 184, 173, 0.14);
+}
+
+.endpoint-probe-response-status.is-warning {
+  border-color: rgba(217, 138, 91, 0.28);
+  background: rgba(217, 138, 91, 0.13);
+  color: #f0c5aa;
+}
+
+.endpoint-probe-response-status.is-warning::before {
+  background: #d98a5b;
+  box-shadow: 0 0 0 3px rgba(217, 138, 91, 0.14);
+}
+
+.endpoint-probe-response-status.is-danger {
+  border-color: rgba(184, 92, 92, 0.32);
+  background: rgba(184, 92, 92, 0.16);
+  color: #f0b9b9;
+}
+
+.endpoint-probe-response-status.is-danger::before {
+  background: #d87373;
+  box-shadow: 0 0 0 3px rgba(184, 92, 92, 0.16);
+}
+
+.endpoint-probe-response-status.is-running {
+  border-color: rgba(128, 184, 173, 0.26);
+  background: rgba(128, 184, 173, 0.1);
+  color: #b8ddd6;
+}
+
+.endpoint-probe-response-status.is-running::before {
+  background: #80b8ad;
+  box-shadow: 0 0 0 3px rgba(128, 184, 173, 0.14);
+}
+
+.endpoint-probe-stream-copy-action.button {
+  width: 24px;
+  min-height: 24px;
+  padding: 0;
+}
+
+.endpoint-probe-stream-copy-action.button:hover:not(:disabled),
+.endpoint-probe-stream-copy-action.button:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff2ec;
+  outline: none;
+}
+
 .endpoint-probe-stream-output {
   height: 230px;
   overflow: auto;
@@ -736,12 +847,34 @@
   overflow: hidden;
 }
 
-.endpoint-probe-code-block > strong {
-  display: block;
-  padding: 8px 10px;
+.endpoint-probe-code-block-head {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 6px 4px 10px;
   border-bottom: 1px solid var(--border);
+}
+
+.endpoint-probe-code-block-head strong {
   color: var(--text-secondary);
   font-size: 11px;
+}
+
+.endpoint-probe-code-copy-action.button {
+  width: 26px;
+  min-height: 26px;
+  flex: 0 0 auto;
+  padding: 0;
+  color: var(--text-muted);
+}
+
+.endpoint-probe-code-copy-action.button:hover:not(:disabled),
+.endpoint-probe-code-copy-action.button:focus-visible {
+  background: var(--surface-muted);
+  color: var(--primary);
+  outline: none;
 }
 
 .endpoint-probe-code-block pre {
@@ -757,23 +890,6 @@
 .endpoint-probe-code-stack .endpoint-probe-code-block pre {
   max-height: none;
   overflow: visible;
-}
-
-.endpoint-probe-error-detail {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 10px;
-}
-
-.endpoint-probe-error-detail > span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.endpoint-probe-error-detail .button {
-  min-height: 28px;
 }
 
 .endpoint-probe-run-metrics {
