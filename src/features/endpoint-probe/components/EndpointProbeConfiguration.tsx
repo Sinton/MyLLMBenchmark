@@ -2,8 +2,8 @@ import { Card } from "../../../components/ui/Card";
 import { Play, Square } from "../../../components/ui/icons";
 import { Button } from "../../../components/ui/Button";
 import type { useEndpointProbeView } from "../hooks/useEndpointProbeView";
-import { EndpointProbeBatchTargets } from "./EndpointProbeBatchTargets";
 import { EndpointProbeCommonSettings } from "./EndpointProbeCommonSettings";
+import { EndpointProbeSingleTarget } from "./EndpointProbeSingleTarget";
 
 type EndpointProbeView = ReturnType<typeof useEndpointProbeView>;
 
@@ -13,7 +13,7 @@ export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }
   const isStarting = view.running && !isActive;
   const requestCount = isActive
     ? view.activeBatch?.total_runs ?? 0
-    : view.selectedRunCount;
+    : 1;
   const requestSummary = `${requestCount} 个请求 · ${
     view.common.streaming ? "流式响应" : "非流式响应"
   } · ${view.common.save_body ? "保存正文" : "仅保存摘要"}`;
@@ -44,12 +44,12 @@ export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }
       <div className="endpoint-probe-panel-head">
         <div>
           <h2>测活配置</h2>
-          <p>选择已保存服务商和模型，用同一 Prompt 批量确认协议、Key 与模型是否可用。</p>
+          <p>选择一个服务商和模型，用自定义 Prompt 确认协议、Key 与模型是否可用。</p>
         </div>
       </div>
 
       <div className="endpoint-probe-config-scroll">
-        <EndpointProbeBatchTargets view={view} />
+        <EndpointProbeSingleTarget view={view} />
         <EndpointProbeCommonSettings view={view} />
       </div>
 
@@ -73,7 +73,7 @@ export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }
             variant="danger"
             onClick={view.stop}
           >
-            停止当前批次
+            停止测活
           </Button>
         ) : (
           <Button

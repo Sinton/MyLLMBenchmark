@@ -1,18 +1,17 @@
 import { useEffect, useState } from "react";
-import { Badge } from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { InlineAlert } from "../../../components/ui/InlineAlert";
-import { RefreshCw } from "../../../components/ui/icons";
+import { ListChecks, Pencil, RefreshCw } from "../../../components/ui/icons";
 import { SelectField } from "../../../components/ui/SelectField";
 import { Tabs } from "../../../components/ui/Tabs";
-import { Tooltip } from "../../../components/ui/Tooltip";
 import type { EndpointProbeInterfaceType } from "../../../types/api";
-import {
-  endpointProbeInterfaceOptions,
-  endpointProbeModelDescription,
-} from "../domain/endpointProbePresentation";
+import { endpointProbeInterfaceOptions } from "../domain/endpointProbePresentation";
 import type { useEndpointProbeView } from "../hooks/useEndpointProbeView";
+import {
+  EndpointProbeModelPicker,
+  EndpointProbeProviderPicker,
+} from "./EndpointProbeTargetPickers";
 
 type EndpointProbeView = ReturnType<typeof useEndpointProbeView>;
 
@@ -36,7 +35,7 @@ export function EndpointProbeSingleTarget({ view }: { view: EndpointProbeView })
   return (
     <section className="endpoint-probe-config-section">
       <div className="endpoint-probe-section-title endpoint-probe-source-heading">
-        <span>测试目标</span>
+        <span>服务商与模型</span>
       </div>
       <Tabs
         ariaLabel="站点来源"
@@ -53,38 +52,16 @@ export function EndpointProbeSingleTarget({ view }: { view: EndpointProbeView })
         <div className="endpoint-probe-field-stack">
           {view.providers.length ? (
             <>
-              <SelectField
-                label="服务商"
-                options={view.providers.map((provider) => ({
-                  label: provider.name,
-                  value: provider.id,
-                  description: `${provider.interface_type} · ${provider.base_url_masked}`,
-                }))}
+              <EndpointProbeProviderPicker
+                providers={view.providers}
                 value={view.singleProviderId}
                 onChange={view.setSingleProviderId}
               />
-              {selectedProvider && (
-                <div className="endpoint-probe-target-endpoint">
-                  <span className="endpoint-probe-target-endpoint-label">端点</span>
-                  <div className="endpoint-probe-target-endpoint-value">
-                    <Tooltip
-                      ariaLabel={`端点：${selectedProvider.base_url_masked}`}
-                      content={selectedProvider.base_url_masked}
-                    >
-                      <span className="endpoint-probe-target-endpoint-url">
-                        {selectedProvider.base_url_masked}
-                      </span>
-                    </Tooltip>
-                    <Badge tone={selectedProvider.status === "online" ? "success" : "neutral"}>
-                      {selectedProvider.interface_type}
-                    </Badge>
-                  </div>
-                </div>
-              )}
               <ModelField
                 manual={manualModel || !view.singleProviderModels.length}
                 model={view.singleProviderModel}
                 models={view.singleProviderModels}
+                providerName={selectedProvider?.name}
                 scanning={view.scanningProviderId === view.singleProviderId}
                 onManualChange={setManualModel}
                 onModelChange={view.setSingleProviderModel}
@@ -93,7 +70,7 @@ export function EndpointProbeSingleTarget({ view }: { view: EndpointProbeView })
             </>
           ) : (
             <InlineAlert tone="warning" title="暂无可测活服务商">
-              请先导入服务商，或切换到“临时站点”直接测试。
+              请先导入服务商，或切换到临时站点直接测试。
             </InlineAlert>
           )}
         </div>
@@ -131,6 +108,7 @@ export function EndpointProbeSingleTarget({ view }: { view: EndpointProbeView })
             manual={manualModel || !view.temporaryModels.length}
             model={view.temporary.model}
             models={view.temporaryModels}
+            providerName={view.temporary.name || "临时站点"}
             scanning={view.scanningTemporary}
             onManualChange={setManualModel}
             onModelChange={(value) => updateTemporary("model", value)}
@@ -146,6 +124,7 @@ type ModelFieldProps = {
   manual: boolean;
   model: string;
   models: EndpointProbeView["temporaryModels"];
+  providerName?: string;
   scanning: boolean;
   onManualChange: (manual: boolean) => void;
   onModelChange: (model: string) => void;
@@ -156,6 +135,7 @@ function ModelField({
   manual,
   model,
   models,
+  providerName,
   scanning,
   onManualChange,
   onModelChange,
@@ -165,41 +145,48 @@ function ModelField({
     <div className="endpoint-probe-model-field">
       <div className="endpoint-probe-field-label">
         <span>模型</span>
-        <div className="endpoint-probe-field-actions">
-          {models.length > 0 && (
-            <Button variant="ghost" onClick={() => onManualChange(!manual)}>
-              {manual ? "使用模型列表" : "手动填写"}
-            </Button>
-          )}
+      </div>
+      <div className="endpoint-probe-model-row">
+        {manual ? (
+          <Input
+            aria-label="模型名称"
+            placeholder="例如：gpt-4.1-mini"
+            value={model}
+            onChange={(event) => onModelChange(event.target.value)}
+          />
+        ) : (
+          <EndpointProbeModelPicker
+            models={models}
+            value={model}
+            onChange={onModelChange}
+          />
+        )}
+        <div className="endpoint-probe-model-row-actions">
           <Button
+            aria-label="从 /models 同步模型"
+            className="endpoint-probe-icon-action"
             icon={<RefreshCw size={14} />}
             loading={scanning}
+            title="从 /models 同步模型"
             variant="ghost"
             onClick={onScan}
-          >
-            从 /models 同步
-          </Button>
+          />
+          {models.length > 0 && (
+            <Button
+              aria-label={manual ? "使用模型列表" : "手动填写模型"}
+              className="endpoint-probe-icon-action"
+              icon={manual ? <ListChecks size={14} /> : <Pencil size={14} />}
+              title={manual ? "使用模型列表" : "手动填写模型"}
+              variant="ghost"
+              onClick={() => onManualChange(!manual)}
+            />
+          )}
         </div>
       </div>
-      {manual ? (
-        <Input
-          aria-label="模型名称"
-          placeholder="例如：gpt-4.1-mini"
-          value={model}
-          onChange={(event) => onModelChange(event.target.value)}
-        />
-      ) : (
-        <SelectField
-          ariaLabel="选择模型"
-          options={models.map((item) => ({
-            label: item.name,
-            value: item.name,
-            description: endpointProbeModelDescription(item),
-          }))}
-          placeholder="请选择模型"
-          value={model}
-          onChange={onModelChange}
-        />
+      {!models.length && (
+        <span className="endpoint-probe-model-empty-note">
+          {providerName ? `${providerName} 暂无已同步模型，可手动填写或点击同步。` : "暂无已同步模型，可手动填写或点击同步。"}
+        </span>
       )}
     </div>
   );

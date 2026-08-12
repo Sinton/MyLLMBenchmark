@@ -19,7 +19,7 @@ export function EndpointProbeCommonSettings({ view }: { view: EndpointProbeView 
     <section className="endpoint-probe-config-section endpoint-probe-common-settings">
       <div className="endpoint-probe-section-title">
         <span>请求设置</span>
-        <small>当前批次的所有模型共用</small>
+        <small>用于本次测活请求</small>
       </div>
       <div className="endpoint-probe-prompt-template-row">
         <SelectField

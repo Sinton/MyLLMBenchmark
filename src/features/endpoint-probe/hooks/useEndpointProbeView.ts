@@ -47,7 +47,7 @@ export function useEndpointProbeView() {
   const { notify } = useNotification();
   const { showToast } = useToast();
   const [workspaceMode, setWorkspaceMode] =
-    useState<EndpointProbeWorkspaceMode>("batch");
+    useState<EndpointProbeWorkspaceMode>("single");
   const [singleSource, setSingleSource] =
     useState<EndpointProbeSingleSource>("provider");
   const [common, setCommon] = useState(createEndpointProbeCommonForm);

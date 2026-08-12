@@ -78,7 +78,7 @@ export function validateEndpointProbeStart(
   }
   if (snapshot.singleSource === "provider") {
     if (!snapshot.singleProviderId) return "请选择服务商。";
-    if (!snapshot.singleProviderModel.trim()) return "请选择或填写模型名称。";
+    if (!snapshot.singleProviderModel.trim()) return "请选择模型。";
     return null;
   }
   if (!snapshot.temporary.base_url.trim()) return "请输入临时站点 Base URL。";
