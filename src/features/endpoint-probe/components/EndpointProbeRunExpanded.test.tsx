@@ -20,7 +20,6 @@ describe("EndpointProbeRunExpanded", () => {
         loading={false}
         run={detail}
         onCopy={async () => undefined}
-        onPromote={() => undefined}
         onRetry={() => undefined}
       />,
     );

@@ -24,6 +24,9 @@ type EndpointProbeView = ReturnType<typeof useEndpointProbeView>;
 export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
   const batch = view.activeBatch;
   const promotableRun = view.promotableRun;
+  const runCount = batch?.runs.length ?? 0;
+  const showBatchOverview = runCount > 1;
+  const singleRun = batch && runCount === 1 ? batch.runs[0] : null;
   const columns: Array<DataTableColumn<EndpointProbeRunSummary>> = [
     {
       key: "target",
@@ -80,7 +83,12 @@ export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
   ];
 
   return (
-    <Card className="endpoint-probe-result-card">
+    <Card
+      className={[
+        "endpoint-probe-result-card",
+        singleRun ? "is-single-run" : "",
+      ].filter(Boolean).join(" ")}
+    >
       <div className="endpoint-probe-panel-head endpoint-probe-result-head">
         <div>
           <h2>测活结果</h2>
@@ -118,49 +126,110 @@ export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
         />
       ) : (
         <>
-          <div className="endpoint-probe-batch-overview">
-            <MetricCard label="请求总数" value={batch.total_runs} />
-            <MetricCard label="可用" value={batch.passed_runs} />
-            <MetricCard label="失败" value={batch.failed_runs} />
-            <MetricCard
-              label="执行中"
-              value={batch.pending_runs + batch.running_runs}
-            />
-          </div>
-          <div className="endpoint-probe-batch-caption">
+          {showBatchOverview && (
+            <div className="endpoint-probe-batch-overview">
+              <MetricCard label="请求总数" value={batch.total_runs} />
+              <MetricCard label="可用" value={batch.passed_runs} />
+              <MetricCard label="失败" value={batch.failed_runs} />
+              <MetricCard
+                label="执行中"
+                value={batch.pending_runs + batch.running_runs}
+              />
+            </div>
+          )}
+          <div
+            className={[
+              "endpoint-probe-batch-caption",
+              showBatchOverview ? "" : "is-compact",
+            ].filter(Boolean).join(" ")}
+          >
             <span>
               并发 {batch.concurrency} · {batch.streaming ? "Streaming" : "非流式"} ·
               {batch.save_body ? " 保存正文" : " 仅保存摘要"}
             </span>
             <span>{formatDate(batch.created_at)}</span>
           </div>
-          <DataTable
-            className="endpoint-probe-runs-table"
-            columns={columns}
-            expandable={{
-              expandedRowKey: view.expandedRunId,
-              expandOnRowClick: true,
-              onExpandedRowChange: (key) => void view.expandRun(key ? String(key) : null),
-              expandedRowRender: (run) => (
-                <EndpointProbeRunExpanded
-                  detail={view.runDetails[run.id]}
-                  error={view.expandedRunId === run.id ? view.runDetailError : null}
-                  liveText={view.streamText[run.id] ?? ""}
-                  loading={view.loadingRunId === run.id}
-                  run={run}
-                  onCopy={view.copyProbeText}
-                  onPromote={() => void view.openPromotion(run.id)}
-                  onRetry={() => void view.expandRun(run.id)}
-                />
-              ),
-            }}
-            getRowKey={(run) => run.id}
-            getRowClassName={(run) => `endpoint-probe-run-row is-${run.status}`}
-            rows={batch.runs}
-          />
+          {singleRun ? (
+            <EndpointProbeSingleRunResult run={singleRun} view={view} />
+          ) : (
+            <DataTable
+              className="endpoint-probe-runs-table"
+              columns={columns}
+              expandable={{
+                expandedRowKey: view.expandedRunId,
+                expandOnRowClick: true,
+                onExpandedRowChange: (key) => void view.expandRun(key ? String(key) : null),
+                expandedRowRender: (run) => (
+                  <EndpointProbeRunExpanded
+                    detail={view.runDetails[run.id]}
+                    error={view.expandedRunId === run.id ? view.runDetailError : null}
+                    liveText={view.streamText[run.id] ?? ""}
+                    loading={view.loadingRunId === run.id}
+                    run={run}
+                    onCopy={view.copyProbeText}
+                    onRetry={() => void view.expandRun(run.id)}
+                  />
+                ),
+              }}
+              getRowKey={(run) => run.id}
+              getRowClassName={(run) => `endpoint-probe-run-row is-${run.status}`}
+              rows={batch.runs}
+            />
+          )}
         </>
       )}
     </Card>
+  );
+}
+
+function EndpointProbeSingleRunResult({
+  run,
+  view,
+}: {
+  run: EndpointProbeRunSummary;
+  view: EndpointProbeView;
+}) {
+  return (
+    <section className={`endpoint-probe-single-run-panel is-${run.status}`}>
+      <div className="endpoint-probe-single-run-summary">
+        <div className="endpoint-probe-run-target">
+          <strong>{run.name}</strong>
+          <span title={`${endpointProbeInterfaceLabel(run.interface_type)} · ${run.model}`}>
+            {endpointProbeInterfaceLabel(run.interface_type)} · {run.model}
+          </span>
+        </div>
+        <div className="endpoint-probe-single-run-status">
+          <Badge tone={endpointProbeStatusTone(run.status)}>
+            {endpointProbeStatusLabel(run.status)}
+          </Badge>
+        </div>
+        <div className="endpoint-probe-run-metric-strip">
+          <span>
+            <small>TTFT</small>
+            <strong>{formatMilliseconds(run.ttft_ms)}</strong>
+          </span>
+          <span>
+            <small>耗时</small>
+            <strong>{formatMilliseconds(run.latency_ms)}</strong>
+          </span>
+          <span>
+            <small>Token</small>
+            <strong>{run.total_tokens.toLocaleString("zh-CN")}</strong>
+          </span>
+        </div>
+      </div>
+      <div className="endpoint-probe-single-run-detail">
+        <EndpointProbeRunExpanded
+          detail={view.runDetails[run.id]}
+          error={view.expandedRunId === run.id ? view.runDetailError : null}
+          liveText={view.streamText[run.id] ?? ""}
+          loading={view.loadingRunId === run.id}
+          run={run}
+          onCopy={view.copyProbeText}
+          onRetry={() => void view.expandRun(run.id)}
+        />
+      </div>
+    </section>
   );
 }
 

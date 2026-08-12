@@ -9,7 +9,35 @@ import { EndpointProbeResults } from "./EndpointProbeResults";
 type EndpointProbeResultsView = Parameters<typeof EndpointProbeResults>[0]["view"];
 
 describe("EndpointProbeResults", () => {
-  it("shows failed run reason directly in the results table", () => {
+  it("renders a direct detail panel for a single probe run", () => {
+    const markup = renderToStaticMarkup(
+      <EndpointProbeResults view={view(batch())} />,
+    );
+
+    expect(markup).not.toContain("请求总数");
+    expect(markup).toContain("endpoint-probe-batch-caption is-compact");
+    expect(markup).toContain("endpoint-probe-single-run-panel");
+    expect(markup).not.toContain("endpoint-probe-runs-table");
+  });
+
+  it("keeps aggregate cards for multi-run batches", () => {
+    const markup = renderToStaticMarkup(
+      <EndpointProbeResults
+        view={view(batch({
+          total_runs: 2,
+          runs: [
+            run({ id: "run-a", status: "passed" }),
+            run({ id: "run-b", status: "failed" }),
+          ],
+        }))}
+      />,
+    );
+
+    expect(markup).toContain("请求总数");
+    expect(markup).toContain("可用");
+  });
+
+  it("keeps the single result summary to the status badge only", () => {
     const failed = run({
       id: "failed-run",
       status: "failed",
@@ -20,11 +48,12 @@ describe("EndpointProbeResults", () => {
       <EndpointProbeResults view={view(batch({ runs: [failed] }))} />,
     );
 
-    expect(markup).toContain("结果");
-    expect(markup).toContain("unauthorized · API Key 无效");
+    expect(markup).toContain("endpoint-probe-single-run-status");
+    expect(markup).toContain("失败");
+    expect(markup).not.toContain("unauthorized · API Key 无效");
   });
 
-  it("hides duplicated failed reason from the expanded result row", () => {
+  it("does not render the single result through an expandable table row", () => {
     const failed = run({
       id: "failed-run",
       status: "failed",
@@ -40,7 +69,23 @@ describe("EndpointProbeResults", () => {
     );
 
     expect(markup).toContain("失败");
-    expect(markup).not.toContain("http_5xx · HTTP 502 Bad Gateway");
+    expect(markup).toContain("HTTP 502");
+    expect(markup).not.toContain("table-expanded-row");
+    expect(markup).not.toContain("endpoint-probe-runs-table");
+  });
+
+  it("uses the actual loaded run count to choose the single result layout", () => {
+    const markup = renderToStaticMarkup(
+      <EndpointProbeResults
+        view={view(batch({
+          total_runs: 2,
+          runs: [run({ id: "only-loaded-run" })],
+        }))}
+      />,
+    );
+
+    expect(markup).toContain("endpoint-probe-single-run-panel");
+    expect(markup).not.toContain("endpoint-probe-runs-table");
   });
 
   it("shows a header promotion action for a passed single temporary run", () => {
@@ -58,7 +103,7 @@ describe("EndpointProbeResults", () => {
     );
 
     expect(markup).toContain("保存为服务商");
-    expect(markup).toContain("可保存为服务商");
+    expect(markup).not.toContain("可保存为服务商");
   });
 });
 

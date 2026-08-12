@@ -3,13 +3,12 @@ import { Button } from "../../../components/ui/Button";
 import { InlineAlert } from "../../../components/ui/InlineAlert";
 import { LoadingBlock } from "../../../components/ui/LoadingBlock";
 import { Tabs } from "../../../components/ui/Tabs";
-import { ArrowRight, Building2, Copy } from "../../../components/ui/icons";
+import { ArrowRight, Copy } from "../../../components/ui/icons";
 import type {
   EndpointProbeRunDetail,
   EndpointProbeRunSummary,
 } from "../../../types/api";
 import {
-  canPromoteEndpointProbeRun,
   endpointProbeInterfaceLabel,
   endpointProbeStatusLabel,
 } from "../domain/endpointProbePresentation";
@@ -24,7 +23,6 @@ type EndpointProbeRunExpandedProps = {
   error: string | null;
   onCopy: (label: string, value?: string | null) => Promise<void>;
   onRetry: () => void;
-  onPromote: () => void;
 };
 
 export function EndpointProbeRunExpanded({
@@ -35,7 +33,6 @@ export function EndpointProbeRunExpanded({
   error,
   onCopy,
   onRetry,
-  onPromote,
 }: EndpointProbeRunExpandedProps) {
   const [tab, setTab] = useState<DetailTab>("response");
   useEffect(() => setTab("response"), [run.id]);
@@ -47,7 +44,6 @@ export function EndpointProbeRunExpanded({
     ? formatJson(redactSensitiveValue(detail.request_payload))
     : null;
   const errorCopyValue = detail?.raw_error ?? run.error_message ?? null;
-  const canPromote = canPromoteEndpointProbeRun(run);
   const failedReason = detail?.raw_error ?? run.error_message;
   const responseStatus = buildResponseStatus(run, failedReason);
 
@@ -65,20 +61,6 @@ export function EndpointProbeRunExpanded({
           variant="line"
           onChange={setTab}
         />
-        <div className="endpoint-probe-run-expanded-actions">
-          {tab === "response" && (
-            <CopyButton
-              disabled={!responseCopyValue}
-              label="复制响应"
-              onClick={() => onCopy("响应", responseCopyValue)}
-            />
-          )}
-          {canPromote && (
-            <Button icon={<Building2 size={15} />} variant="primary" onClick={onPromote}>
-              保存为服务商
-            </Button>
-          )}
-        </div>
       </div>
 
       {error ? (
@@ -93,10 +75,12 @@ export function EndpointProbeRunExpanded({
           {tab === "response" ? (
             <StreamingResponse
               errorCopyValue={errorCopyValue}
+              responseCopyValue={responseCopyValue}
               running={running}
               status={responseStatus}
               text={response}
               onCopyError={() => onCopy("错误", errorCopyValue)}
+              onCopyResponse={() => onCopy("响应", responseCopyValue)}
             />
           ) : tab === "request" ? (
             <div className="endpoint-probe-code-stack">
@@ -148,28 +132,6 @@ export function EndpointProbeRunExpanded({
   );
 }
 
-function CopyButton({
-  disabled,
-  label,
-  onClick,
-}: {
-  disabled: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      disabled={disabled}
-      icon={<Copy size={14} />}
-      title={disabled ? "仅保存摘要，暂无完整正文可复制" : label}
-      variant="ghost"
-      onClick={onClick}
-    >
-      {label}
-    </Button>
-  );
-}
-
 function CodeCopyButton({
   disabled,
   label,
@@ -200,19 +162,36 @@ type ResponseStatus = {
 
 function StreamingResponse({
   errorCopyValue,
+  responseCopyValue,
   text,
   running,
   status,
   onCopyError,
+  onCopyResponse,
 }: {
   errorCopyValue: string | null;
+  responseCopyValue: string | null;
   text: string;
   running: boolean;
   status: ResponseStatus;
   onCopyError: () => void;
+  onCopyResponse: () => void;
 }) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [followOutput, setFollowOutput] = useState(true);
+  const copyTarget = status.tone === "danger" || status.tone === "warning"
+    ? {
+        disabled: !errorCopyValue,
+        label: "复制错误",
+        emptyTitle: "暂无错误详情可复制",
+        onClick: onCopyError,
+      }
+    : {
+        disabled: !responseCopyValue,
+        label: "复制响应",
+        emptyTitle: "仅保存摘要，暂无完整正文可复制",
+        onClick: onCopyResponse,
+      };
 
   useLayoutEffect(() => {
     if (!followOutput || !viewportRef.current) return;
@@ -232,17 +211,15 @@ function StreamingResponse({
           >
             {status.label}
           </span>
-          {status.tone === "danger" || status.tone === "warning" ? (
-            <Button
-              aria-label="复制错误"
-              className="endpoint-probe-stream-copy-action"
-              disabled={!errorCopyValue}
-              icon={<Copy size={13} />}
-              title={errorCopyValue ? "复制错误" : "暂无错误详情可复制"}
-              variant="ghost"
-              onClick={onCopyError}
-            />
-          ) : null}
+          <Button
+            aria-label={copyTarget.label}
+            className="endpoint-probe-stream-copy-action"
+            disabled={copyTarget.disabled}
+            icon={<Copy size={13} />}
+            title={copyTarget.disabled ? copyTarget.emptyTitle : copyTarget.label}
+            variant="ghost"
+            onClick={copyTarget.onClick}
+          />
           {!followOutput && (
             <Button
               icon={<ArrowRight size={14} />}
