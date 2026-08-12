@@ -519,7 +519,7 @@ impl Database {
                 name TEXT NOT NULL,
                 status TEXT NOT NULL,
                 streaming INTEGER NOT NULL DEFAULT 0,
-                max_output_tokens INTEGER NOT NULL DEFAULT 512,
+                max_output_tokens INTEGER NOT NULL DEFAULT 1024,
                 timeout_seconds INTEGER NOT NULL DEFAULT 60,
                 save_body INTEGER NOT NULL DEFAULT 0,
                 concurrency INTEGER NOT NULL DEFAULT 1,

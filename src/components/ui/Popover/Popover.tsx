@@ -7,6 +7,7 @@ type PopoverProps = {
   children: ReactNode | ((state: { close: () => void }) => ReactNode);
   className?: string;
   disabled?: boolean;
+  align?: "start" | "end";
 };
 
 type PopoverPosition = {
@@ -15,7 +16,13 @@ type PopoverPosition = {
   triggerWidth: number;
 };
 
-export function Popover({ trigger, children, className = "", disabled = false }: PopoverProps) {
+export function Popover({
+  trigger,
+  children,
+  className = "",
+  disabled = false,
+  align = "start",
+}: PopoverProps) {
   const contentId = useId();
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<PopoverPosition | null>(null);
@@ -37,9 +44,11 @@ export function Popover({ trigger, children, className = "", disabled = false }:
       const placeAbove =
         contentHeight > 0 && spaceBelow < contentHeight && triggerRect.top > spaceBelow;
 
+      const rawLeft =
+        align === "end" ? triggerRect.right - contentWidth : triggerRect.left;
       const left = Math.max(
         margin,
-        Math.min(triggerRect.left, window.innerWidth - margin - contentWidth),
+        Math.min(rawLeft, window.innerWidth - margin - contentWidth),
       );
       const top = placeAbove
         ? Math.max(margin, triggerRect.top - contentHeight - 6)
@@ -55,7 +64,7 @@ export function Popover({ trigger, children, className = "", disabled = false }:
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [disabled, open]);
+  }, [align, disabled, open]);
 
   useEffect(() => {
     if (!open) return;

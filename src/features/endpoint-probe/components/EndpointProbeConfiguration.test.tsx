@@ -24,6 +24,17 @@ describe("EndpointProbeConfiguration", () => {
     expect(markup).not.toContain("endpoint-probe-provider-table");
     expect(markup).not.toContain("已明确选择");
   });
+
+  it("keeps low-frequency request parameters behind the wrench trigger", () => {
+    const markup = renderToStaticMarkup(
+      <EndpointProbeConfiguration view={view()} />,
+    );
+
+    expect(markup).toContain("展开请求参数");
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).not.toContain("最大输出 Token");
+    expect(markup).not.toContain("请求超时（秒）");
+  });
 });
 
 function view(

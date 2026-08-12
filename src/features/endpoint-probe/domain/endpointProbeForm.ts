@@ -27,7 +27,7 @@ export type EndpointProbeTemporaryForm = {
 export const createEndpointProbeCommonForm = (): EndpointProbeCommonForm => ({
   prompt: DEFAULT_ENDPOINT_PROBE_PROMPT,
   streaming: true,
-  max_output_tokens: 256,
+  max_output_tokens: 1024,
   timeout_seconds: 60,
   save_body: false,
   concurrency: 3,

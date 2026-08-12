@@ -43,5 +43,6 @@ export {
   TrendingUp,
   Upload,
   Wand2,
+  Wrench,
   X,
 } from "lucide-react";

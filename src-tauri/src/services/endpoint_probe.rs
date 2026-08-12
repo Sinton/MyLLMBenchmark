@@ -259,7 +259,7 @@ async fn prepare_batch(
     if !(1..=10).contains(&concurrency) {
         return Err(AppError::validation("批量并发必须在 1 到 10 之间。"));
     }
-    let max_output_tokens = input.max_output_tokens.unwrap_or(512).clamp(1, 8192);
+    let max_output_tokens = input.max_output_tokens.unwrap_or(1024).clamp(1, 8192);
     let timeout_seconds = input.timeout_seconds.unwrap_or(60).clamp(5, 600);
     let mut workload = WorkloadConfig::for_model_type("text_generation");
     workload.streaming = input.streaming;
@@ -605,7 +605,7 @@ mod tests {
                         failed_runs: 0,
                         cancelled_runs: 0,
                         streaming: true,
-                        max_output_tokens: 256,
+                        max_output_tokens: 1024,
                         timeout_seconds: 60,
                         save_body: false,
                         concurrency: 1,

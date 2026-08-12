@@ -44,7 +44,6 @@ export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }
       <div className="endpoint-probe-panel-head">
         <div>
           <h2>测活配置</h2>
-          <p>选择一个服务商和模型，用自定义 Prompt 确认协议、Key 与模型是否可用。</p>
         </div>
       </div>
 

@@ -5,10 +5,7 @@ import { Popover } from "../../../components/ui/Popover";
 import { Check, ChevronDown, Search } from "../../../components/ui/icons";
 import { statusLabel, statusTone } from "../../../domain/statusPresentation";
 import type { EndpointProbeModelOption, ProviderSummary } from "../../../types/api";
-import {
-  endpointProbeInterfaceLabel,
-  endpointProbeModelDescription,
-} from "../domain/endpointProbePresentation";
+import { endpointProbeInterfaceLabel } from "../domain/endpointProbePresentation";
 
 type EndpointProbeProviderPickerProps = {
   providers: ProviderSummary[];
@@ -183,7 +180,6 @@ export function EndpointProbeModelPicker({
                 >
                   <span>
                     <strong>{model.name}</strong>
-                    <small>{endpointProbeModelDescription(model)}</small>
                   </span>
                   {model.name === value && <Check size={15} />}
                 </button>
@@ -214,9 +210,5 @@ function filterProviders(providers: ProviderSummary[], keyword: string) {
 function filterModels(models: EndpointProbeModelOption[], keyword: string) {
   const normalized = keyword.trim().toLowerCase();
   if (!normalized) return models;
-  return models.filter((model) =>
-    [model.name, endpointProbeModelDescription(model)].some((value) =>
-      value.toLowerCase().includes(normalized),
-    ),
-  );
+  return models.filter((model) => model.name.toLowerCase().includes(normalized));
 }

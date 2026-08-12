@@ -144,7 +144,8 @@ export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
             ].filter(Boolean).join(" ")}
           >
             <span>
-              并发 {batch.concurrency} · {batch.streaming ? "Streaming" : "非流式"} ·
+              {showBatchOverview ? `并发 ${batch.concurrency} · ` : ""}
+              {batch.streaming ? "Streaming" : "非流式"} ·
               {batch.save_body ? " 保存正文" : " 仅保存摘要"}
             </span>
             <span>{formatDate(batch.created_at)}</span>

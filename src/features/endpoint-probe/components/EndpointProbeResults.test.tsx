@@ -18,6 +18,7 @@ describe("EndpointProbeResults", () => {
     expect(markup).toContain("endpoint-probe-batch-caption is-compact");
     expect(markup).toContain("endpoint-probe-single-run-panel");
     expect(markup).not.toContain("endpoint-probe-runs-table");
+    expect(markup).not.toContain("并发 1");
   });
 
   it("keeps aggregate cards for multi-run batches", () => {
@@ -142,7 +143,7 @@ function batch(
     failed_runs: 0,
     cancelled_runs: 0,
     streaming: true,
-    max_output_tokens: 256,
+    max_output_tokens: 1024,
     timeout_seconds: 60,
     save_body: false,
     concurrency: 1,
