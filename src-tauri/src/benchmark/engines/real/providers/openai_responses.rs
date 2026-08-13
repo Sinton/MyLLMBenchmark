@@ -11,7 +11,7 @@ pub(crate) fn response_body(
         "model": model,
         "input": prompt,
         "max_output_tokens": workload.max_output_tokens.max(1),
-        "temperature": 0.7
+        "temperature": workload.temperature
     })
 }
 
@@ -44,7 +44,7 @@ pub(crate) fn vision_response_body(
         "model": model,
         "input": [{"role": "user", "content": content}],
         "max_output_tokens": workload.max_output_tokens.max(1),
-        "temperature": 0.2
+        "temperature": workload.temperature
     })
 }
 

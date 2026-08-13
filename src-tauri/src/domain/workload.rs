@@ -3,6 +3,7 @@ use crate::domain::model_type::ModelType;
 #[derive(Debug, Clone)]
 pub struct WorkloadConfig {
     pub streaming: bool,
+    pub temperature: f64,
     pub max_output_tokens: i64,
     pub prompt_profile: String,
     pub batch_size: i64,
@@ -18,6 +19,7 @@ impl WorkloadConfig {
         match ModelType::normalize(model_type) {
             ModelType::Embedding => Self {
                 streaming: false,
+                temperature: 0.0,
                 max_output_tokens: 0,
                 prompt_profile: "mixed".to_string(),
                 batch_size: 16,
@@ -29,6 +31,7 @@ impl WorkloadConfig {
             },
             ModelType::Rerank => Self {
                 streaming: false,
+                temperature: 0.0,
                 max_output_tokens: 0,
                 prompt_profile: "mixed".to_string(),
                 batch_size: 0,
@@ -40,6 +43,7 @@ impl WorkloadConfig {
             },
             ModelType::Multimodal => Self {
                 streaming: true,
+                temperature: 0.2,
                 max_output_tokens: 512,
                 prompt_profile: "mixed".to_string(),
                 batch_size: 0,
@@ -51,6 +55,7 @@ impl WorkloadConfig {
             },
             ModelType::TextGeneration => Self {
                 streaming: true,
+                temperature: 0.7,
                 max_output_tokens: 512,
                 prompt_profile: "mixed".to_string(),
                 batch_size: 0,
@@ -67,6 +72,7 @@ impl WorkloadConfig {
         let mut config = Self::for_model_type(model_type);
         if let Some(value) = value {
             config.streaming = json_bool(value, "streaming", config.streaming);
+            config.temperature = json_f64_or(value, "temperature", config.temperature);
             config.max_output_tokens =
                 json_i64_or(value, "max_output_tokens", config.max_output_tokens);
             config.prompt_profile = json_string(value, "prompt_profile", &config.prompt_profile);
@@ -88,6 +94,7 @@ impl WorkloadConfig {
     pub fn to_json(&self) -> serde_json::Value {
         serde_json::json!({
             "streaming": self.streaming,
+            "temperature": self.temperature,
             "max_output_tokens": self.max_output_tokens,
             "prompt_profile": self.prompt_profile,
             "batch_size": self.batch_size,
@@ -128,6 +135,13 @@ fn json_i64_or(value: &serde_json::Value, key: &str, fallback: i64) -> i64 {
     value
         .get(key)
         .and_then(|item| item.as_i64())
+        .unwrap_or(fallback)
+}
+
+fn json_f64_or(value: &serde_json::Value, key: &str, fallback: f64) -> f64 {
+    value
+        .get(key)
+        .and_then(|item| item.as_f64())
         .unwrap_or(fallback)
 }
 

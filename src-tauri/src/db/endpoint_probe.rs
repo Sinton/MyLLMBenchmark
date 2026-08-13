@@ -8,7 +8,7 @@ use crate::models::{
 use sqlx::{sqlite::SqliteRow, QueryBuilder, Row, Sqlite};
 
 const BATCH_SUMMARY_SELECT: &str =
-    "SELECT b.id, b.name, b.status, b.streaming, b.max_output_tokens,
+    "SELECT b.id, b.name, b.status, b.streaming, b.temperature, b.max_output_tokens,
             b.timeout_seconds, b.save_body, b.concurrency, b.prompt_preview,
             b.created_at, b.finished_at,
             COUNT(r.id) AS total_runs,
@@ -36,14 +36,15 @@ impl Database {
         let mut tx = self.pool.begin().await?;
         sqlx::query(
             "INSERT INTO endpoint_probe_batches
-             (id, name, status, streaming, max_output_tokens, timeout_seconds, save_body,
+             (id, name, status, streaming, temperature, max_output_tokens, timeout_seconds, save_body,
               concurrency, prompt_preview, created_at, finished_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
         )
         .bind(&batch.summary.id)
         .bind(&batch.summary.name)
         .bind(&batch.summary.status)
         .bind(bool_to_i64(batch.summary.streaming))
+        .bind(batch.summary.temperature)
         .bind(batch.summary.max_output_tokens)
         .bind(batch.summary.timeout_seconds)
         .bind(bool_to_i64(batch.summary.save_body))
@@ -333,6 +334,7 @@ fn endpoint_probe_batch_from_row(row: &SqliteRow) -> EndpointProbeBatchSummary {
         failed_runs: row.get("failed_runs"),
         cancelled_runs: row.get("cancelled_runs"),
         streaming: row.get::<i64, _>("streaming") != 0,
+        temperature: row.get("temperature"),
         max_output_tokens: row.get("max_output_tokens"),
         timeout_seconds: row.get("timeout_seconds"),
         save_body: row.get::<i64, _>("save_body") != 0,

@@ -15,8 +15,10 @@ export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }
     ? view.activeBatch?.total_runs ?? 0
     : 1;
   const requestSummary = `${requestCount} 个请求 · ${
-    view.common.streaming ? "流式响应" : "非流式响应"
-  } · ${view.common.save_body ? "保存正文" : "仅保存摘要"}`;
+    view.common.streaming ? "Stream" : "非 Stream"
+  } · Temp ${formatTemperature(view.common.temperature)} · ${
+    view.common.save_body ? "保存正文" : "仅保存摘要"
+  }`;
   const launchState = isActive || isStarting
     ? {
         description: requestSummary,
@@ -88,4 +90,8 @@ export function EndpointProbeConfiguration({ view }: { view: EndpointProbeView }
       </div>
     </Card>
   );
+}
+
+function formatTemperature(value: number) {
+  return Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1);
 }

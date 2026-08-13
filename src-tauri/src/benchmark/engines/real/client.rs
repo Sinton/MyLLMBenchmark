@@ -334,7 +334,7 @@ impl RealProviderClient {
         request_timeout_seconds: i64,
     ) -> RequestOutcome {
         let started = Instant::now();
-        let body = chat::completion_body(model, prompt, workload, false, 0.7);
+        let body = chat::completion_body(model, prompt, workload, false);
         let response = match self
             .with_auth(
                 self.client

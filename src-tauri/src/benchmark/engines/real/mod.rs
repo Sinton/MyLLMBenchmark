@@ -29,7 +29,7 @@ pub(crate) fn build_text_generation_request_body(
             if workload.streaming {
                 providers::openai_compatible::streaming_completion_body(model, prompt, workload)
             } else {
-                providers::openai_compatible::completion_body(model, prompt, workload, false, 0.7)
+                providers::openai_compatible::completion_body(model, prompt, workload, false)
             }
         }
         RealProviderProtocol::OpenAIResponses => {

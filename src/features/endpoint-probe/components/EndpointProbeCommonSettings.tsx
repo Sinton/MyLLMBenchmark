@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { InlineAlert } from "../../../components/ui/InlineAlert";
@@ -11,13 +12,27 @@ import type { useEndpointProbeView } from "../hooks/useEndpointProbeView";
 type EndpointProbeView = ReturnType<typeof useEndpointProbeView>;
 
 export function EndpointProbeCommonSettings({ view }: { view: EndpointProbeView }) {
+  const selectedProvider = view.providers.find((provider) => provider.id === view.singleProviderId);
+  const interfaceType = view.singleSource === "temporary"
+    ? view.temporary.interface_type
+    : selectedProvider?.interface_type;
+  const temperatureMax = interfaceType === "Anthropic" ? 1 : 2;
+  const currentTemperature = view.common.temperature;
+  const setCommon = view.setCommon;
+
   const update = <K extends keyof typeof view.common>(
     key: K,
     value: (typeof view.common)[K],
   ) => view.setCommon((current) => ({ ...current, [key]: value }));
 
+  useEffect(() => {
+    if (currentTemperature <= temperatureMax) return;
+    setCommon((current) => ({ ...current, temperature: temperatureMax }));
+  }, [currentTemperature, temperatureMax, setCommon]);
+
   const settingSummary = [
-    view.common.streaming ? "Streaming 开启" : "Streaming 关闭",
+    view.common.streaming ? "Stream 开启" : "Stream 关闭",
+    `Temp ${formatTemperature(view.common.temperature)}`,
     `${view.common.max_output_tokens} Token`,
     `${view.common.timeout_seconds}s`,
     view.common.save_body ? "保存正文" : "仅摘要",
@@ -55,6 +70,25 @@ export function EndpointProbeCommonSettings({ view }: { view: EndpointProbeView 
           >
             <div className="endpoint-probe-advanced-fields">
               <Input
+                label="Temperature"
+                hint={
+                  interfaceType === "Anthropic"
+                    ? "Anthropic 范围 0-1，测活默认 0.2"
+                    : "OpenAI / Responses 范围 0-2，测活默认 0.2"
+                }
+                max={temperatureMax}
+                min={0}
+                step={0.1}
+                type="number"
+                value={view.common.temperature}
+                onChange={(event) =>
+                  update(
+                    "temperature",
+                    clampTemperature(Number(event.target.value), temperatureMax),
+                  )
+                }
+              />
+              <Input
                 label="最大输出 Token"
                 hint="限制模型本次最多生成的 Token 数"
                 max={8192}
@@ -75,11 +109,11 @@ export function EndpointProbeCommonSettings({ view }: { view: EndpointProbeView 
             <div className="endpoint-probe-toggle-list endpoint-probe-advanced-toggle-list">
               <div className="endpoint-probe-toggle-item">
                 <div>
-                  <strong>Streaming 实时响应</strong>
-                  <span>展示服务端真实 SSE chunk，不模拟逐字动画。</span>
+                  <strong>Stream</strong>
+                  <span>通过 SSE 增量接收响应，不模拟逐字动画。</span>
                 </div>
                 <Toggle
-                  ariaLabel="Streaming 实时响应"
+                  ariaLabel="Stream"
                   checked={view.common.streaming}
                   onChange={(checked) => update("streaming", checked)}
                 />
@@ -144,4 +178,13 @@ export function EndpointProbeCommonSettings({ view }: { view: EndpointProbeView 
       />
     </section>
   );
+}
+
+function clampTemperature(value: number, max: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(max, Math.max(0, Number(value.toFixed(2))));
+}
+
+function formatTemperature(value: number) {
+  return Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1);
 }

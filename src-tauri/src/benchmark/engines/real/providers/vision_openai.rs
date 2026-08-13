@@ -22,6 +22,6 @@ pub(crate) fn vision_completion_body(
         "messages": [{"role": "user", "content": content}],
         "stream": false,
         "max_tokens": workload.max_output_tokens.max(1),
-        "temperature": 0.2
+        "temperature": workload.temperature
     })
 }

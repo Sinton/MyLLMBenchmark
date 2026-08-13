@@ -30,6 +30,7 @@ export type EndpointProbeStartInput = {
   targets: EndpointProbeTargetInput[];
   prompt: string;
   streaming: boolean;
+  temperature?: number;
   max_output_tokens?: number;
   timeout_seconds?: number;
   save_body: boolean;
@@ -70,6 +71,7 @@ export type EndpointProbeBatchSummary = {
   failed_runs: number;
   cancelled_runs: number;
   streaming: boolean;
+  temperature: number;
   max_output_tokens: number;
   timeout_seconds: number;
   save_body: boolean;

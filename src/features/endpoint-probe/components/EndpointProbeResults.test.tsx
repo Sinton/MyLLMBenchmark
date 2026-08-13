@@ -143,6 +143,7 @@ function batch(
     failed_runs: 0,
     cancelled_runs: 0,
     streaming: true,
+    temperature: 0.2,
     max_output_tokens: 1024,
     timeout_seconds: 60,
     save_body: false,

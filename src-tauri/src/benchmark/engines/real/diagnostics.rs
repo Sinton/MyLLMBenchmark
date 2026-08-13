@@ -417,7 +417,7 @@ fn text_probe_body(
 ) -> serde_json::Value {
     match protocol {
         RealProviderProtocol::OpenAICompatible => {
-            chat::completion_body(model_name, &prompt, workload, false, 0.2)
+            chat::completion_body(model_name, &prompt, workload, false)
         }
         RealProviderProtocol::OpenAIResponses => {
             responses::response_body(model_name, &prompt, workload)

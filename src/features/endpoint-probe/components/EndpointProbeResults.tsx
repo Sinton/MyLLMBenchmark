@@ -92,7 +92,7 @@ export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
       <div className="endpoint-probe-panel-head endpoint-probe-result-head">
         <div>
           <h2>测活结果</h2>
-          <p>{batch ? batch.name : "启动测活后，这里会按请求展示真实响应。"}</p>
+          {batch && <p>{batch.name}</p>}
         </div>
         {batch && (
           <div className="endpoint-probe-result-head-actions">
@@ -122,7 +122,7 @@ export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
         <EmptyState
           icon={<Network size={22} />}
           title="等待一次真实请求"
-          description="可使用已保存服务商，或临时填写中转站；Streaming 开启后会实时显示服务端 SSE 输出。"
+          description="可使用已保存服务商，或临时填写中转站；Stream 开启后会实时显示服务端 SSE 输出。"
         />
       ) : (
         <>
@@ -145,7 +145,8 @@ export function EndpointProbeResults({ view }: { view: EndpointProbeView }) {
           >
             <span>
               {showBatchOverview ? `并发 ${batch.concurrency} · ` : ""}
-              {batch.streaming ? "Streaming" : "非流式"} ·
+              {batch.streaming ? "Stream" : "非 Stream"} ·
+              Temp {formatTemperature(batch.temperature)} ·
               {batch.save_body ? " 保存正文" : " 仅保存摘要"}
             </span>
             <span>{formatDate(batch.created_at)}</span>
@@ -259,6 +260,10 @@ function formatMilliseconds(value: number) {
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString("zh-CN");
+}
+
+function formatTemperature(value: number) {
+  return Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1);
 }
 
 function toErrorMessage(error: unknown) {

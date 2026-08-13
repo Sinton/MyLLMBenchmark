@@ -10,7 +10,7 @@ pub(crate) fn messages_body(
     serde_json::json!({
         "model": model,
         "max_tokens": workload.max_output_tokens.max(1),
-        "temperature": 0.7,
+        "temperature": workload.temperature,
         "messages": [{"role": "user", "content": prompt}]
     })
 }
@@ -46,7 +46,7 @@ pub(crate) fn vision_messages_body(
     serde_json::json!({
         "model": model,
         "max_tokens": workload.max_output_tokens.max(1),
-        "temperature": 0.2,
+        "temperature": workload.temperature,
         "messages": [{"role": "user", "content": content}]
     })
 }

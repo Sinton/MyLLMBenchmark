@@ -373,11 +373,11 @@ impl Database {
         let mut tx = self.pool.begin().await?;
         sqlx::query(
             "INSERT OR IGNORE INTO endpoint_probe_batches
-             (id, name, status, streaming, max_output_tokens, timeout_seconds, save_body,
-              concurrency, prompt_preview, created_at, finished_at)
-             SELECT id, name, 'completed', 0, 512, 60,
-                    CASE WHEN body_ref IS NULL THEN 0 ELSE 1 END,
-                    1, prompt_preview, created_at, created_at
+             (id, name, status, streaming, temperature, max_output_tokens, timeout_seconds, save_body,
+               concurrency, prompt_preview, created_at, finished_at)
+             SELECT id, name, 'completed', 0, 0.2, 1024, 60,
+                     CASE WHEN body_ref IS NULL THEN 0 ELSE 1 END,
+                     1, prompt_preview, created_at, created_at
              FROM site_probe_runs;",
         )
         .execute(&mut *tx)
@@ -519,6 +519,7 @@ impl Database {
                 name TEXT NOT NULL,
                 status TEXT NOT NULL,
                 streaming INTEGER NOT NULL DEFAULT 0,
+                temperature REAL NOT NULL DEFAULT 0.2,
                 max_output_tokens INTEGER NOT NULL DEFAULT 1024,
                 timeout_seconds INTEGER NOT NULL DEFAULT 60,
                 save_body INTEGER NOT NULL DEFAULT 0,
@@ -530,6 +531,17 @@ impl Database {
         )
         .execute(&self.pool)
         .await?;
+        if !self
+            .column_exists("endpoint_probe_batches", "temperature")
+            .await?
+        {
+            sqlx::query(
+                "ALTER TABLE endpoint_probe_batches
+                 ADD COLUMN temperature REAL NOT NULL DEFAULT 0.2;",
+            )
+            .execute(&self.pool)
+            .await?;
+        }
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS endpoint_probe_runs (
                 id TEXT PRIMARY KEY,

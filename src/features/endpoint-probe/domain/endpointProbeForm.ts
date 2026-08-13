@@ -10,6 +10,7 @@ export type EndpointProbeSingleSource = "provider" | "temporary";
 export type EndpointProbeCommonForm = {
   prompt: string;
   streaming: boolean;
+  temperature: number;
   max_output_tokens: number;
   timeout_seconds: number;
   save_body: boolean;
@@ -27,6 +28,7 @@ export type EndpointProbeTemporaryForm = {
 export const createEndpointProbeCommonForm = (): EndpointProbeCommonForm => ({
   prompt: DEFAULT_ENDPOINT_PROBE_PROMPT,
   streaming: true,
+  temperature: 0.2,
   max_output_tokens: 1024,
   timeout_seconds: 60,
   save_body: false,
@@ -62,6 +64,9 @@ export function validateEndpointProbeStart(
   const selectedRunCount = countSelectedProbeRuns(snapshot.batchModels);
   if (!listenersReady) return "实时事件通道仍在初始化，请稍候。";
   if (!snapshot.common.prompt.trim()) return "请输入用于测活的 Prompt。";
+  if (snapshot.common.temperature < 0 || snapshot.common.temperature > 2) {
+    return "Temperature 需在 0-2 之间。";
+  }
   if (snapshot.common.max_output_tokens < 1 || snapshot.common.max_output_tokens > 8_192) {
     return "最大输出 Token 需在 1-8192 之间。";
   }
@@ -116,6 +121,7 @@ export function buildEndpointProbeStartInput(
     targets,
     prompt: snapshot.common.prompt,
     streaming: snapshot.common.streaming,
+    temperature: Number(snapshot.common.temperature),
     max_output_tokens: Number(snapshot.common.max_output_tokens),
     timeout_seconds: Number(snapshot.common.timeout_seconds),
     save_body: snapshot.common.save_body,

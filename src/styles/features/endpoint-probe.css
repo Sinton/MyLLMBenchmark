@@ -266,6 +266,19 @@
   gap: 10px;
 }
 
+.endpoint-probe-advanced-fields .input-field {
+  gap: 5px;
+}
+
+.endpoint-probe-advanced-fields .input-label {
+  font-size: 12px;
+}
+
+.endpoint-probe-advanced-fields .input-hint {
+  font-size: 11px;
+  line-height: 16px;
+}
+
 .endpoint-probe-advanced-panel .input-shell {
   background: var(--surface);
 }

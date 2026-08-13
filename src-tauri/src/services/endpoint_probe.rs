@@ -259,10 +259,15 @@ async fn prepare_batch(
     if !(1..=10).contains(&concurrency) {
         return Err(AppError::validation("批量并发必须在 1 到 10 之间。"));
     }
+    let temperature = input.temperature.unwrap_or(0.2);
+    if !temperature.is_finite() || !(0.0..=2.0).contains(&temperature) {
+        return Err(AppError::validation("Temperature 必须在 0 到 2 之间。"));
+    }
     let max_output_tokens = input.max_output_tokens.unwrap_or(1024).clamp(1, 8192);
     let timeout_seconds = input.timeout_seconds.unwrap_or(60).clamp(5, 600);
     let mut workload = WorkloadConfig::for_model_type("text_generation");
     workload.streaming = input.streaming;
+    workload.temperature = temperature;
     workload.max_output_tokens = max_output_tokens;
     let batch_id = Uuid::new_v4().to_string();
     let created_at = Utc::now().to_rfc3339();
@@ -274,6 +279,7 @@ async fn prepare_batch(
 
     for target in input.targets {
         let prepared = prepare_target(state, target).await?;
+        validate_temperature_for_protocol(prepared.protocol, temperature)?;
         station_ids.insert(prepared.identity.clone());
         for model in prepared.models {
             let identity = format!("{}\n{}", prepared.identity, model.to_ascii_lowercase());
@@ -360,6 +366,7 @@ async fn prepare_batch(
         failed_runs: 0,
         cancelled_runs: 0,
         streaming: input.streaming,
+        temperature,
         max_output_tokens,
         timeout_seconds,
         save_body: input.save_body,
@@ -373,6 +380,43 @@ async fn prepare_batch(
         records,
         executions,
     })
+}
+
+fn validate_temperature_for_protocol(
+    protocol: RealProviderProtocol,
+    temperature: f64,
+) -> AppResult<()> {
+    let max = match protocol {
+        RealProviderProtocol::Anthropic => 1.0,
+        RealProviderProtocol::OpenAICompatible
+        | RealProviderProtocol::OpenAIResponses
+        | RealProviderProtocol::Gemini => 2.0,
+    };
+    if temperature > max {
+        return Err(AppError::validation(format!(
+            "{} 接口的 Temperature 必须在 0 到 {} 之间。",
+            protocol_label(protocol),
+            format_temperature_limit(max)
+        )));
+    }
+    Ok(())
+}
+
+fn protocol_label(protocol: RealProviderProtocol) -> &'static str {
+    match protocol {
+        RealProviderProtocol::OpenAICompatible => "OpenAI Chat Completions",
+        RealProviderProtocol::OpenAIResponses => "OpenAI Responses",
+        RealProviderProtocol::Anthropic => "Anthropic Messages",
+        RealProviderProtocol::Gemini => "Gemini",
+    }
+}
+
+fn format_temperature_limit(value: f64) -> String {
+    if value.fract() == 0.0 {
+        format!("{value:.0}")
+    } else {
+        value.to_string()
+    }
 }
 
 struct PreparedTarget {
@@ -523,16 +567,65 @@ fn preview_text(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::promote_endpoint_probe_target;
+    use super::{prepare_batch, promote_endpoint_probe_target};
     use crate::models::{
-        EndpointProbeBatchRecord, EndpointProbeBatchSummary, EndpointProbePromotionInput,
-        EndpointProbeRunRecord, EndpointProbeRunSummary,
+        CreateProviderInput, EndpointProbeBatchRecord, EndpointProbeBatchSummary,
+        EndpointProbePromotionInput, EndpointProbeRunRecord, EndpointProbeRunSummary,
+        EndpointProbeStartInput, EndpointProbeTargetInput,
     };
     use crate::state::AppState;
     use std::io::{Read, Write};
     use std::net::TcpListener;
     use std::thread;
     use uuid::Uuid;
+
+    #[tokio::test]
+    async fn endpoint_probe_temperature_respects_protocol_limits() {
+        let root = std::env::temp_dir().join(format!(
+            "my-llm-benchmark-probe-temperature-{}",
+            Uuid::new_v4()
+        ));
+        let state = AppState::initialize(root.join("config"), root.join("data"))
+            .await
+            .unwrap();
+        let openai = state
+            .create_provider(CreateProviderInput {
+                name: "OpenAI Gateway".to_string(),
+                base_url: "https://openai.example.com/v1".to_string(),
+                api_key: Some("sk-test".to_string()),
+                interface_type: "OpenAI".to_string(),
+            })
+            .await
+            .unwrap();
+        let anthropic = state
+            .create_provider(CreateProviderInput {
+                name: "Claude Gateway".to_string(),
+                base_url: "https://claude.example.com/v1".to_string(),
+                api_key: Some("sk-test".to_string()),
+                interface_type: "Anthropic".to_string(),
+            })
+            .await
+            .unwrap();
+
+        let openai_batch = prepare_batch(&state, start_input(openai.id.clone(), 1.5))
+            .await
+            .unwrap();
+        assert_eq!(openai_batch.batch.summary.temperature, 1.5);
+        assert_eq!(
+            openai_batch.executions[0].request_payload["temperature"],
+            serde_json::json!(1.5),
+        );
+
+        let anthropic_error =
+            match prepare_batch(&state, start_input(anthropic.id.clone(), 1.5)).await {
+                Ok(_) => panic!("Anthropic temperature above 1 should be rejected"),
+                Err(error) => error.user_message(),
+            };
+        assert!(anthropic_error.contains("Anthropic Messages"));
+        assert!(anthropic_error.contains("0 到 1"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
 
     #[tokio::test]
     async fn temporary_probe_can_be_promoted_without_leaking_or_overwriting_key() {
@@ -605,6 +698,7 @@ mod tests {
                         failed_runs: 0,
                         cancelled_runs: 0,
                         streaming: true,
+                        temperature: 0.2,
                         max_output_tokens: 1024,
                         timeout_seconds: 60,
                         save_body: false,
@@ -671,5 +765,21 @@ mod tests {
         assert_eq!(config.api_key_plaintext, secret);
 
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    fn start_input(provider_id: String, temperature: f64) -> EndpointProbeStartInput {
+        EndpointProbeStartInput {
+            targets: vec![EndpointProbeTargetInput::Provider {
+                provider_id,
+                models: vec!["model-a".to_string()],
+            }],
+            prompt: "hello".to_string(),
+            streaming: true,
+            temperature: Some(temperature),
+            max_output_tokens: Some(1024),
+            timeout_seconds: Some(60),
+            save_body: false,
+            concurrency: Some(1),
+        }
     }
 }

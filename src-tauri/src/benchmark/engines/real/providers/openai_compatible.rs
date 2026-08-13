@@ -5,14 +5,13 @@ pub(crate) fn completion_body(
     prompt: &str,
     workload: &WorkloadConfig,
     stream: bool,
-    temperature: f64,
 ) -> serde_json::Value {
     serde_json::json!({
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "stream": stream,
         "max_tokens": workload.max_output_tokens.max(1),
-        "temperature": temperature
+        "temperature": workload.temperature
     })
 }
 
@@ -21,7 +20,7 @@ pub(crate) fn streaming_completion_body(
     prompt: &str,
     workload: &WorkloadConfig,
 ) -> serde_json::Value {
-    let mut body = completion_body(model, prompt, workload, true, 0.7);
+    let mut body = completion_body(model, prompt, workload, true);
     body["stream_options"] = serde_json::json!({"include_usage": true});
     body
 }

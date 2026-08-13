@@ -10,7 +10,7 @@ pub(crate) fn generate_content_body(prompt: &str, workload: &WorkloadConfig) -> 
         }],
         "generationConfig": {
             "maxOutputTokens": workload.max_output_tokens.max(1),
-            "temperature": 0.7
+            "temperature": workload.temperature
         }
     })
 }
@@ -34,7 +34,7 @@ pub(crate) fn vision_generate_content_body(
         }],
         "generationConfig": {
             "maxOutputTokens": workload.max_output_tokens.max(1),
-            "temperature": 0.2
+            "temperature": workload.temperature
         }
     })
 }

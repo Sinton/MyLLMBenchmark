@@ -7,7 +7,6 @@ import { EmptyState } from "../../../components/ui/EmptyState";
 import { Input } from "../../../components/ui/Input";
 import { Network, Plus, RefreshCw } from "../../../components/ui/icons";
 import type { ProviderSummary } from "../../../types/api";
-import { endpointProbeModelDescription } from "../domain/endpointProbePresentation";
 import type { useEndpointProbeView } from "../hooks/useEndpointProbeView";
 
 type EndpointProbeView = ReturnType<typeof useEndpointProbeView>;
@@ -121,7 +120,6 @@ export function EndpointProbeBatchTargets({ view }: { view: EndpointProbeView })
                         />
                         <span>
                           <strong>{model.name}</strong>
-                          <small>{endpointProbeModelDescription(model)}</small>
                         </span>
                       </label>
                     ))}

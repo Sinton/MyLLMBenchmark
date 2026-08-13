@@ -92,6 +92,41 @@ fn extracts_text_from_real_protocol_payloads() {
 }
 
 #[test]
+fn text_request_builders_use_workload_temperature() {
+    let mut workload = WorkloadConfig::for_model_type("text_generation");
+    workload.temperature = 0.2;
+    workload.max_output_tokens = 1024;
+
+    assert_eq!(
+        super::build_text_generation_request_body(
+            RealProviderProtocol::OpenAICompatible,
+            "chat-model",
+            "hello",
+            &workload,
+        )["temperature"],
+        serde_json::json!(0.2),
+    );
+    assert_eq!(
+        super::build_text_generation_request_body(
+            RealProviderProtocol::OpenAIResponses,
+            "responses-model",
+            "hello",
+            &workload,
+        )["temperature"],
+        serde_json::json!(0.2),
+    );
+    assert_eq!(
+        super::build_text_generation_request_body(
+            RealProviderProtocol::Anthropic,
+            "claude-model",
+            "hello",
+            &workload,
+        )["temperature"],
+        serde_json::json!(0.2),
+    );
+}
+
+#[test]
 fn parses_vision_json_samples_with_image_limit() {
     let sample = parse_vision_sample(
         r#"{"prompt":"描述图片","image_urls":["https://a.test/1.png","https://a.test/2.png"]}"#,

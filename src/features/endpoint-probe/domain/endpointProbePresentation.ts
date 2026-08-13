@@ -1,9 +1,7 @@
 import type {
   EndpointProbeInterfaceType,
-  EndpointProbeModelOption,
   EndpointProbeRunSummary,
   EndpointProbeResponseDeltaEvent,
-  ModelSummary,
   ProviderImportItem,
 } from "../../../types/api";
 
@@ -31,19 +29,6 @@ export const endpointProbeInterfaceOptions: Array<{
 
 export function endpointProbeInterfaceLabel(value: string) {
   return endpointProbeInterfaceOptions.find((option) => option.value === value)?.label ?? value;
-}
-
-export function endpointProbeModelDescription(
-  model: EndpointProbeModelOption | ModelSummary,
-) {
-  const typeLabel =
-    {
-      embedding: "向量模型",
-      multimodal: "多模态",
-      reranker: "重排序",
-      text_generation: "文本生成",
-    }[model.model_type] ?? model.model_type;
-  return model.supports_streaming ? `${typeLabel} · 支持流式响应` : typeLabel;
 }
 
 export function endpointProbeStatusLabel(status: string) {
