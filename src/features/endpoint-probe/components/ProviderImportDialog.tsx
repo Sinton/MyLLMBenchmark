@@ -116,7 +116,7 @@ export function ProviderImportDialog({
           onChange={(event) => setSource(event.target.value)}
         />
         <InlineAlert tone="info">
-          导入结果不会回显 API Key。新服务商初始状态为“未检查”，测活通过后才会更新在线状态。
+          导入结果不会回显 API Key。导入后可在站点测活中选择服务商和模型进行验证。
         </InlineAlert>
         {error && <InlineAlert tone="danger" title="JSON 无法导入">{error}</InlineAlert>}
         {result && submitted && (

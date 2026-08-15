@@ -375,8 +375,8 @@
 .endpoint-probe-provider-trigger {
   grid-template-columns: minmax(0, 1fr) 16px;
   gap: 10px;
-  min-height: 64px;
-  padding: 10px 12px;
+  min-height: 56px;
+  padding: 9px 11px;
 }
 
 .endpoint-probe-model-trigger {
@@ -419,7 +419,7 @@
 .endpoint-probe-model-trigger span,
 .endpoint-probe-provider-option-main,
 .endpoint-probe-model-option span {
-  gap: 2px;
+  gap: 3px;
 }
 
 .endpoint-probe-provider-trigger-title {
@@ -429,9 +429,9 @@
 }
 
 .endpoint-probe-provider-trigger-meta {
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .endpoint-probe-provider-trigger-title strong,
@@ -452,6 +452,7 @@
 .endpoint-probe-model-trigger small,
 .endpoint-probe-provider-option-main small,
 .endpoint-probe-model-option small {
+  min-width: 0;
   overflow: hidden;
   color: var(--text-muted);
   font-size: 11px;
@@ -461,23 +462,30 @@
   white-space: nowrap;
 }
 
-.endpoint-probe-provider-trigger-title .badge,
-.endpoint-probe-provider-option-meta .badge {
-  height: 22px;
-  padding: 0 8px;
-  font-size: 11px;
-}
-
 .endpoint-probe-provider-trigger-meta em,
 .endpoint-probe-provider-option-meta em {
-  max-width: 150px;
+  max-width: 180px;
   overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-muted);
   color: var(--text-muted);
   font-size: 10px;
   font-style: normal;
-  line-height: 14px;
+  font-weight: 650;
+  line-height: 16px;
+  padding: 1px 7px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.endpoint-probe-provider-trigger-meta em {
+  flex: 0 0 auto;
+}
+
+.endpoint-probe-provider-trigger > svg,
+.endpoint-probe-model-trigger > svg {
+  color: var(--text-muted);
 }
 
 .endpoint-probe-picker-menu {
@@ -531,7 +539,7 @@
 }
 
 .endpoint-probe-provider-option {
-  grid-template-columns: minmax(0, 1fr) minmax(106px, auto) 16px;
+  grid-template-columns: minmax(0, 1fr) auto 16px;
 }
 
 .endpoint-probe-model-option {
@@ -554,7 +562,6 @@
 
 .endpoint-probe-provider-option-meta {
   justify-items: end;
-  gap: 4px;
 }
 
 .endpoint-probe-picker-empty,

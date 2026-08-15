@@ -150,7 +150,6 @@
 .provider-item-title {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
 }
 
@@ -670,11 +669,6 @@
 
 .provider-search-field .input-shell {
   background: var(--surface-muted);
-}
-
-.provider-item > .badge,
-.provider-item-title .badge {
-  flex: 0 0 auto;
 }
 
 .provider-hero {

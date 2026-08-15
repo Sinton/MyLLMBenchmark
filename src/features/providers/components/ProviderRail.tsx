@@ -1,10 +1,8 @@
 import { useMemo, useState } from "react";
-import { Badge } from "../../../components/ui/Badge";
 import { Card } from "../../../components/ui/Card";
 import { InlineAlert } from "../../../components/ui/InlineAlert";
 import { Input } from "../../../components/ui/Input";
 import { Search } from "../../../components/ui/icons";
-import { statusLabel, statusTone } from "../../../domain/statusPresentation";
 import type { ProviderSummary } from "../../../types/api";
 import { getInitials } from "../domain/providerView";
 
@@ -54,7 +52,6 @@ export function ProviderRail({ providers, selectedId, onSelect }: ProviderRailPr
               <div className="provider-item-body">
                 <div className="provider-item-title">
                   <strong title={provider.name}>{provider.name}</strong>
-                  <Badge tone={statusTone(provider.status)}>{statusLabel(provider.status)}</Badge>
                 </div>
                 <span title={provider.base_url_masked}>{provider.base_url_masked}</span>
                 <div className="provider-item-meta">

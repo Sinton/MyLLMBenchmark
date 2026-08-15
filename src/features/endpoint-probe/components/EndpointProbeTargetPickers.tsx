@@ -1,9 +1,7 @@
 import { useMemo, useState } from "react";
-import { Badge } from "../../../components/ui/Badge";
 import { Input } from "../../../components/ui/Input";
 import { Popover } from "../../../components/ui/Popover";
 import { Check, ChevronDown, Search } from "../../../components/ui/icons";
-import { statusLabel, statusTone } from "../../../domain/statusPresentation";
 import type { EndpointProbeModelOption, ProviderSummary } from "../../../types/api";
 import { endpointProbeInterfaceLabel } from "../domain/endpointProbePresentation";
 
@@ -44,7 +42,6 @@ export function EndpointProbeProviderPicker({
               <span className="endpoint-probe-provider-trigger-content">
                 <span className="endpoint-probe-provider-trigger-title">
                   <strong>{selected.name}</strong>
-                  <Badge tone={statusTone(selected.status)}>{statusLabel(selected.status)}</Badge>
                 </span>
                 <span className="endpoint-probe-provider-trigger-meta">
                   <small title={selected.base_url_masked}>{selected.base_url_masked}</small>
@@ -92,9 +89,6 @@ export function EndpointProbeProviderPicker({
                       <small title={provider.base_url_masked}>{provider.base_url_masked}</small>
                     </span>
                     <span className="endpoint-probe-provider-option-meta">
-                      <Badge tone={statusTone(provider.status)}>
-                        {statusLabel(provider.status)}
-                      </Badge>
                       <em>{endpointProbeInterfaceLabel(provider.interface_type)}</em>
                     </span>
                     {provider.id === value && <Check size={15} />}
@@ -202,7 +196,6 @@ function filterProviders(providers: ProviderSummary[], keyword: string) {
       provider.name,
       provider.base_url_masked,
       provider.interface_type,
-      statusLabel(provider.status),
     ].some((value) => value.toLowerCase().includes(normalized)),
   );
 }

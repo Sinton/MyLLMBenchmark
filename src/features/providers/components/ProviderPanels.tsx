@@ -69,7 +69,7 @@ export function ProviderPanels({
                 <span>
                   {canScan
                     ? "连接通过后会自动扫描，也可以点击上方的扫描模型按钮。"
-                    : "服务商在线后才会进入模型扫描、模型选择和压测配置。"}
+                    : "请先测试连接，确认 Base URL、协议和 API Key 可用。"}
                 </span>
               </div>
             </div>

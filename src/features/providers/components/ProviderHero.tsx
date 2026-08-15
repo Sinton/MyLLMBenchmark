@@ -18,7 +18,6 @@ import {
   Settings2,
   Trash2,
 } from "../../../components/ui/icons";
-import { statusLabel, statusTone } from "../../../domain/statusPresentation";
 import type { ProviderDiagnosticsResult, ProviderSummary } from "../../../types/api";
 import { formatDate, getInitials } from "../domain/providerView";
 
@@ -91,7 +90,6 @@ export function ProviderHero({
             </div>
           </div>
           <div className="provider-action-stack">
-            <Badge tone={statusTone(selected.status)}>{statusLabel(selected.status)}</Badge>
             <div className="provider-primary-actions">
               <Button icon={<Pencil size={15} />} onClick={onEdit}>
                 编辑
