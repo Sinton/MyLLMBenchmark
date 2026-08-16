@@ -18,6 +18,7 @@ type DetailTab = "response" | "request" | "metrics";
 type EndpointProbeRunExpandedProps = {
   run: EndpointProbeRunSummary;
   detail?: EndpointProbeRunDetail;
+  initialTab?: DetailTab;
   liveText: string;
   loading: boolean;
   error: string | null;
@@ -28,14 +29,15 @@ type EndpointProbeRunExpandedProps = {
 export function EndpointProbeRunExpanded({
   run,
   detail,
+  initialTab = "response",
   liveText,
   loading,
   error,
   onCopy,
   onRetry,
 }: EndpointProbeRunExpandedProps) {
-  const [tab, setTab] = useState<DetailTab>("response");
-  useEffect(() => setTab("response"), [run.id]);
+  const [tab, setTab] = useState<DetailTab>(initialTab);
+  useEffect(() => setTab(initialTab), [initialTab, run.id]);
   const running = run.status === "pending" || run.status === "running";
   const response = liveText || detail?.response_text || run.response_preview || "";
   const responseCopyValue = liveText || detail?.response_text || null;
@@ -46,6 +48,7 @@ export function EndpointProbeRunExpanded({
   const errorCopyValue = detail?.raw_error ?? run.error_message ?? null;
   const failedReason = detail?.raw_error ?? run.error_message;
   const responseStatus = buildResponseStatus(run, failedReason);
+  const errorSummary = buildErrorSummary(run, detail);
 
   return (
     <div className="endpoint-probe-run-expanded">
@@ -122,7 +125,8 @@ export function EndpointProbeRunExpanded({
               <Fact label="输入 Token" value={String(run.input_tokens)} />
               <Fact label="输出 Token" value={String(run.output_tokens)} />
               <Fact label="总 Token" value={String(run.total_tokens)} />
-              <Fact label="错误类型" value={run.error_kind ?? "-"} />
+              <Fact label="错误说明" value={errorSummary.message} wide />
+              <Fact label="错误分类" value={errorSummary.kind} />
               <CodeBlock title="Raw Usage" value={formatJson(detail?.raw_usage)} />
             </div>
           )}
@@ -270,9 +274,9 @@ function CodeBlock({
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+function Fact({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
   return (
-    <div className="endpoint-probe-run-fact">
+    <div className={`endpoint-probe-run-fact${wide ? " is-wide" : ""}`}>
       <span>{label}</span>
       <strong title={value}>{value}</strong>
     </div>
@@ -341,6 +345,47 @@ function buildResponseStatus(
     tone: "danger",
     title: failedReason || run.error_kind || "请求失败",
   };
+}
+
+function buildErrorSummary(
+  run: EndpointProbeRunSummary,
+  detail?: EndpointProbeRunDetail,
+) {
+  const message = detail?.raw_error ?? run.error_message ?? "-";
+  return {
+    message,
+    kind: formatErrorKind(run.error_kind),
+  };
+}
+
+function formatErrorKind(kind?: string | null) {
+  switch (kind) {
+    case "http_4xx":
+      return "客户端错误（4xx）";
+    case "http_5xx":
+      return "服务端错误（5xx）";
+    case "timeout":
+      return "请求超时";
+    case "connection":
+      return "连接失败";
+    case "parse":
+      return "响应解析失败";
+    case "stream_broken":
+      return "流式响应中断";
+    case "cancelled":
+      return "已停止";
+    case "unauthorized":
+      return "认证失败";
+    case "storage":
+      return "本地存储错误";
+    case "unknown":
+      return "未知错误";
+    case null:
+    case undefined:
+      return "-";
+    default:
+      return kind;
+  }
 }
 
 function extractHttpStatusCode(value?: string | null) {

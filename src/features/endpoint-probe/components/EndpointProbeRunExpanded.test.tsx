@@ -28,6 +28,33 @@ describe("EndpointProbeRunExpanded", () => {
     expect(markup).toContain("HTTP 502");
     expect(markup).not.toContain("endpoint-probe-error-detail");
   });
+
+  it("shows readable error details instead of raw error kind in metrics", () => {
+    const detail = runDetail({
+      status: "failed",
+      error_kind: "http_5xx",
+      error_message: "HTTP 502 Bad Gateway: model gpt-5.5 is not available",
+      raw_error: "HTTP 502 Bad Gateway: model gpt-5.5 is not available",
+    });
+
+    const markup = renderToStaticMarkup(
+      <EndpointProbeRunExpanded
+        detail={detail}
+        error={null}
+        initialTab="metrics"
+        liveText=""
+        loading={false}
+        run={detail}
+        onCopy={async () => undefined}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain("错误说明");
+    expect(markup).toContain("model gpt-5.5 is not available");
+    expect(markup).toContain("服务端错误（5xx）");
+    expect(markup).not.toContain(">http_5xx<");
+  });
 });
 
 function runDetail(overrides: Partial<EndpointProbeRunDetail> = {}): EndpointProbeRunDetail {

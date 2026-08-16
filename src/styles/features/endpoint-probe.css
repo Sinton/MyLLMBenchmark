@@ -1366,6 +1366,10 @@
   background: var(--surface);
 }
 
+.endpoint-probe-run-fact.is-wide {
+  grid-column: 1 / -1;
+}
+
 .endpoint-probe-run-fact span {
   color: var(--text-muted);
   font-size: 10px;
@@ -1376,6 +1380,11 @@
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.endpoint-probe-run-fact.is-wide strong {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .endpoint-probe-history-card {
